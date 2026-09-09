@@ -2615,3 +2615,42 @@ body.landing-home .portal-sidebar h1::before {
   padding: 2px 6px !important;
   font-size: clamp(.52rem, .68vw, .68rem) !important;
 }
+
+/* Mobile usability layer for dense portal screens. */
+html { overflow-x: hidden; }
+body, main, .container, .card, .panel { min-width: 0; }
+img, video, canvas, svg { max-width: 100%; height: auto; }
+
+@media (max-width: 760px) {
+  body { overflow-x: hidden; }
+  main.container,
+  body:has(.portal-sidebar) main.container:first-of-type {
+    width: auto;
+    margin-inline: 12px;
+    padding-inline: 0;
+  }
+  .card, .panel { padding: 16px; border-radius: 12px; }
+  .grid, .grid-2, .grid-3, .form-grid { grid-template-columns: minmax(0, 1fr) !important; }
+  .inline-filters, .button-row, .section-toggle-head { align-items: stretch; flex-direction: column; }
+  .inline-filters > *, .button-row > *, .section-toggle-head .btn { width: 100%; max-width: none; }
+  input, select, textarea, button, .btn { min-height: 44px; font-size: 16px; }
+  textarea { min-height: 110px; }
+  main table {
+    display: block;
+    width: 100%;
+    max-width: 100%;
+    overflow-x: auto;
+    overscroll-behavior-inline: contain;
+    -webkit-overflow-scrolling: touch;
+  }
+  main th, main td { min-width: 120px; white-space: normal; }
+  main th:first-child, main td:first-child { min-width: 90px; }
+  .login-shell { padding: 24px 12px; }
+  .login-panel { padding: 22px 18px; }
+}
+
+@media (max-width: 420px) {
+  .portal-sidebar { padding-inline: 10px; }
+  .portal-sidebar h1 { max-width: calc(100vw - 96px); }
+  .card, .panel { padding: 14px; }
+}

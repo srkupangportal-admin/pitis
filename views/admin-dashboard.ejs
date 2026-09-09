@@ -545,7 +545,7 @@
 
             <div class="inline-filters">
               <label style="min-width:220px; flex:1 1 220px;">Password
-                <input type="password" name="password" placeholder="Temporary password" minlength="4" required />
+                <input type="password" name="password" placeholder="Temporary password (12+ characters)" minlength="12" autocomplete="new-password" required />
               </label>
               <label style="min-width:180px; flex:1 1 200px;">Role
                 <select name="role" id="adminAddUserRole">
@@ -630,9 +630,10 @@
 
             <form class="inline-filters" method="post" action="/admin/teachers/reset-password" id="adminUserResetForm" style="margin-top:12px;" data-async-dashboard-form="1">
               <input type="hidden" name="user_id" value="<%= initialUser.id %>" />
-              <input type="password" name="new_password" placeholder="New password" required />
-              <button class="btn" type="submit">Reset Password</button>
+              <input type="password" name="new_password" minlength="12" autocomplete="new-password" placeholder="Temporary password (12+ characters)" required />
+              <button class="btn" type="submit">Set Temporary Password</button>
             </form>
+            <p class="muted" style="margin-top:8px;">The user must choose a new private password after signing in.</p>
           </div>
         <% } else { %>
           <div class="muted">No users available.</div>
