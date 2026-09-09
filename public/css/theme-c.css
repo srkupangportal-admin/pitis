@@ -2619,7 +2619,7 @@ body.landing-home .portal-sidebar h1::before {
 /* Mobile usability layer for dense portal screens. */
 html { overflow-x: hidden; }
 body, main, .container, .card, .panel { min-width: 0; }
-img, video, canvas, svg { max-width: 100%; height: auto; }
+img, video, canvas, svg { max-width: 100%; }
 
 @media (max-width: 760px) {
   body { overflow-x: hidden; }
@@ -2630,7 +2630,7 @@ img, video, canvas, svg { max-width: 100%; height: auto; }
     padding-inline: 0;
   }
   .card, .panel { padding: 16px; border-radius: 12px; }
-  .grid, .grid-2, .grid-3, .form-grid { grid-template-columns: minmax(0, 1fr) !important; }
+  .grid-2, .grid-3, .form-grid { grid-template-columns: minmax(0, 1fr) !important; }
   .inline-filters, .button-row, .section-toggle-head { align-items: stretch; flex-direction: column; }
   .inline-filters > *, .button-row > *, .section-toggle-head .btn { width: 100%; max-width: none; }
   input, select, textarea, button, .btn { min-height: 44px; font-size: 16px; }
@@ -2647,6 +2647,39 @@ img, video, canvas, svg { max-width: 100%; height: auto; }
   main th:first-child, main td:first-child { min-width: 90px; }
   .login-shell { padding: 24px 12px; }
   .login-panel { padding: 22px 18px; }
+
+  .leaderboard-daily-spotlight {
+    grid-template-columns: 70px minmax(0, 1fr);
+    gap: 12px;
+  }
+  .leaderboard-daily-spotlight .daily-spotlight-label { grid-column: 1 / -1; }
+  .leaderboard-daily-spotlight img { grid-column: 1; grid-row: 2; width: 70px; height: 70px; }
+  .leaderboard-daily-spotlight .daily-spotlight-copy { grid-column: 2; grid-row: 2; }
+  .leaderboard-daily-spotlight .daily-spotlight-score {
+    grid-column: 1 / -1;
+    grid-row: 3;
+    grid-template-columns: auto 1fr;
+    align-items: baseline;
+    gap: 8px;
+    padding: 10px 0 0;
+    border-top: 1px solid #d8ded8;
+    border-right: 0;
+  }
+
+  .teacher-progress-dialog {
+    width: calc(100vw - 20px);
+    max-width: calc(100vw - 20px);
+    overflow-x: hidden;
+    overflow-y: auto;
+  }
+  .teacher-progress-personal {
+    grid-template-columns: minmax(0, 1fr);
+    justify-items: center;
+  }
+  .teacher-progress-personal-copy { width: 100%; min-width: 0; }
+  .teacher-progress-personal-copy h3,
+  .teacher-progress-personal-copy p { overflow-wrap: anywhere; }
+  .teacher-progress-weekdays { grid-template-columns: repeat(5, minmax(42px, 1fr)); }
 }
 
 @media (max-width: 420px) {
