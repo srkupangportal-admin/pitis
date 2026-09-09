@@ -1,0 +1,92 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title><%= file.original_name %> | Photos Upload</title>
+  <link rel="stylesheet" href="/css/theme-c.css" />
+</head>
+<body>
+  <% if (user && user.role === 'admin') { %>
+    <%- include('partials/admin-nav') %>
+  <% } else { %>
+    <%- include('partials/teacher-nav') %>
+  <% } %>
+
+  <main class="container stack">
+    <% if (error) { %>
+      <section class="card"><div class="error"><%= error %></div></section>
+    <% } %>
+    <% if (success) { %>
+      <section class="card"><div><%= success %></div></section>
+    <% } %>
+
+    <section class="card photo-file-detail-card">
+      <div class="section-toggle-head">
+        <div>
+          <h2><%= file.original_name %></h2>
+          <p class="muted">
+            <% if (folderPath && folderPath.length) { %>
+              <% folderPath.forEach(function (part, index) { %>
+                <a href="/photos-upload?folder_id=<%= part.id %>"><%= part.name %></a><%= index < folderPath.length - 1 ? ' / ' : '' %>
+              <% }) %>
+            <% } else { %>
+              Shared photo library
+            <% } %>
+          </p>
+        </div>
+        <div class="button-row">
+          <% if (previousFile) { %>
+            <a class="btn secondary" href="/photos-upload/files/<%= previousFile.id %>?<%= selectedFolderId ? 'folder_id=' + encodeURIComponent(selectedFolderId) + '&' : '' %>view=<%= encodeURIComponent(viewMode) %>&sort=<%= encodeURIComponent(sort) %>">Previous</a>
+          <% } %>
+          <% if (nextFile) { %>
+            <a class="btn secondary" href="/photos-upload/files/<%= nextFile.id %>?<%= selectedFolderId ? 'folder_id=' + encodeURIComponent(selectedFolderId) + '&' : '' %>view=<%= encodeURIComponent(viewMode) %>&sort=<%= encodeURIComponent(sort) %>">Next</a>
+          <% } %>
+          <a class="btn secondary" href="/photos-upload?<%= selectedFolderId ? 'folder_id=' + encodeURIComponent(selectedFolderId) + '&' : '' %>view=<%= encodeURIComponent(viewMode) %>&sort=<%= encodeURIComponent(sort) %>">Back to Folder</a>
+          <a class="btn" href="/photos-upload/files/<%= file.id %>/download">Download</a>
+        </div>
+      </div>
+
+      <div class="photo-file-detail-layout">
+        <div class="photo-file-preview-wrap">
+          <img class="photo-file-preview-image" src="<%= file.file_path %>" alt="<%= file.original_name %>" />
+        </div>
+        <div class="photo-file-meta">
+          <h3>Photo Metadata</h3>
+          <form method="post" action="/photos-upload/files/<%= file.id %>/rename" class="stack photo-rename-form">
+            <input type="hidden" name="folder_id" value="<%= selectedFolderId || '' %>" />
+            <input type="hidden" name="view" value="<%= viewMode %>" />
+            <input type="hidden" name="sort" value="<%= sort %>" />
+            <label>Rename Photo Filename
+              <input type="text" name="original_name" value="<%= file.original_name %>" required />
+            </label>
+            <div class="button-row">
+              <button class="btn secondary" type="submit">Save New Filename</button>
+            </div>
+          </form>
+          <form method="post" action="/photos-upload/files/<%= file.id %>/delete" class="stack photo-delete-form" onsubmit="return confirm('Delete this photo? This cannot be undone.');">
+            <input type="hidden" name="folder_id" value="<%= selectedFolderId || '' %>" />
+            <input type="hidden" name="view" value="<%= viewMode %>" />
+            <input type="hidden" name="sort" value="<%= sort %>" />
+            <div class="button-row">
+              <button class="btn danger" type="submit">Delete Photo</button>
+            </div>
+          </form>
+          <dl class="photo-meta-list">
+            <div><dt>File name</dt><dd><%= file.original_name %></dd></div>
+            <div><dt>Folder</dt><dd><%= file.folder_name || 'Unknown folder' %></dd></div>
+            <div><dt>Taken at</dt><dd><%= file.captured_at_display || '-' %></dd></div>
+            <div><dt>Taken time source</dt><dd><%= file.captured_at_source || 'Not embedded in file' %></dd></div>
+            <div><dt>Uploaded by</dt><dd><%= file.uploaded_by_name %></dd></div>
+            <div><dt>Uploaded at</dt><dd><%= file.uploaded_at_display %></dd></div>
+            <div><dt>File size</dt><dd><%= file.file_size_display %></dd></div>
+            <div><dt>Type</dt><dd><%= file.mime_type || 'Unknown' %></dd></div>
+            <div><dt>Stored path</dt><dd><%= file.file_path %></dd></div>
+          </dl>
+        </div>
+      </div>
+    </section>
+  </main>
+  <script src="/js/inactivity.js"></script>
+</body>
+</html>

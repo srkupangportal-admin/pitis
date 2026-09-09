@@ -1,0 +1,122 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>QR Quiz Results</title>
+  <link rel="stylesheet" href="/css/theme-c.css" />
+</head>
+<body>
+  <header class="site-header">
+    <h1>QR Quiz Results</h1>
+    <span>Welcome, <%= user.displayName %></span>
+  </header>
+  <%- include('partials/teacher-nav') %>
+
+  <main class="container stack">
+    <% if (error) { %>
+      <section class="card"><div class="error"><%= error %></div></section>
+    <% } %>
+    <% if (success) { %>
+      <section class="card"><div><%= success %></div></section>
+    <% } %>
+
+    <section class="card">
+      <div class="calendar-header-row report-header-row">
+        <div>
+          <h2><%= quiz.title %></h2>
+          <p class="muted"><%= quiz.status %> - <%= quiz.target_type === 'class' ? (quiz.target_class_names || quiz.class_name || 'Selected classes') : 'All students' %> - <%= quiz.questions.length %> question<%= quiz.questions.length === 1 ? '' : 's' %></p>
+        </div>
+        <a class="btn secondary" href="/teacher/tools/qr-quiz">Back to QR Quiz</a>
+      </div>
+
+      <% if (quiz.status === 'active') { %>
+        <div class="qr-quiz-share">
+          <img class="qr-quiz-code" src="<%= quiz.qrCodeImage %>" alt="QR code for <%= quiz.title %>" />
+          <div class="stack">
+            <strong>Student quiz link</strong>
+            <a href="<%= quiz.accessUrl %>" target="_blank" rel="noopener"><%= quiz.accessUrl %></a>
+            <p class="muted">Display this QR code or share the link with students.</p>
+          </div>
+        </div>
+      <% } else { %>
+        <p class="muted">Activate the quiz to show the student QR code and link.</p>
+      <% } %>
+
+      <section class="qr-quiz-target-summary">
+        <h3>Target Classes</h3>
+        <p><strong><%= quiz.target_class_names || 'No target classes selected' %></strong></p>
+      </section>
+
+      <div class="actions">
+        <% if (quiz.status === 'draft') { %>
+          <a class="btn" href="/teacher/tools/qr-quiz/<%= quiz.id %>/edit">Edit Draft</a>
+        <% } %>
+        <% if (quiz.status !== 'active') { %>
+          <form method="post" action="/teacher/tools/qr-quiz/<%= quiz.id %>/status" class="inline-form">
+            <input type="hidden" name="action" value="activate" />
+            <button class="btn" type="submit">Activate</button>
+          </form>
+        <% } %>
+        <% if (quiz.status === 'active') { %>
+          <form method="post" action="/teacher/tools/qr-quiz/<%= quiz.id %>/status" class="inline-form">
+            <input type="hidden" name="action" value="close" />
+            <button class="btn secondary" type="submit">Close Quiz</button>
+          </form>
+        <% } %>
+        <a class="btn secondary" href="/teacher/tools/qr-quiz/<%= quiz.id %>/answer-sheets.pdf">Answer Sheets PDF</a>
+        <form method="post" action="/teacher/tools/qr-quiz/<%= quiz.id %>/delete" class="inline-form" onsubmit="return confirm('Delete this quiz if it has no responses, or archive it if responses exist?');">
+          <button class="btn danger" type="submit"><%= Number(quiz.response_count || 0) > 0 ? 'Archive' : 'Delete' %></button>
+        </form>
+      </div>
+    </section>
+
+    <section class="card">
+      <h2>Questions</h2>
+      <div class="stack">
+        <% quiz.questions.forEach(function (question) { %>
+          <article class="qr-quiz-review-question">
+            <strong><%= question.position %>. <%= question.question_text %></strong>
+            <div class="muted">A. <%= question.option_a %> - B. <%= question.option_b %> - C. <%= question.option_c %></div>
+            <div>Correct answer: <strong><%= question.correct_answer %></strong></div>
+          </article>
+        <% }) %>
+      </div>
+    </section>
+
+    <section class="card">
+      <h2>Results</h2>
+      <% if (!results.length) { %>
+        <p class="muted">No responses submitted yet.</p>
+      <% } else { %>
+        <div class="admin-report-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>Student</th>
+                <th>Class</th>
+                <th>Score</th>
+                <th>PITIS</th>
+                <th>Submitted</th>
+              </tr>
+            </thead>
+            <tbody>
+              <% results.forEach(function (row) { %>
+                <tr>
+                  <td><%= row.nickname || row.full_name %></td>
+                  <td><%= row.class_name %></td>
+                  <td><%= row.score %> / <%= row.total_questions %></td>
+                  <td><%= row.pitis_awarded %></td>
+                  <td><%= row.submitted_at %></td>
+                </tr>
+              <% }) %>
+            </tbody>
+          </table>
+        </div>
+      <% } %>
+    </section>
+  </main>
+
+  <script src="/js/inactivity.js"></script>
+</body>
+</html>

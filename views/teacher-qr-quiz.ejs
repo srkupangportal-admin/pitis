@@ -1,0 +1,212 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>QR Quiz</title>
+  <link rel="stylesheet" href="/css/theme-c.css" />
+</head>
+<body>
+  <header class="site-header">
+    <h1>QR Quiz</h1>
+    <span>Welcome, <%= user.displayName %></span>
+  </header>
+  <%- include('partials/teacher-nav') %>
+
+  <main class="container stack">
+    <% if (error) { %>
+      <section class="card"><div class="error"><%= error %></div></section>
+    <% } %>
+    <% if (success) { %>
+      <section class="card"><div><%= success %></div></section>
+    <% } %>
+
+    <section class="card">
+      <div class="calendar-header-row report-header-row">
+        <div>
+          <h2><%= editingQuiz ? 'Edit QR Quiz Draft' : 'Create QR Quiz' %></h2>
+          <p class="muted">Build a three-option quiz. Activate it to display a QR code and student link.</p>
+        </div>
+        <a class="btn secondary" href="/teacher/qr-tools">Back to QR Tools</a>
+      </div>
+
+      <form method="post" action="<%= editingQuiz ? ('/teacher/tools/qr-quiz/' + editingQuiz.id + '/edit') : '/teacher/tools/qr-quiz' %>" class="form stack" id="qrQuizBuilderForm">
+        <div class="grid-form">
+          <label>Quiz Title
+            <input type="text" name="title" required placeholder="Example: Science quick check" value="<%= editingQuiz ? editingQuiz.title : '' %>" />
+          </label>
+          <label>Number of Questions
+            <input type="number" name="question_count" id="qrQuizQuestionCount" min="1" max="10" value="<%= editingQuiz && editingQuiz.questions ? Math.min(editingQuiz.questions.length, 10) : 3 %>" required />
+          </label>
+        </div>
+
+        <section id="qrQuizClassField" class="card">
+          <div class="calendar-header-row report-header-row">
+            <div>
+              <h3>Target Classes</h3>
+              <p class="muted" id="qrQuizClassCount">0 classes selected</p>
+            </div>
+          </div>
+          <div class="attendance-class-shortcuts qr-quiz-class-picker">
+            <% const selectedClassNames = new Set((editingQuiz && editingQuiz.targetClasses ? editingQuiz.targetClasses : []).map(function (cls) { return cls.name; })); %>
+            <% classes.forEach(function (cls) { %>
+              <label class="card action-card attendance-class-shortcut-card qr-quiz-class-card">
+                <input type="checkbox" name="target_classes" value="<%= cls.name %>" <%= selectedClassNames.has(cls.name) ? 'checked' : '' %> />
+                <span><%= cls.name %></span>
+              </label>
+            <% }) %>
+          </div>
+        </section>
+
+        <div class="card qr-quiz-award-panel">
+          <label class="tool-choice">
+            <input type="checkbox" name="award_enabled" value="1" id="qrQuizAwardEnabled" <%= editingQuiz && Number(editingQuiz.award_enabled) === 1 ? 'checked' : '' %> />
+            <span>Award PITIS for correct answers</span>
+          </label>
+          <label id="qrQuizPointsField" style="display:none;">PITIS per Correct Answer
+            <input type="number" name="points_per_correct" min="1" value="<%= editingQuiz && Number(editingQuiz.points_per_correct || 0) > 0 ? editingQuiz.points_per_correct : 1 %>" />
+          </label>
+        </div>
+
+        <section id="qrQuizQuestionList" class="stack"></section>
+
+        <div class="actions">
+          <button class="btn secondary" type="submit" name="quiz_action" value="draft"><%= editingQuiz ? 'Update Draft' : 'Save Draft' %></button>
+          <button class="btn" type="submit" name="quiz_action" value="activate"><%= editingQuiz ? 'Update and Activate' : 'Activate Quiz' %></button>
+        </div>
+      </form>
+    </section>
+
+    <section class="card">
+      <h2>QR Quizzes</h2>
+      <% if (!quizzes.length) { %>
+        <p class="muted">No QR quizzes yet.</p>
+      <% } else { %>
+        <div class="teacher-tools-grid">
+          <% quizzes.forEach(function (quiz) { %>
+            <article class="card tool-launch-card qr-quiz-list-card">
+              <span class="tool-launch-title"><%= quiz.title %></span>
+              <span class="tool-launch-desc">
+                <%= quiz.status %> - <%= quiz.question_count %> question<%= Number(quiz.question_count) === 1 ? '' : 's' %> -
+                <%= quiz.target_type === 'class' ? (quiz.target_class_names || quiz.class_name || 'Selected classes') : 'All students' %>
+              </span>
+              <span class="muted"><%= quiz.response_count %> response<%= Number(quiz.response_count) === 1 ? '' : 's' %></span>
+              <% if (Number(quiz.award_enabled) === 1) { %>
+                <span class="muted"><%= quiz.points_per_correct %> PITIS per correct - <%= quiz.total_pitis_awarded || 0 %> awarded</span>
+              <% } %>
+              <% if (quiz.qrCodeImage) { %>
+                <img class="qr-quiz-thumb" src="<%= quiz.qrCodeImage %>" alt="QR code for <%= quiz.title %>" />
+              <% } %>
+              <div class="actions">
+                <% if (quiz.status === 'draft') { %>
+                  <a class="btn secondary" href="/teacher/tools/qr-quiz/<%= quiz.id %>/edit">Edit Draft</a>
+                <% } %>
+                <a class="btn secondary" href="/teacher/tools/qr-quiz/<%= quiz.id %>">Open</a>
+                <a class="btn secondary" href="/teacher/tools/qr-quiz/<%= quiz.id %>/answer-sheets.pdf">Answer Sheets PDF</a>
+                <% if (quiz.status === 'active') { %>
+                  <a class="btn secondary" href="<%= quiz.accessUrl %>" target="_blank" rel="noopener">Student Link</a>
+                <% } %>
+              </div>
+            </article>
+          <% }) %>
+        </div>
+      <% } %>
+    </section>
+  </main>
+
+  <script>
+    (function () {
+      var builderForm = document.getElementById('qrQuizBuilderForm');
+      var classCount = document.getElementById('qrQuizClassCount');
+      var awardEnabled = document.getElementById('qrQuizAwardEnabled');
+      var pointsField = document.getElementById('qrQuizPointsField');
+      var questionCount = document.getElementById('qrQuizQuestionCount');
+      var questionList = document.getElementById('qrQuizQuestionList');
+      var editingQuiz = <%- JSON.stringify(editingQuiz || null).replace(/</g, '\\u003c') %>;
+      var editingQuestions = editingQuiz && Array.isArray(editingQuiz.questions) ? editingQuiz.questions : [];
+
+      function escapeHtml(value) {
+        return String(value == null ? '' : value)
+          .replace(/&/g, '&amp;')
+          .replace(/</g, '&lt;')
+          .replace(/>/g, '&gt;')
+          .replace(/"/g, '&quot;')
+          .replace(/'/g, '&#39;');
+      }
+
+      function updateClassCards() {
+        var cards = Array.prototype.slice.call(document.querySelectorAll('.qr-quiz-class-card'));
+        var selected = 0;
+        cards.forEach(function (card) {
+          var box = card.querySelector('input[type="checkbox"]');
+          var checked = !!(box && box.checked);
+          if (checked) selected += 1;
+          card.classList.toggle('active', checked);
+          card.classList.toggle('selected', checked);
+        });
+        if (classCount) classCount.textContent = selected + ' class' + (selected === 1 ? '' : 'es') + ' selected';
+      }
+
+      function updateAward() {
+        if (pointsField) pointsField.style.display = awardEnabled && awardEnabled.checked ? '' : 'none';
+      }
+
+      function questionMarkup(index, question) {
+        var n = index + 1;
+        var correct = question && question.correct_answer ? String(question.correct_answer) : 'A';
+        return '' +
+          '<article class="card qr-quiz-question-card">' +
+            '<h3>Question ' + n + '</h3>' +
+            '<label>Question Text<textarea name="question_' + n + '" rows="3" required>' + escapeHtml(question && question.question_text) + '</textarea></label>' +
+            '<div class="grid-form">' +
+              '<label>Option A<input type="text" name="option_a_' + n + '" value="' + escapeHtml(question && question.option_a) + '" required /></label>' +
+              '<label>Option B<input type="text" name="option_b_' + n + '" value="' + escapeHtml(question && question.option_b) + '" required /></label>' +
+              '<label>Option C<input type="text" name="option_c_' + n + '" value="' + escapeHtml(question && question.option_c) + '" required /></label>' +
+              '<label>Correct Answer<select name="correct_' + n + '" required>' +
+                '<option value="A"' + (correct === 'A' ? ' selected' : '') + '>A</option>' +
+                '<option value="B"' + (correct === 'B' ? ' selected' : '') + '>B</option>' +
+                '<option value="C"' + (correct === 'C' ? ' selected' : '') + '>C</option>' +
+              '</select></label>' +
+            '</div>' +
+          '</article>';
+      }
+
+      function renderQuestions() {
+        var count = Math.max(1, Math.min(10, Number(questionCount && questionCount.value || 1)));
+        if (questionCount) questionCount.value = String(count);
+        var html = '';
+        for (var i = 0; i < count; i += 1) html += questionMarkup(i, editingQuestions[i]);
+        if (questionList) questionList.innerHTML = html;
+      }
+
+      document.querySelectorAll('.qr-quiz-class-card input[type="checkbox"]').forEach(function (box) {
+        box.addEventListener('change', updateClassCards);
+      });
+      document.querySelectorAll('.qr-quiz-class-card').forEach(function (card) {
+        card.addEventListener('click', function (event) {
+          var box = card.querySelector('input[type="checkbox"]');
+          if (!box || event.target === box) return;
+          event.preventDefault();
+          box.checked = !box.checked;
+          updateClassCards();
+        });
+      });
+      if (builderForm) {
+        builderForm.addEventListener('submit', function (event) {
+          var selected = document.querySelectorAll('.qr-quiz-class-card input[type="checkbox"]:checked').length;
+          if (!selected) {
+            event.preventDefault();
+            alert('Select at least one target class.');
+          }
+        });
+      }
+      if (awardEnabled) awardEnabled.addEventListener('change', updateAward);
+      if (questionCount) questionCount.addEventListener('change', renderQuestions);
+      updateClassCards();
+      updateAward();
+      renderQuestions();
+    })();
+  </script>
+  <script src="/js/inactivity.js"></script>
+</body>
+</html>

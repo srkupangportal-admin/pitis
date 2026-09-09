@@ -1,0 +1,15 @@
+<% if (securitySetup && securitySetup.showInstallPrompt) { %>
+  <section class="security-install-banner card" role="status" aria-live="polite">
+    <div class="security-install-copy">
+      <strong>You are using the standard portal connection.</strong>
+      <span>
+        The portal is open normally on HTTP. If you want the secure HTTPS version on this device, install the school certificate and then open the secure portal.
+      </span>
+    </div>
+    <div class="security-install-actions">
+      <a class="btn" href="<%= securitySetup.caDownloadPath %>">Download CRT</a>
+      <a class="btn secondary" href="<%= securitySetup.installHelpPath %>">Install Guide</a>
+      <a class="btn secondary" href="<%= securitySetup.httpsUrl %>">Try HTTPS</a>
+    </div>
+  </section>
+<% } %>

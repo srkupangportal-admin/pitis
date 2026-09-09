@@ -1,0 +1,105 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Teacher Reports</title>
+  <link rel="stylesheet" href="/css/theme-c.css" />
+</head>
+<body>
+  <%- include('partials/teacher-nav') %>
+  <main class="container">
+    <div class="calendar-header-row report-header-row">
+      <h2>Generate Report</h2>
+    </div>
+
+    <form class="card form calendar-add-form report-filter-card" method="get" action="/teacher/report" id="teacherReportForm">
+      <div class="inline-filters report-filter-grid">
+        <label>Class
+          <select name="classId" required>
+            <option value="">Select class</option>
+            <option value="all" <%= classId === 'all' ? "selected" : "" %>>All Classes</option>
+            <% classes.forEach(c => { %>
+              <option value="<%= c.id %>" <%= Number(classId) === c.id ? "selected" : "" %>><%= c.name %></option>
+            <% }) %>
+          </select>
+        </label>
+        <label class="report-all-time-toggle">
+          <span>Report Range</span>
+          <span class="report-toggle-check">
+            <input type="checkbox" name="allTime" id="reportAllTime" value="1" <%= allTime ? 'checked' : '' %> />
+            <span>All time</span>
+          </span>
+        </label>
+        <label id="reportFromWrap" class="report-date-field">From
+          <input type="date" name="from" id="reportFrom" value="<%= dateFrom %>" />
+        </label>
+        <label id="reportToWrap" class="report-date-field">To
+          <input type="date" name="to" id="reportTo" value="<%= dateTo %>" />
+        </label>
+      </div>
+      <div class="button-row report-filter-actions">
+        <button class="btn" type="submit">View</button>
+        <% if (rows.length) { %>
+          <a class="btn secondary" href="/teacher/report/export?classId=<%= classId %><% if (allTime) { %>&allTime=1<% } else { %>&from=<%= dateFrom %>&to=<%= dateTo %><% } %>">Export Spreadsheet (CSV)</a>
+        <% } %>
+      </div>
+    </form>
+
+    <% if (rows.length) { %>
+      <table>
+        <thead>
+          <tr>
+            <th>Date Awarded</th>
+            <th>Time Awarded</th>
+            <th>Name</th>
+            <th>Full Name</th>
+            <th>Class</th>
+            <th>Reason / Source</th>
+            <th>Pitis Awarded</th>
+            <th>Awarded By</th>
+          </tr>
+        </thead>
+        <tbody>
+          <% rows.forEach(r => { %>
+            <tr>
+              <td><%= r.date_awarded %></td>
+              <td><%= r.time_awarded %></td>
+              <td><%= r.name %></td>
+              <td><%= r.full_name %></td>
+              <td><%= r.class_name %></td>
+              <td><%= r.source_reason %></td>
+              <td><%= r.points_awarded %></td>
+              <td><%= r.awarded_by %></td>
+            </tr>
+          <% }) %>
+        </tbody>
+      </table>
+    <% } %>
+  </main>
+  <script>
+    (function () {
+      var allTime = document.getElementById('reportAllTime');
+      var fromWrap = document.getElementById('reportFromWrap');
+      var toWrap = document.getElementById('reportToWrap');
+      var fromInput = document.getElementById('reportFrom');
+      var toInput = document.getElementById('reportTo');
+
+      function syncReportDateMode() {
+        var hideDates = !!(allTime && allTime.checked);
+        if (fromWrap) fromWrap.style.display = hideDates ? 'none' : 'grid';
+        if (toWrap) toWrap.style.display = hideDates ? 'none' : 'grid';
+        if (fromInput) fromInput.required = !hideDates;
+        if (toInput) toInput.required = !hideDates;
+      }
+
+      if (allTime) {
+        allTime.addEventListener('change', syncReportDateMode);
+      }
+      syncReportDateMode();
+    })();
+  </script>
+  <script src="/js/inactivity.js"></script>
+</body>
+</html>
+

@@ -1,0 +1,236 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Device Booking</title>
+  <link rel="stylesheet" href="/css/theme-c.css" />
+</head>
+<body>
+  <% if (currentUser && currentUser.role === 'admin') { %>
+    <%- include('partials/admin-nav') %>
+  <% } else { %>
+    <%- include('partials/teacher-nav') %>
+  <% } %>
+
+  <main class="container stack">
+    <% const statusTotals = devices.reduce((acc, device) => { acc[device.derived_status] = (acc[device.derived_status] || 0) + 1; return acc; }, {}); %>
+    <% if (error) { %>
+      <section class="card"><div class="error"><%= error %></div></section>
+    <% } %>
+    <% if (success) { %>
+      <section class="card"><div><%= success %></div></section>
+    <% } %>
+
+    <section class="card device-page-head">
+      <div>
+        <h2>Device Booking & Usage Log</h2>
+        <p class="muted">Book inventory-linked devices for lessons and record when the item was taken, used, and returned.</p>
+      </div>
+      <div class="button-row">
+        <a class="btn secondary" href="/devices/my-bookings">My Bookings</a>
+        <% if (currentUser && currentUser.role === 'admin') { %>
+          <a class="btn secondary" href="/devices/logs">Usage Logs</a>
+          <a class="btn secondary" href="/devices/reports">Reports</a>
+        <% } %>
+      </div>
+    </section>
+
+    <section class="cards-3 device-summary-grid">
+      <div class="card device-summary-card">
+        <span class="muted">Active Devices</span>
+        <strong><%= devices.length %></strong>
+      </div>
+      <div class="card device-summary-card">
+        <span class="muted">Booked / In Use</span>
+        <strong><%= (statusTotals.booked || 0) + (statusTotals.in_use || 0) %></strong>
+      </div>
+      <div class="card device-summary-card">
+        <span class="muted">Available Now</span>
+        <strong><%= statusTotals.available || 0 %></strong>
+      </div>
+    </section>
+
+    <section class="card">
+      <div class="section-toggle-head">
+        <div>
+          <h3>Book a Device</h3>
+          <p class="muted">Only items marked available in School Inventory can be booked. Overlapping lesson times are blocked automatically.</p>
+        </div>
+      </div>
+      <form method="post" action="/devices/bookings" class="form grid-form device-booking-form" data-async-form="1">
+        <label>Device
+          <select name="device_id" required>
+            <option value="">Select device</option>
+            <% bookableDevices.forEach(device => { %>
+              <option value="<%= device.id %>" <%= String(bookingForm.device_id) === String(device.id) ? 'selected' : '' %>><%= device.name %> (<%= device.code %>) - <%= device.location %></option>
+            <% }) %>
+          </select>
+        </label>
+        <label class="report-date-field attendance-date-picker">Booking Date
+          <input type="date" name="booking_date" value="<%= bookingForm.booking_date %>" required />
+        </label>
+        <label>Planned Start Time
+          <input type="time" name="planned_start_time" value="<%= bookingForm.planned_start_time %>" required />
+        </label>
+        <label>Planned End Time
+          <input type="time" name="planned_end_time" value="<%= bookingForm.planned_end_time %>" required />
+        </label>
+        <label>Class Name
+          <select name="class_name" required>
+            <option value="">Select class</option>
+            <% classOptions.forEach(cls => { %>
+              <option value="<%= cls.name %>" <%= bookingForm.class_name === cls.name ? 'selected' : '' %>><%= cls.name %></option>
+            <% }) %>
+          </select>
+        </label>
+        <label>Subject
+          <input type="text" name="subject" value="<%= bookingForm.subject %>" placeholder="Example: Science" required />
+        </label>
+        <label>Lesson Topic
+          <input type="text" name="lesson_topic" value="<%= bookingForm.lesson_topic %>" placeholder="Example: Solar System" required />
+        </label>
+        <label>Venue
+          <select name="venue" required>
+            <option value="">Select venue</option>
+            <% venueOptions.forEach(venue => { %>
+              <option value="<%= venue.name %>" <%= bookingForm.venue === venue.name ? 'selected' : '' %>><%= venue.name %></option>
+            <% }) %>
+          </select>
+        </label>
+        <label>Purpose
+          <input type="text" name="purpose" value="<%= bookingForm.purpose %>" placeholder="Teaching, presentation, quiz, video lesson" required />
+        </label>
+        <label class="device-booking-remarks">Remarks (Optional)
+          <textarea name="remarks" rows="3" placeholder="Extra preparation notes or requests"><%= bookingForm.remarks %></textarea>
+        </label>
+        <div class="button-row">
+          <button class="btn" type="submit">Create Booking</button>
+        </div>
+      </form>
+    </section>
+
+    <section class="card">
+      <div class="section-toggle-head">
+        <div>
+          <h3>Device Availability</h3>
+          <p class="muted">Inventory-linked devices currently available to this booking system.</p>
+        </div>
+      </div>
+      <% if (!devices.length) { %>
+        <div class="muted">No inventory-linked devices available yet.</div>
+      <% } else { %>
+        <div class="device-table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>Device</th>
+                <th>Category</th>
+                <th>Location</th>
+                <th>Status</th>
+                <th>Notes</th>
+              </tr>
+            </thead>
+            <tbody>
+              <% devices.forEach(device => { %>
+                <tr>
+                  <td>
+                    <div class="device-row-main">
+                      <% if (device.photo_path) { %>
+                        <img class="device-thumb" src="<%= device.photo_path %>" alt="<%= device.name %> photo" />
+                      <% } %>
+                      <span>
+                        <strong><%= device.name %></strong><br />
+                        <span class="muted"><%= device.code %></span>
+                      </span>
+                    </div>
+                  </td>
+                  <td><%= device.category %></td>
+                  <td><%= device.location %></td>
+                  <td><span class="device-status-badge status-<%= String(device.derived_status).replace(/_/g, '-') %>"><%= String(device.derived_status).replace(/_/g, ' ') %></span></td>
+                  <td><%= device.notes || '-' %></td>
+                </tr>
+              <% }) %>
+            </tbody>
+          </table>
+        </div>
+      <% } %>
+    </section>
+
+    <section class="card">
+      <div class="section-toggle-head">
+        <div>
+          <h3>Upcoming Device Schedule</h3>
+          <p class="muted">Latest active bookings across the portal.</p>
+        </div>
+      </div>
+      <% if (!upcomingBookings.length) { %>
+        <div class="muted">No active bookings yet.</div>
+      <% } else { %>
+        <div class="device-table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>Date</th>
+                <th>Time</th>
+                <th>Device</th>
+                <th>User</th>
+                <th>Class</th>
+                <th>Status</th>
+              </tr>
+            </thead>
+            <tbody>
+              <% upcomingBookings.forEach(row => { %>
+                <tr>
+                  <td><%= row.booking_date %></td>
+                  <td><%= row.planned_start_time %> - <%= row.planned_end_time %></td>
+                  <td><%= row.device_name %></td>
+                  <td><%= row.user_display_name %></td>
+                  <td><%= row.class_name %></td>
+                  <td><span class="device-status-badge status-<%= String(row.status).replace(/_/g, '-') %>"><%= String(row.status).replace(/_/g, ' ') %></span></td>
+                </tr>
+              <% }) %>
+            </tbody>
+          </table>
+        </div>
+      <% } %>
+    </section>
+
+    <section class="card">
+      <div class="section-toggle-head">
+        <div>
+          <h3>My Recent Bookings</h3>
+          <p class="muted">Quick view of your latest device reservations.</p>
+        </div>
+        <a class="btn secondary" href="/devices/my-bookings">Open Full Booking List</a>
+      </div>
+      <% if (!myRecentBookings.length) { %>
+        <div class="muted">You have not created any device bookings yet.</div>
+      <% } else { %>
+        <div class="device-table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>Date</th>
+                <th>Device</th>
+                <th>Lesson</th>
+                <th>Status</th>
+              </tr>
+            </thead>
+            <tbody>
+              <% myRecentBookings.forEach(row => { %>
+                <tr>
+                  <td><%= row.booking_date %> <span class="muted"><%= row.planned_start_time %> - <%= row.planned_end_time %></span></td>
+                  <td><%= row.device_name %></td>
+                  <td><strong><%= row.subject %></strong><br /><span class="muted"><%= row.class_name %> | <%= row.lesson_topic %></span></td>
+                  <td><span class="device-status-badge status-<%= String(row.status).replace(/_/g, '-') %>"><%= String(row.status).replace(/_/g, ' ') %></span></td>
+                </tr>
+              <% }) %>
+            </tbody>
+          </table>
+        </div>
+      <% } %>
+    </section>
+  </main>
+</body>
+</html>

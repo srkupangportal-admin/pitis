@@ -1,0 +1,145 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Choose Class</title>
+  <link rel="stylesheet" href="/css/theme-c.css" />
+</head>
+<body>
+  <%- include('partials/teacher-nav') %>
+  <main class="container class-selection-container">
+    <h2>Select Class for <%= mode === "reward" ? "Promoting Improvement through Token-based Incentive Systems" : mode === "attendance" ? "Attendance" : "Student Details" %></h2>
+    <% if (mode === "attendance") { %>
+      <div class="button-row attendance-class-shortcut-bar">
+        <a class="btn" href="/teacher/attendance/scan?date=<%= attendanceDate %>">QR Scan</a>
+      </div>
+      <div class="attendance-class-shortcuts">
+        <% classes.forEach(cls => { %>
+          <a class="card action-card attendance-class-shortcut-card" href="/teacher/attendance/<%= cls.id %>?date=<%= attendanceDate %>"><%= cls.name %></a>
+        <% }) %>
+      </div>
+      <section class="card attendance-main-summary-shell">
+        <div class="calendar-header-row report-header-row attendance-main-header">
+          <div>
+            <h3>Attendance Summary</h3>
+            <span class="muted">Whole school and class attendance for the selected date</span>
+          </div>
+          <form method="get" action="/teacher/attendance" class="attendance-main-date-form">
+            <label class="report-date-field">Date
+              <input type="date" name="date" value="<%= attendanceDate %>" />
+            </label>
+            <button class="btn" type="submit">Load Summary</button>
+          </form>
+        </div>
+
+        <div class="attendance-summary-card attendance-main-school-card">
+          <span class="muted">Whole School</span>
+          <strong><%= wholeSchoolSummary.dailyPercentage %>%</strong>
+          <div>AM: <%= wholeSchoolSummary.morningTally %> (<%= wholeSchoolSummary.morningPercentage %>%)</div>
+          <% if (wholeSchoolSummary.hasAfternoonSession) { %>
+            <div>PM: <%= wholeSchoolSummary.afternoonTally %> (<%= wholeSchoolSummary.afternoonPercentage %>%)</div>
+          <% } %>
+          <div>Daily: <%= wholeSchoolSummary.dailyTally %></div>
+          <div class="attendance-main-absent-grid">
+            <% if (showMorningAbsentList) { %>
+              <div class="attendance-main-absent-block">
+                <span class="muted">AM Absent</span>
+                <% if (wholeSchoolSummary.morningAbsentNames.length) { %>
+                  <ul class="attendance-main-absent-list">
+                    <% wholeSchoolSummary.morningAbsentNames.forEach((name) => { %>
+                      <li><%= name %></li>
+                    <% }) %>
+                  </ul>
+                <% } else { %>
+                  <div class="muted">None</div>
+                <% } %>
+              </div>
+            <% } %>
+            <% if (wholeSchoolSummary.hasAfternoonSession && showAfternoonAbsentList) { %>
+              <div class="attendance-main-absent-block">
+                <span class="muted">PM Absent</span>
+                <% if (wholeSchoolSummary.afternoonAbsentNames.length) { %>
+                  <ul class="attendance-main-absent-list">
+                    <% wholeSchoolSummary.afternoonAbsentNames.forEach((name) => { %>
+                      <li><%= name %></li>
+                    <% }) %>
+                  </ul>
+                <% } else { %>
+                  <div class="muted">None</div>
+                <% } %>
+              </div>
+            <% } else if (wholeSchoolSummary.hasAfternoonSession) { %>
+              <div class="attendance-main-absent-block">
+                <span class="muted">PM Absent</span>
+                <div class="muted">PM absentees will appear after 12:00 PM.</div>
+              </div>
+            <% } %>
+          </div>
+        </div>
+
+        <div class="attendance-summary-grid attendance-main-summary-grid">
+          <% classSummaries.forEach((item) => { %>
+            <article class="attendance-summary-card">
+              <span class="muted"><%= item.name %></span>
+              <strong><%= item.summary.dailyPercentage %>%</strong>
+              <div>AM: <%= item.summary.morningTally %> (<%= item.summary.morningPercentage %>%)</div>
+              <% if (item.summary.hasAfternoonSession) { %>
+                <div>PM: <%= item.summary.afternoonTally %> (<%= item.summary.afternoonPercentage %>%)</div>
+              <% } %>
+              <div>Daily: <%= item.summary.dailyTally %></div>
+              <div class="attendance-main-absent-grid">
+                <% if (showMorningAbsentList) { %>
+                  <div class="attendance-main-absent-block">
+                    <span class="muted">AM Absent</span>
+                    <% if (item.summary.morningAbsentNames.length) { %>
+                      <ul class="attendance-main-absent-list">
+                        <% item.summary.morningAbsentNames.forEach((name) => { %>
+                          <li><%= name %></li>
+                        <% }) %>
+                      </ul>
+                    <% } else { %>
+                      <div class="muted">None</div>
+                    <% } %>
+                  </div>
+                <% } %>
+                <% if (item.summary.hasAfternoonSession && showAfternoonAbsentList) { %>
+                  <div class="attendance-main-absent-block">
+                    <span class="muted">PM Absent</span>
+                    <% if (item.summary.afternoonAbsentNames.length) { %>
+                      <ul class="attendance-main-absent-list">
+                        <% item.summary.afternoonAbsentNames.forEach((name) => { %>
+                          <li><%= name %></li>
+                        <% }) %>
+                      </ul>
+                    <% } else { %>
+                      <div class="muted">None</div>
+                    <% } %>
+                  </div>
+                <% } else if (item.summary.hasAfternoonSession) { %>
+                  <div class="attendance-main-absent-block">
+                    <span class="muted">PM Absent</span>
+                    <div class="muted">PM absentees will appear after 12:00 PM.</div>
+                  </div>
+                <% } %>
+              </div>
+            </article>
+          <% }) %>
+        </div>
+      </section>
+    <% } %>
+    <% if (mode !== "attendance") { %>
+    <div class="<%= mode === 'reward' || mode === 'students' ? 'attendance-class-shortcuts' : 'cards-3' %>">
+      <% classes.forEach(cls => { %>
+        <% if (mode === "reward") { %>
+          <a class="card action-card attendance-class-shortcut-card" href="/teacher/reward/<%= cls.id %>"><%= cls.name %></a>
+        <% } else { %>
+          <a class="card action-card attendance-class-shortcut-card" href="/teacher/students/class/<%= cls.id %>"><%= cls.name %></a>
+        <% } %>
+      <% }) %>
+    </div>
+    <% } %>
+  </main>
+  <script src="/js/inactivity.js"></script>
+</body>
+</html>

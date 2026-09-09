@@ -1,0 +1,179 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Admin Device Management</title>
+  <link rel="stylesheet" href="/css/theme-c.css" />
+</head>
+<body>
+  <%- include('partials/admin-nav') %>
+
+  <main class="container stack">
+    <% const deviceCategoryOptions = categoryOptions || []; %>
+    <% const deviceAvailabilityOptions = availabilityOptions || []; %>
+    <% if (error) { %>
+      <section class="card"><div class="error"><%= error %></div></section>
+    <% } %>
+    <% if (success) { %>
+      <section class="card"><div><%= success %></div></section>
+    <% } %>
+
+    <section class="card device-page-head">
+      <div>
+        <h2>Admin Device Management</h2>
+        <p class="muted">Device bookings use items listed in School Inventory. Mark an inventory item as available for Device Booking to show it to teachers.</p>
+      </div>
+      <div class="button-row">
+        <a class="btn secondary" href="/inventory">Manage Inventory</a>
+        <a class="btn secondary" href="/devices/logs">Usage Logs</a>
+        <a class="btn secondary" href="/devices/reports">Reports</a>
+        <a class="btn secondary" href="/devices">User Device Page</a>
+      </div>
+    </section>
+
+    <section class="card">
+      <h3>Inventory-Linked Devices</h3>
+      <% if (!devices.length) { %>
+        <div class="muted">No inventory-linked devices found yet. Open School Inventory, edit an item, and tick Available for Device Booking.</div>
+      <% } else { %>
+        <form id="bulkDeviceDeleteForm" method="post" action="/admin/devices/bulk-delete" class="inline-filters device-bulk-toolbar" data-async-form="1" onsubmit="return confirm('Permanently delete all selected devices, their booking history, and database links? This cannot be undone.');">
+          <input type="hidden" name="return_to" value="/admin/devices" />
+          <button class="btn danger" type="submit">Delete Selected Devices</button>
+        </form>
+        <div class="device-admin-list">
+          <% devices.forEach(device => { %>
+            <details class="device-admin-item notes-collapsed-card">
+              <summary class="notes-card-summary device-admin-summary">
+                <span>
+                  <input type="checkbox" name="selected_device_ids" value="<%= device.id %>" form="bulkDeviceDeleteForm" aria-label="Select <%= device.name %> for deletion" onclick="event.stopPropagation();" />
+                  <strong><%= device.name %></strong>
+                  <span class="muted">(<%= device.code %>) | <%= device.category %> | <%= device.location %></span>
+                </span>
+                <span class="device-admin-summary-right">
+                  <span class="device-status-badge status-<%= Number(device.inventory_is_bookable) === 1 ? 'available' : 'inactive' %>"><%= Number(device.inventory_is_bookable) === 1 ? 'bookable' : 'not bookable' %></span>
+                  <span class="device-status-badge status-<%= String(device.status).replace(/_/g, '-') %>"><%= String(device.status).replace(/_/g, ' ') %></span>
+                </span>
+              </summary>
+              <div class="notes-section">
+                <% if (device.photo_path) { %>
+                  <div class="device-photo-preview-wrap">
+                    <img class="device-photo-preview" src="<%= device.photo_path %>" alt="<%= device.name %> photo" />
+                  </div>
+                <% } %>
+                <div class="device-qr-admin-panel">
+                  <div>
+                    <strong>Device QR</strong>
+                    <p class="muted">Users scan this code to borrow the device, then scan it again to return it.</p>
+                    <a class="btn secondary" href="<%= device.qr_code_image %>" download="device-qr-<%= device.code %>.png">Download QR</a>
+                  </div>
+                  <img class="device-qr-image" src="<%= device.qr_code_image %>" alt="<%= device.name %> QR code" />
+                </div>
+                <div class="device-booking-remarks muted">
+                  Device details and booking availability are managed from the linked School Inventory record.
+                </div>
+                <div class="button-row">
+                  <a class="btn secondary" href="/inventory?search=<%= encodeURIComponent(device.code) %>">Manage in Inventory</a>
+                </div>
+                <form method="post" action="/admin/devices/<%= device.id %>/delete" class="inline-form" data-async-form="1">
+                  <button class="btn danger" type="submit" onclick="return confirm('Delete or archive this device? Historical logs will be preserved by archiving.');">Delete / Archive Device</button>
+                  <button class="btn danger" type="submit" name="delete_mode" value="permanent" onclick="return confirm('Permanently delete this device and all its booking history? This cannot be undone.');">Permanently Delete</button>
+                </form>
+              </div>
+            </details>
+          <% }) %>
+        </div>
+      <% } %>
+    </section>
+
+    <section class="card">
+      <details class="notes-collapsed-card device-location-collapse">
+        <summary class="notes-card-summary device-admin-summary">
+          <span>
+            <strong>Saved Locations</strong>
+            <span class="muted">Device locations and booking venues now use the School Inventory location list.</span>
+          </span>
+          <span class="device-admin-summary-right">
+            <span class="device-status-badge status-available"><%= allLocationOptions ? allLocationOptions.length : 0 %> saved</span>
+          </span>
+        </summary>
+        <div class="notes-section">
+          <div class="button-row">
+            <a class="btn secondary" href="/inventory">Manage Inventory Locations</a>
+          </div>
+          <% if (allLocationOptions && allLocationOptions.length) { %>
+            <div class="device-location-list">
+              <% allLocationOptions.forEach(location => { %>
+                <div class="inline-filters device-location-item">
+                  <span><strong><%= location.name %></strong> <span class="device-status-badge status-<%= Number(location.is_active) === 1 ? 'available' : 'inactive' %>"><%= Number(location.is_active) === 1 ? 'active' : 'hidden' %></span></span>
+                </div>
+              <% }) %>
+            </div>
+          <% } %>
+        </div>
+      </details>
+    </section>
+
+    <section class="card">
+      <details class="notes-collapsed-card device-location-collapse">
+        <summary class="notes-card-summary device-admin-summary">
+          <span>
+            <strong>Available Venues</strong>
+            <span class="muted">Booking venues are linked to School Inventory locations.</span>
+          </span>
+          <span class="device-admin-summary-right">
+            <span class="device-status-badge status-available"><%= allVenueOptions ? allVenueOptions.length : 0 %> saved</span>
+          </span>
+        </summary>
+        <div class="notes-section">
+          <div class="button-row">
+            <a class="btn secondary" href="/inventory">Manage Inventory Locations</a>
+          </div>
+          <% if (allVenueOptions && allVenueOptions.length) { %>
+            <div class="device-location-list">
+              <% allVenueOptions.forEach(venue => { %>
+                <div class="device-location-item device-venue-item">
+                  <div class="inline-filters">
+                    <strong><%= venue.name %></strong>
+                    <span class="device-status-badge status-<%= Number(venue.is_active) === 1 ? 'available' : 'inactive' %>"><%= Number(venue.is_active) === 1 ? 'active' : 'hidden' %></span>
+                  </div>
+                </div>
+              <% }) %>
+            </div>
+          <% } %>
+        </div>
+      </details>
+    </section>
+
+    <section class="card">
+      <h3>Active / Future Bookings</h3>
+      <% if (!upcomingBookings.length) { %>
+        <div class="muted">No active or future bookings found.</div>
+      <% } else { %>
+        <table>
+          <thead>
+            <tr>
+              <th>Date</th>
+              <th>Device</th>
+              <th>User</th>
+              <th>Class</th>
+              <th>Status</th>
+            </tr>
+          </thead>
+          <tbody>
+            <% upcomingBookings.forEach(row => { %>
+              <tr>
+                <td><%= row.booking_date %> <span class="muted"><%= row.planned_start_time %> - <%= row.planned_end_time %></span></td>
+                <td><%= row.device_name %></td>
+                <td><%= row.user_display_name %></td>
+                <td><%= row.class_name %></td>
+                <td><span class="device-status-badge status-<%= String(row.status).replace(/_/g, '-') %>"><%= String(row.status).replace(/_/g, ' ') %></span></td>
+              </tr>
+            <% }) %>
+          </tbody>
+        </table>
+      <% } %>
+    </section>
+  </main>
+</body>
+</html>

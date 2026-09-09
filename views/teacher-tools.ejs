@@ -1,0 +1,51 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Teacher Tools</title>
+  <link rel="stylesheet" href="/css/theme-c.css" />
+</head>
+<body>
+  <header class="site-header">
+    <h1>Teacher Tools</h1>
+    <span>Welcome, <%= user.displayName %></span>
+  </header>
+  <%- include('partials/teacher-nav') %>
+
+  <main class="container stack">
+    <% if (error) { %>
+      <section class="card"><div class="error"><%= error %></div></section>
+    <% } %>
+    <% if (success) { %>
+      <section class="card"><div><%= success %></div></section>
+    <% } %>
+
+    <section class="card">
+      <h2>Choose a Tool</h2>
+      <p class="muted">Open one tool at a time. Random Selector and Group Maker are now separated.</p>
+    </section>
+
+    <section class="teacher-tools-grid">
+      <a class="card action-card tool-launch-card" href="/teacher/attendance/scan">
+        <span class="tool-launch-title">QR Scan</span>
+        <span class="tool-launch-desc">Open the continuous attendance QR scanner for teacher devices.</span>
+      </a>
+      <a class="card action-card tool-launch-card" href="/teacher/tools/random-selector">
+        <span class="tool-launch-title">Random Selector</span>
+        <span class="tool-launch-desc">Pick one random student from a class or selected pool, with popup actions and session memory.</span>
+      </a>
+      <a class="card action-card tool-launch-card" href="/teacher/tools/group-maker">
+        <span class="tool-launch-title">Group Maker</span>
+        <span class="tool-launch-desc">Create random student groups by class, selected pool, and group size.</span>
+      </a>
+      <a class="card action-card tool-launch-card" href="/teacher/tools/random-groups">
+        <span class="tool-launch-title">Random Groups</span>
+        <span class="tool-launch-desc">Select classes and students, then divide them into a chosen number of groups.</span>
+      </a>
+    </section>
+  </main>
+
+  <script src="/js/inactivity.js"></script>
+</body>
+</html>

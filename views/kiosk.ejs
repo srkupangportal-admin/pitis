@@ -1,0 +1,508 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="theme-color" content="#123b63" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="default" />
+  <title>Attendance Kiosk</title>
+  <link rel="manifest" href="/manifest.webmanifest" />
+  <link rel="stylesheet" href="/css/theme-c.css" />
+</head>
+<body class="landing-home kiosk-body">
+  <%- include('partials/main-header-card') %>
+  <div class="landing-glow glow-a"></div>
+  <div class="landing-glow glow-b"></div>
+  <main class="landing-shell kiosk-shell">
+    <% if (error) { %>
+      <section class="card"><div class="error"><%= error %></div></section>
+    <% } %>
+    <% if (success) { %>
+      <section class="card"><div><%= success %></div></section>
+    <% } %>
+
+    <section class="landing-card quick-access kiosk-panel" id="kioskLandingPanel">
+      <h1>Attendance Kiosk</h1>
+      <p class="muted">Scan student QR code for attendance logging.</p>
+      <p class="muted" id="kioskSecureContextNote"></p>
+      <button class="landing-action teacher" type="button" id="kioskStartScanBtn">
+        <span class="action-title">SCAN QR</span>
+        <span class="action-desc">Open camera and scan student QR code</span>
+      </button>
+      <a class="landing-action leaderboard" href="/leaderboard">
+        <span class="action-title">P.I.T.I.S Leaders</span>
+        <span class="action-desc">View class rankings live</span>
+      </a>
+      <a class="landing-action teacher" href="/rewards">
+        <span class="action-title">P.I.T.I.S Gallery</span>
+        <span class="action-desc">View prizes and pitis targets</span>
+      </a>
+      <a class="landing-action teacher" href="/login?next=%2Fteacher%2Fattendance%2Fscan">
+        <span class="action-title">QR Scan</span>
+        <span class="action-desc">Open teacher multi-scan attendance mode</span>
+      </a>
+    </section>
+
+    <section class="landing-card kiosk-panel hidden" id="kioskScannerPanel">
+      <div class="kiosk-panel-head">
+        <h2>Scan Student QR</h2>
+        <div class="inline-filters">
+          <button class="btn secondary" type="button" id="kioskRetryScanBtn">Retry Camera</button>
+          <button class="btn secondary" type="button" id="kioskCancelScanBtn">Cancel</button>
+        </div>
+      </div>
+      <div class="kiosk-camera-permission" id="kioskCameraPermission">
+        <p class="muted">Allow camera access to scan student QR codes on this device.</p>
+        <label class="kiosk-camera-remember">
+          <input type="checkbox" id="kioskRememberCameraPermission" value="1" />
+          <span>Remember this camera permission prompt on this device</span>
+        </label>
+        <div class="button-row">
+          <button class="btn" type="button" id="kioskGrantCameraBtn">Allow Camera</button>
+        </div>
+      </div>
+      <div class="kiosk-camera-controls">
+        <label class="kiosk-camera-select-wrap">
+          <span class="muted">Camera</span>
+          <select id="kioskCameraSelect">
+            <option value="">Auto select camera</option>
+          </select>
+        </label>
+      </div>
+      <div id="kioskQrReader" class="kiosk-reader"></div>
+      <div class="muted" id="kioskScannerMessage">Point the camera at the student QR code.</div>
+      <form id="kioskManualFallbackForm" class="stack" style="margin-top:16px;">
+        <label>Manual QR Input
+          <input type="text" id="kioskManualQrInput" placeholder="Paste or type QR text here" autocomplete="off" autocapitalize="off" spellcheck="false" inputmode="text" />
+        </label>
+        <div class="inline-filters">
+          <button class="btn secondary" type="submit" id="kioskManualSubmitBtn">Submit QR Text</button>
+        </div>
+        <div class="muted">Use this if the camera is blocked, unavailable, or the device browser does not allow scanning.</div>
+      </form>
+    </section>
+
+    <section class="landing-card kiosk-panel hidden" id="kioskResultPanel">
+      <div class="kiosk-result-card">
+        <div class="kiosk-result-badge">Welcome</div>
+        <h2 id="kioskResultName">Student Name</h2>
+        <p class="muted" id="kioskResultClass">Class</p>
+        <div class="kiosk-result-grid">
+          <div class="kiosk-result-stat">
+            <span class="muted">Log Time</span>
+            <strong id="kioskResultTime">00:00</strong>
+          </div>
+          <div class="kiosk-result-stat">
+            <span class="muted">Session</span>
+            <strong id="kioskResultSession">Morning</strong>
+          </div>
+          <div class="kiosk-result-stat">
+            <span class="muted">Pitis Awarded</span>
+            <strong id="kioskResultPoints">0</strong>
+          </div>
+          <div class="kiosk-result-stat">
+            <span class="muted">Total Pitis</span>
+            <strong id="kioskResultTotal">0</strong>
+          </div>
+        </div>
+        <p class="muted" id="kioskResultRule">P.I.T.I.S rule</p>
+        <p class="muted" id="kioskResultCountdown">Returning to scan shortcut soon...</p>
+      </div>
+    </section>
+
+    <section class="landing-card quick-access kiosk-panel hidden" id="kioskShortcutPanel">
+      <h2>Next Action</h2>
+      <p class="muted" id="kioskShortcutCountdown">Returning to kiosk landing page in 5 seconds.</p>
+      <button class="landing-action teacher" type="button" id="kioskRescanBtn">
+        <span class="action-title">SCAN QR</span>
+        <span class="action-desc">Open the camera again</span>
+      </button>
+      <a class="landing-action leaderboard" href="/leaderboard">
+        <span class="action-title">P.I.T.I.S Leaders</span>
+        <span class="action-desc">View class rankings live</span>
+      </a>
+      <a class="landing-action teacher" href="/rewards">
+        <span class="action-title">P.I.T.I.S Gallery</span>
+        <span class="action-desc">View prizes and pitis targets</span>
+      </a>
+      <a class="landing-action teacher" href="/login?next=%2Fteacher%2Fattendance%2Fscan">
+        <span class="action-title">QR Scan</span>
+        <span class="action-desc">Open teacher multi-scan attendance mode</span>
+      </a>
+    </section>
+  </main>
+
+  <script src="/vendor/html5-qrcode/html5-qrcode.min.js"></script>
+  <script>
+    (function () {
+      var landingPanel = document.getElementById('kioskLandingPanel');
+      var scannerPanel = document.getElementById('kioskScannerPanel');
+      var resultPanel = document.getElementById('kioskResultPanel');
+      var shortcutPanel = document.getElementById('kioskShortcutPanel');
+      var secureContextNote = document.getElementById('kioskSecureContextNote');
+      var startScanBtn = document.getElementById('kioskStartScanBtn');
+      var rescanBtn = document.getElementById('kioskRescanBtn');
+      var cancelScanBtn = document.getElementById('kioskCancelScanBtn');
+      var retryScanBtn = document.getElementById('kioskRetryScanBtn');
+      var grantCameraBtn = document.getElementById('kioskGrantCameraBtn');
+      var cameraPermissionWrap = document.getElementById('kioskCameraPermission');
+      var rememberPermission = document.getElementById('kioskRememberCameraPermission');
+      var cameraSelect = document.getElementById('kioskCameraSelect');
+      var scannerMessage = document.getElementById('kioskScannerMessage');
+      var resultName = document.getElementById('kioskResultName');
+      var resultClass = document.getElementById('kioskResultClass');
+      var resultTime = document.getElementById('kioskResultTime');
+      var resultSession = document.getElementById('kioskResultSession');
+      var resultPoints = document.getElementById('kioskResultPoints');
+      var resultTotal = document.getElementById('kioskResultTotal');
+      var resultRule = document.getElementById('kioskResultRule');
+      var resultCountdown = document.getElementById('kioskResultCountdown');
+      var shortcutCountdown = document.getElementById('kioskShortcutCountdown');
+      var manualFallbackForm = document.getElementById('kioskManualFallbackForm');
+      var manualQrInput = document.getElementById('kioskManualQrInput');
+      var manualSubmitBtn = document.getElementById('kioskManualSubmitBtn');
+      var html5QrCode = null;
+      var scannerActive = false;
+      var availableCameras = [];
+      var cameraPreferenceKey = 'kiosk-camera-auto-start';
+      var successTimer = null;
+      var shortcutTimer = null;
+      var shortcutTickTimer = null;
+
+      function showPanel(panel) {
+        [landingPanel, scannerPanel, resultPanel, shortcutPanel].forEach(function (node) {
+          if (!node) return;
+          node.classList.toggle('hidden', node !== panel);
+        });
+      }
+
+      function clearTimers() {
+        if (successTimer) {
+          window.clearTimeout(successTimer);
+          successTimer = null;
+        }
+        if (shortcutTimer) {
+          window.clearTimeout(shortcutTimer);
+          shortcutTimer = null;
+        }
+        if (shortcutTickTimer) {
+          window.clearInterval(shortcutTickTimer);
+          shortcutTickTimer = null;
+        }
+      }
+
+      function stopScanner() {
+        if (!html5QrCode || !scannerActive) return Promise.resolve();
+        scannerActive = false;
+        return html5QrCode.stop().catch(function () {}).then(function () {
+          return html5QrCode.clear().catch(function () {});
+        });
+      }
+
+      function setScannerMessage(message, isError) {
+        if (!scannerMessage) return;
+        scannerMessage.textContent = String(message || '');
+        scannerMessage.className = isError ? 'error' : 'muted';
+      }
+
+      function isSecureForCamera() {
+        if (window.isSecureContext) return true;
+        return /^(localhost|127\.0\.0\.1)$/i.test(String(window.location.hostname || ''));
+      }
+
+      function updateSecureContextNote() {
+        if (!secureContextNote) return;
+        if (isSecureForCamera()) {
+          secureContextNote.textContent = 'Use the secure HTTPS kiosk address on phones and tablets for the best camera compatibility.';
+          secureContextNote.className = 'muted';
+          return;
+        }
+        secureContextNote.textContent = 'This page is not in a secure context. Camera access may fail on Android and Apple devices until you open the HTTPS kiosk address.';
+        secureContextNote.className = 'error';
+      }
+
+      function getSavedCameraPreference() {
+        try {
+          return window.localStorage.getItem(cameraPreferenceKey) === '1';
+        } catch (_) {
+          return false;
+        }
+      }
+
+      function saveCameraPreference(enabled) {
+        try {
+          if (enabled) {
+            window.localStorage.setItem(cameraPreferenceKey, '1');
+          } else {
+            window.localStorage.removeItem(cameraPreferenceKey);
+          }
+        } catch (_) {}
+      }
+
+      function setPermissionUiVisible(visible) {
+        if (cameraPermissionWrap) cameraPermissionWrap.classList.toggle('hidden', !visible);
+        if (cameraSelect && cameraSelect.closest('.kiosk-camera-controls')) {
+          cameraSelect.closest('.kiosk-camera-controls').classList.toggle('hidden', visible);
+        }
+        var reader = document.getElementById('kioskQrReader');
+        if (reader) reader.classList.toggle('hidden', visible);
+      }
+
+      function isPhoneLike() {
+        return /android|iphone|ipad|ipod/i.test(String(navigator.userAgent || ''));
+      }
+
+      function describeCameraError(err) {
+        var message = String((err && err.message) || '').trim();
+        var name = String((err && err.name) || '').trim();
+        var combined = (name + ' ' + message).toLowerCase();
+        if (!isSecureForCamera()) {
+          return 'Camera access requires HTTPS on most mobile browsers. Open this kiosk using the HTTPS LAN address, then allow camera permission.';
+        }
+        if (combined.indexOf('notallowed') >= 0 || combined.indexOf('permission') >= 0 || combined.indexOf('denied') >= 0) {
+          return 'Camera permission was denied. Allow camera access in the browser settings, then retry.';
+        }
+        if (combined.indexOf('notfound') >= 0 || combined.indexOf('devicesnotfound') >= 0) {
+          return 'No camera was found on this device. Try another device or use the manual QR input.';
+        }
+        if (combined.indexOf('notreadable') >= 0 || combined.indexOf('trackstarterror') >= 0 || combined.indexOf('could not start') >= 0) {
+          return 'The camera is busy or blocked by another app. Close other camera apps and retry.';
+        }
+        if (combined.indexOf('overconstrained') >= 0) {
+          return 'The selected camera mode is not supported on this device. Retry and choose another camera.';
+        }
+        return cameraBlockedHelp(message || 'Camera could not be opened.');
+      }
+
+      function cameraBlockedHelp(baseMessage) {
+        var insecurePhone = !window.isSecureContext && isPhoneLike() && !/^(localhost|127\.0\.0\.1)$/i.test(window.location.hostname);
+        if (insecurePhone) {
+          return (baseMessage || 'Camera could not be opened.')
+            + ' Phone browsers usually require HTTPS for camera access. Open this kiosk over HTTPS and allow camera permission.';
+        }
+        return (baseMessage || 'Camera could not be opened.')
+          + ' Check camera permission and try another camera.';
+      }
+
+      function populateCameraOptions(cameras) {
+        availableCameras = Array.isArray(cameras) ? cameras.slice() : [];
+        if (!cameraSelect) return;
+        cameraSelect.innerHTML = '<option value="">Auto select camera</option>';
+        availableCameras.forEach(function (camera, index) {
+          var option = document.createElement('option');
+          option.value = String(camera.id || '');
+          option.textContent = String(camera.label || ('Camera ' + (index + 1)));
+          cameraSelect.appendChild(option);
+        });
+      }
+
+      function pickPreferredCameraId() {
+        if (cameraSelect && cameraSelect.value) return cameraSelect.value;
+        if (!availableCameras.length) return null;
+        var preferred = availableCameras.find(function (camera) {
+          return /back|rear|environment|external|usb/i.test(String(camera.label || ''));
+        });
+        return String((preferred || availableCameras[0]).id || '');
+      }
+
+      function loadCameras() {
+        if (!window.Html5Qrcode || !Html5Qrcode.getCameras) return Promise.resolve([]);
+        return Html5Qrcode.getCameras()
+          .then(function (cameras) {
+            populateCameraOptions(cameras || []);
+            return cameras || [];
+          })
+          .catch(function () {
+            populateCameraOptions([]);
+            return [];
+          });
+      }
+
+      function goLanding() {
+        clearTimers();
+        stopScanner().finally(function () {
+          setPermissionUiVisible(true);
+          showPanel(landingPanel);
+        });
+      }
+
+      function showShortcutPanel() {
+        clearTimers();
+        showPanel(shortcutPanel);
+        var secondsLeft = 5;
+        if (shortcutCountdown) {
+          shortcutCountdown.textContent = 'Returning to kiosk landing page in ' + secondsLeft + ' seconds.';
+        }
+        shortcutTickTimer = window.setInterval(function () {
+          secondsLeft -= 1;
+          if (secondsLeft <= 0) return;
+          if (shortcutCountdown) {
+            shortcutCountdown.textContent = 'Returning to kiosk landing page in ' + secondsLeft + ' seconds.';
+          }
+        }, 1000);
+        shortcutTimer = window.setTimeout(goLanding, 5000);
+      }
+
+      function showResult(data) {
+        showPanel(resultPanel);
+        if (resultName) resultName.textContent = data.studentName || 'Student';
+        if (resultClass) resultClass.textContent = data.className || '';
+        if (resultTime) resultTime.textContent = data.scanTime || '--:--';
+        if (resultSession) resultSession.textContent = (data.sessionType || '').replace(/^./, function (m) { return m.toUpperCase(); });
+        if (resultPoints) resultPoints.textContent = String(data.pointsAwarded || 0);
+        if (resultTotal) resultTotal.textContent = String(data.totalPoints || 0);
+        if (resultRule) resultRule.textContent = data.ruleLabel ? ('P.I.T.I.S rule: ' + data.ruleLabel) : 'P.I.T.I.S rule: none';
+        if (resultCountdown) resultCountdown.textContent = 'This message will stay for 20 seconds.';
+        successTimer = window.setTimeout(showShortcutPanel, 20000);
+      }
+
+      function showError(message) {
+        showPanel(shortcutPanel);
+        if (shortcutCountdown) shortcutCountdown.textContent = String(message || 'Scan failed. Returning to kiosk landing page in 5 seconds.');
+        shortcutTimer = window.setTimeout(goLanding, 5000);
+      }
+
+      function submitQrText(decodedText) {
+        stopScanner().finally(function () {
+          if (scannerMessage) scannerMessage.textContent = 'Processing scan...';
+          fetch('/api/kiosk/scan', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ qr_text: decodedText })
+          })
+            .then(function (res) {
+              return res.json().then(function (data) {
+                return { ok: res.ok, data: data };
+              });
+            })
+            .then(function (result) {
+              if (!result.ok || !result.data || !result.data.success) {
+                showError((result.data && result.data.error) || 'Unable to process QR code.');
+                return;
+              }
+              showResult(result.data);
+            })
+            .catch(function (err) {
+              showError(err.message || 'Unable to process QR code.');
+            });
+        });
+      }
+
+      function handleScan(decodedText) {
+        submitQrText(decodedText);
+      }
+
+      function startScanner() {
+        clearTimers();
+        showPanel(scannerPanel);
+        setPermissionUiVisible(false);
+        setScannerMessage('Preparing camera...', false);
+        if (!html5QrCode) {
+          html5QrCode = new Html5Qrcode('kioskQrReader');
+        }
+        stopScanner().finally(function () {
+          loadCameras().then(function () {
+            var cameraConfig = pickPreferredCameraId();
+            var startTarget = cameraConfig ? { deviceId: { exact: cameraConfig } } : { facingMode: { ideal: 'environment' } };
+            return html5QrCode.start(
+              startTarget,
+              { fps: 10, qrbox: { width: 260, height: 260 }, aspectRatio: 1.333334, disableFlip: false },
+              function (decodedText) {
+                handleScan(decodedText);
+              },
+              function () {}
+            ).catch(function () {
+              if (!cameraConfig) throw new Error('Unable to open any available camera.');
+              return html5QrCode.start(
+                { facingMode: { ideal: 'environment' } },
+                { fps: 10, qrbox: { width: 260, height: 260 }, aspectRatio: 1.333334, disableFlip: false },
+                function (decodedText) {
+                  handleScan(decodedText);
+                },
+                function () {}
+              );
+            });
+          }).then(function () {
+            scannerActive = true;
+            setScannerMessage('Point the camera at the student QR code.', false);
+          }).catch(function (err) {
+            setPermissionUiVisible(true);
+            setScannerMessage(describeCameraError(err), true);
+            if (cameraSelect && !availableCameras.length) {
+              loadCameras();
+            }
+          });
+        });
+      }
+
+      function requestCameraAccessAndStart() {
+        showPanel(scannerPanel);
+        setPermissionUiVisible(true);
+        setScannerMessage('Requesting camera permission...', false);
+        if (!isSecureForCamera()) {
+          setScannerMessage('Camera access is blocked until you open the HTTPS kiosk address. You can still use the manual QR input below.', true);
+          return;
+        }
+        if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+          setScannerMessage('This browser does not support camera access for QR scanning. Use the manual QR input below.', true);
+          return;
+        }
+        navigator.mediaDevices.getUserMedia({ video: { facingMode: { ideal: 'environment' } }, audio: false })
+          .then(function (stream) {
+            stream.getTracks().forEach(function (track) { track.stop(); });
+            saveCameraPreference(!!(rememberPermission && rememberPermission.checked));
+            startScanner();
+          })
+          .catch(function (err) {
+            setPermissionUiVisible(true);
+            setScannerMessage(describeCameraError(err), true);
+          });
+      }
+
+      if (startScanBtn) startScanBtn.addEventListener('click', function () {
+        if (getSavedCameraPreference()) {
+          startScanner();
+        } else {
+          showPanel(scannerPanel);
+          setPermissionUiVisible(true);
+          setScannerMessage('Allow camera access to begin scanning.', false);
+        }
+      });
+      if (rescanBtn) rescanBtn.addEventListener('click', function () {
+        if (getSavedCameraPreference()) {
+          startScanner();
+        } else {
+          showPanel(scannerPanel);
+          setPermissionUiVisible(true);
+          setScannerMessage('Allow camera access to begin scanning.', false);
+        }
+      });
+      if (retryScanBtn) retryScanBtn.addEventListener('click', requestCameraAccessAndStart);
+      if (grantCameraBtn) grantCameraBtn.addEventListener('click', requestCameraAccessAndStart);
+      if (cancelScanBtn) cancelScanBtn.addEventListener('click', goLanding);
+      if (cameraSelect) cameraSelect.addEventListener('change', function () {
+        if (scannerPanel && !scannerPanel.classList.contains('hidden')) {
+          startScanner();
+        }
+      });
+      if (manualFallbackForm) manualFallbackForm.addEventListener('submit', function (event) {
+        event.preventDefault();
+        var qrText = String((manualQrInput && manualQrInput.value) || '').trim();
+        if (!qrText) {
+          setScannerMessage('Enter or paste the QR text first.', true);
+          return;
+        }
+        if (manualSubmitBtn) manualSubmitBtn.disabled = true;
+        submitQrText(qrText);
+        window.setTimeout(function () {
+          if (manualSubmitBtn) manualSubmitBtn.disabled = false;
+        }, 1500);
+      });
+      if (rememberPermission) rememberPermission.checked = getSavedCameraPreference();
+      updateSecureContextNote();
+      loadCameras();
+    })();
+  </script>
+</body>
+</html>

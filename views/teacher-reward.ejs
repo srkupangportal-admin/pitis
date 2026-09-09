@@ -1,0 +1,470 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>P.I.T.I.S - <%= cls.name %></title>
+  <link rel="stylesheet" href="/css/theme-c.css" />
+</head>
+<body>
+  <%- include('partials/teacher-nav') %>
+  <main class="container reward-container">
+    <% if (error) { %>
+      <section class="card"><div class="error"><%= error %></div></section>
+    <% } %>
+    <% if (success) { %>
+      <section class="card"><div><%= success %></div></section>
+    <% } %>
+
+    <section class="card">
+      <div class="attendance-class-shortcuts">
+        <% (shortcutClasses || []).forEach(c => { %>
+          <a class="card action-card attendance-class-shortcut-card <%= Number(cls.id) === Number(c.id) ? 'active' : '' %>" href="/teacher/reward/<%= c.id %>"><%= c.displayLabel %></a>
+        <% }) %>
+      </div>
+    </section>
+
+    <h2>P.I.T.I.S: <%= cls.name %></h2>
+
+    <section class="card reward-bulk-panel">
+      <div>
+        <h3>Bulk P.I.T.I.S</h3>
+        <p class="muted">Select multiple students, then award or deduct pitis in one action.</p>
+      </div>
+      <div class="reward-bulk-actions">
+        <button class="btn subtle secondary" type="button" id="rewardSelectAll">Select All</button>
+        <button class="btn subtle secondary" type="button" id="rewardClearSelection">Clear</button>
+        <button class="btn subtle reward-quick plus bulk-award-trigger" type="button" data-mode="1">Award +1</button>
+        <button class="btn subtle reward-quick minus bulk-award-trigger" type="button" data-mode="-1">Deduct -1</button>
+        <button class="btn subtle reward-quick manual bulk-award-trigger" type="button" data-mode="manual">Manual</button>
+      </div>
+      <div class="muted reward-selection-count" id="rewardSelectionCount">0 students selected</div>
+    </section>
+
+    <div class="reward-grid-compact">
+      <% students.forEach(st => { %>
+        <div class="reward-tile">
+          <div class="reward-tile-head">
+            <div class="reward-name-wrap">
+              <div class="reward-photo-select-row">
+                <button type="button" class="reward-thumb-btn photo-preview-trigger" data-photo-src="<%= st.photo_src || ('https://api.dicebear.com/7.x/adventurer/svg?seed=' + encodeURIComponent(st.nickname || 'student')) %>" data-photo-name="<%= st.full_name %>">
+                  <img class="reward-thumb" src="<%= st.photo_src || ('https://api.dicebear.com/7.x/adventurer/svg?seed=' + encodeURIComponent(st.nickname || 'student')) %>" alt="<%= st.nickname %>" />
+                </button>
+                <label class="reward-select-check">
+                  <input type="checkbox" class="reward-student-select" value="<%= st.id %>" data-student-name="<%= st.nickname %>" />
+                  <span>Select</span>
+                </label>
+              </div>
+              <a class="reward-name-block student-detail-link" href="/teacher/students/<%= st.id %>">
+                <div class="reward-nickname"><%= st.nickname %></div>
+                <div class="reward-fullname"><%= st.full_name %></div>
+              </a>
+            </div>
+            <div class="reward-points">pitis: <strong><%= st.total_points %></strong></div>
+          </div>
+
+          <div class="reward-quick-row reward-quick-3">
+            <button
+              class="btn reward-quick plus award-trigger"
+              type="button"
+              data-student-id="<%= st.id %>"
+              data-class-id="<%= cls.id %>"
+              data-mode="1">+1</button>
+            <button
+              class="btn reward-quick minus award-trigger"
+              type="button"
+              data-student-id="<%= st.id %>"
+              data-class-id="<%= cls.id %>"
+              data-mode="-1">-1</button>
+            <button
+              class="btn reward-quick manual award-trigger"
+              type="button"
+              data-student-id="<%= st.id %>"
+              data-class-id="<%= cls.id %>"
+              data-mode="manual">Manual</button>
+          </div>
+        </div>
+      <% }) %>
+    </div>
+  </main>
+
+  <div id="awardModal" class="reward-modal hidden" aria-hidden="true">
+    <div class="reward-modal-card">
+      <h3 id="awardModalTitle">Award P.I.T.I.S</h3>
+      <form id="awardModalForm" method="post" action="/teacher/reward/award" class="form">
+        <input type="hidden" name="student_id" id="modalStudentId" />
+        <input type="hidden" name="student_ids" id="modalStudentIds" />
+        <input type="hidden" name="class_id" id="modalClassId" />
+        <input type="hidden" name="point_mode" id="modalPointMode" />
+
+        <label id="manualPointsWrap" class="hidden" style="display:none;">Manual Pitis
+          <input type="number" name="manual_points" id="modalManualPoints" value="0" disabled />
+        </label>
+
+        <label>Reason
+          <select name="reason" id="modalReason">
+            <option value="">Select reason</option>
+            <% reasons.forEach(r => { %>
+              <option value="<%= r.reason %>" data-reason-id="<%= r.id %>" data-is-custom="<%= Number(r.is_custom) === 1 ? '1' : '0' %>" data-reason-type="<%= r.reason_type %>"><%= r.reason %></option>
+            <% }) %>
+          </select>
+        </label>
+
+        <label>Custom Reason (optional)
+          <input type="text" name="custom_reason" id="modalCustomReason" placeholder="Type new reason to save" />
+        </label>
+
+        <div class="button-row">
+          <button class="btn" type="submit">Confirm</button>
+          <button class="btn secondary" type="button" id="modalCancel">Cancel</button>
+        </div>
+      </form>
+
+      <div class="reason-manage-block">
+        <div class="section-toggle-head">
+          <h4>Manage Added Custom Reasons</h4>
+          <div class="inline-filters">
+            <button class="btn secondary" type="button" id="showReasonManageBtn">Show</button>
+            <button class="btn secondary hidden" type="button" id="hideReasonManageBtn" style="display:none;">Hide</button>
+          </div>
+        </div>
+        <form id="reasonManageForm" method="post" action="/teacher/reasons/manage" class="form hidden" style="display:none; margin-top:12px;">
+          <input type="hidden" name="class_id" value="<%= cls.id %>" />
+          <input type="hidden" name="operation" id="manageReasonOperation" value="" />
+          <label>Custom Reasons
+            <select name="reason_id" id="manageReasonId">
+              <option value="">Select custom reason</option>
+              <% customReasons.forEach(r => { %>
+                <option value="<%= r.id %>" data-reason-text="<%= r.reason %>"><%= r.reason %> (<%= r.reason_type %>)</option>
+              <% }) %>
+            </select>
+          </label>
+          <label>Edit text
+            <input type="text" name="new_reason" id="manageNewReason" placeholder="Type updated reason" />
+          </label>
+          <div class="button-row">
+            <button class="btn secondary" type="submit" data-reason-op="edit">Save Edit</button>
+            <button class="btn danger" type="submit" data-reason-op="delete">Delete</button>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+
+  <div id="photoPreviewModal" class="reward-modal hidden" aria-hidden="true">
+    <div class="reward-modal-card reward-photo-modal-card">
+      <div class="reward-photo-modal-head">
+        <h3 id="photoPreviewName">Student Photo</h3>
+        <button type="button" class="btn subtle secondary" id="photoPreviewClose">Close</button>
+      </div>
+      <img id="photoPreviewImage" class="reward-photo-preview" src="" alt="Student photo preview" />
+    </div>
+  </div>
+
+  <script>
+    (function () {
+      var modal = document.getElementById('awardModal');
+      var modalTitle = document.getElementById('awardModalTitle');
+      var modalForm = document.getElementById('awardModalForm');
+      var modalStudentId = document.getElementById('modalStudentId');
+      var modalStudentIds = document.getElementById('modalStudentIds');
+      var modalClassId = document.getElementById('modalClassId');
+      var modalPointMode = document.getElementById('modalPointMode');
+      var manualWrap = document.getElementById('manualPointsWrap');
+      var manualPoints = document.getElementById('modalManualPoints');
+      var reason = document.getElementById('modalReason');
+      var customReason = document.getElementById('modalCustomReason');
+      var cancelBtn = document.getElementById('modalCancel');
+      var reasonManageForm = document.getElementById('reasonManageForm');
+      var showReasonManageBtn = document.getElementById('showReasonManageBtn');
+      var hideReasonManageBtn = document.getElementById('hideReasonManageBtn');
+      var manageReasonId = document.getElementById('manageReasonId');
+      var manageNewReason = document.getElementById('manageNewReason');
+      var manageReasonOperation = document.getElementById('manageReasonOperation');
+      var photoPreviewModal = document.getElementById('photoPreviewModal');
+      var photoPreviewImage = document.getElementById('photoPreviewImage');
+      var photoPreviewName = document.getElementById('photoPreviewName');
+      var photoPreviewClose = document.getElementById('photoPreviewClose');
+      var rewardStudentSelects = Array.prototype.slice.call(document.querySelectorAll('.reward-student-select'));
+      var rewardSelectionCount = document.getElementById('rewardSelectionCount');
+      var rewardSelectAll = document.getElementById('rewardSelectAll');
+      var rewardClearSelection = document.getElementById('rewardClearSelection');
+      var classId = '<%= cls.id %>';
+
+      function selectedStudentIds() {
+        return rewardStudentSelects.filter(function (box) { return box.checked; }).map(function (box) { return box.value; });
+      }
+
+      function syncSelectionCount() {
+        var count = selectedStudentIds().length;
+        if (rewardSelectionCount) rewardSelectionCount.textContent = count + ' student' + (count === 1 ? '' : 's') + ' selected';
+      }
+
+      function getReasonTypeFromPoints(pointsValue) {
+        var n = Number(pointsValue);
+        if (!Number.isInteger(n) || n === 0) return '';
+        return n > 0 ? 'positive' : 'negative';
+      }
+
+      function refreshReasonOptionsByType(reasonType) {
+        if (!reason) return;
+        var opts = Array.prototype.slice.call(reason.options || []);
+        opts.forEach(function (opt) {
+          var optType = (opt.getAttribute('data-reason-type') || '').toLowerCase();
+          if (!opt.value) {
+            opt.hidden = false;
+            opt.disabled = false;
+            return;
+          }
+          var show = !!reasonType && optType === reasonType;
+          opt.hidden = !show;
+          opt.disabled = !show;
+        });
+        if (!reason.value) return;
+        var selected = reason.options[reason.selectedIndex];
+        if (!selected || selected.disabled) {
+          reason.value = '';
+        }
+      }
+
+      function currentPointsAndType() {
+        var mode = modalPointMode.value;
+        var points = mode === 'manual' ? Number(manualPoints.value || 0) : Number(mode);
+        var reasonType = getReasonTypeFromPoints(points);
+        return { points: points, reasonType: reasonType };
+      }
+
+      function openModal(studentIds, targetClassId, mode) {
+        var ids = Array.isArray(studentIds) ? studentIds : [studentIds];
+        ids = ids.map(function (id) { return String(id || '').trim(); }).filter(Boolean);
+        if (!ids.length) {
+          alert('Select at least one student first.');
+          return;
+        }
+        modalStudentId.value = ids[0] || '';
+        if (modalStudentIds) modalStudentIds.value = ids.join(',');
+        modalClassId.value = targetClassId;
+        modalPointMode.value = mode;
+        if (modalTitle) {
+          var titleBase = mode === 'manual' ? 'Manual P.I.T.I.S' : (Number(mode) < 0 ? 'Deduct P.I.T.I.S' : 'Award P.I.T.I.S');
+          modalTitle.textContent = titleBase + (ids.length > 1 ? ' (' + ids.length + ' students)' : '');
+        }
+
+        reason.value = '';
+        customReason.value = '';
+        manualPoints.value = 0;
+
+        var inferred = currentPointsAndType();
+        refreshReasonOptionsByType(inferred.reasonType);
+
+        if (mode === 'manual') {
+          manualWrap.classList.remove('hidden');
+          manualWrap.style.display = 'grid';
+          manualPoints.disabled = false;
+        } else {
+          manualWrap.classList.add('hidden');
+          manualWrap.style.display = 'none';
+          manualPoints.disabled = true;
+          manualPoints.value = 0;
+        }
+
+        modal.classList.remove('hidden');
+        modal.setAttribute('aria-hidden', 'false');
+      }
+
+      function closeModal() {
+        modal.classList.add('hidden');
+        modal.setAttribute('aria-hidden', 'true');
+        if (reasonManageForm) {
+          reasonManageForm.classList.add('hidden');
+          reasonManageForm.style.display = 'none';
+        }
+        if (showReasonManageBtn) showReasonManageBtn.style.display = 'inline-flex';
+        if (hideReasonManageBtn) {
+          hideReasonManageBtn.classList.add('hidden');
+          hideReasonManageBtn.style.display = 'none';
+        }
+      }
+
+      function openPhotoPreview(src, name) {
+        if (!photoPreviewModal || !photoPreviewImage) return;
+        photoPreviewImage.src = src || '';
+        photoPreviewImage.alt = (name || 'Student') + ' photo preview';
+        if (photoPreviewName) photoPreviewName.textContent = name || 'Student Photo';
+        photoPreviewModal.classList.remove('hidden');
+        photoPreviewModal.setAttribute('aria-hidden', 'false');
+      }
+
+      function closePhotoPreview() {
+        if (!photoPreviewModal || !photoPreviewImage) return;
+        photoPreviewModal.classList.add('hidden');
+        photoPreviewModal.setAttribute('aria-hidden', 'true');
+        photoPreviewImage.src = '';
+      }
+
+      document.querySelectorAll('.award-trigger').forEach(function (btn) {
+        btn.addEventListener('click', function () {
+          openModal(btn.dataset.studentId, btn.dataset.classId, btn.dataset.mode);
+        });
+      });
+
+      document.querySelectorAll('.bulk-award-trigger').forEach(function (btn) {
+        btn.addEventListener('click', function () {
+          openModal(selectedStudentIds(), classId, btn.dataset.mode);
+        });
+      });
+
+      rewardStudentSelects.forEach(function (box) {
+        box.addEventListener('change', syncSelectionCount);
+      });
+
+      if (rewardSelectAll) {
+        rewardSelectAll.addEventListener('click', function () {
+          rewardStudentSelects.forEach(function (box) { box.checked = true; });
+          syncSelectionCount();
+        });
+      }
+
+      if (rewardClearSelection) {
+        rewardClearSelection.addEventListener('click', function () {
+          rewardStudentSelects.forEach(function (box) { box.checked = false; });
+          syncSelectionCount();
+        });
+      }
+
+      cancelBtn.addEventListener('click', closeModal);
+
+      document.querySelectorAll('.photo-preview-trigger').forEach(function (btn) {
+        btn.addEventListener('click', function () {
+          openPhotoPreview(btn.dataset.photoSrc, btn.dataset.photoName);
+        });
+      });
+
+      if (photoPreviewClose) {
+        photoPreviewClose.addEventListener('click', closePhotoPreview);
+      }
+
+      modal.addEventListener('click', function (e) {
+        if (e.target === modal) closeModal();
+      });
+
+      if (photoPreviewModal) {
+        photoPreviewModal.addEventListener('click', function (e) {
+          if (e.target === photoPreviewModal) closePhotoPreview();
+        });
+      }
+
+      if (manageReasonId && manageNewReason) {
+        manageReasonId.addEventListener('change', function () {
+          var opt = manageReasonId.options[manageReasonId.selectedIndex];
+          var txt = opt ? (opt.getAttribute('data-reason-text') || '') : '';
+          manageNewReason.value = txt;
+        });
+      }
+
+      if (showReasonManageBtn && reasonManageForm) {
+        showReasonManageBtn.addEventListener('click', function () {
+          reasonManageForm.classList.remove('hidden');
+          reasonManageForm.style.display = 'grid';
+          showReasonManageBtn.style.display = 'none';
+          if (hideReasonManageBtn) {
+            hideReasonManageBtn.classList.remove('hidden');
+            hideReasonManageBtn.style.display = 'inline-flex';
+          }
+        });
+      }
+
+      if (hideReasonManageBtn && reasonManageForm) {
+        hideReasonManageBtn.addEventListener('click', function () {
+          reasonManageForm.classList.add('hidden');
+          reasonManageForm.style.display = 'none';
+          hideReasonManageBtn.classList.add('hidden');
+          hideReasonManageBtn.style.display = 'none';
+          if (showReasonManageBtn) showReasonManageBtn.style.display = 'inline-flex';
+        });
+      }
+
+      if (reasonManageForm) {
+        reasonManageForm.addEventListener('click', function (e) {
+          var target = e.target;
+          if (!target || !target.getAttribute) return;
+          var op = target.getAttribute('data-reason-op');
+          if (!op) return;
+          if (manageReasonOperation) manageReasonOperation.value = op;
+        });
+
+        reasonManageForm.addEventListener('submit', function (e) {
+          var op = manageReasonOperation ? (manageReasonOperation.value || '').trim() : '';
+          var selected = manageReasonId ? (manageReasonId.value || '').trim() : '';
+          var edited = manageNewReason ? (manageNewReason.value || '').trim() : '';
+
+          if (!op) {
+            e.preventDefault();
+            alert('Choose Edit or Delete for custom reason.');
+            return;
+          }
+          if (!selected) {
+            e.preventDefault();
+            alert('Select a custom reason first.');
+            return;
+          }
+          if (op === 'edit' && !edited) {
+            e.preventDefault();
+            alert('Type the updated reason text.');
+            return;
+          }
+          if (op === 'delete' && !confirm('Delete this custom reason? Used reasons cannot be deleted.')) {
+            e.preventDefault();
+          }
+        });
+      }
+
+      if (manualPoints) {
+        manualPoints.addEventListener('input', function () {
+          var inferred = currentPointsAndType();
+          refreshReasonOptionsByType(inferred.reasonType);
+        });
+      }
+
+      if (reason) {
+        reason.addEventListener('change', function () {
+          var selected = reason.options[reason.selectedIndex];
+          if (!selected || !selected.value) return;
+          if (selected.disabled) {
+            reason.value = '';
+          }
+        });
+      }
+      syncSelectionCount();
+      modalForm.addEventListener('submit', function (e) {
+        var chosenReason = (reason.value || '').trim();
+        var custom = (customReason.value || '').trim();
+
+        var inferred = currentPointsAndType();
+        if (!Number.isInteger(inferred.points) || inferred.points === 0) {
+          e.preventDefault();
+          alert('Pitis must be a non-zero integer.');
+          return;
+        }
+
+        if (!chosenReason && !custom) {
+          e.preventDefault();
+          alert('Please select a reason or type a custom reason.');
+          return;
+        }
+
+        if (chosenReason) {
+          var selected = reason.options[reason.selectedIndex];
+          var selectedType = selected ? (selected.getAttribute('data-reason-type') || '') : '';
+          if (selectedType && selectedType !== inferred.reasonType) {
+            e.preventDefault();
+            alert('Please choose a ' + inferred.reasonType + ' reason for this pitis value.');
+            return;
+          }
+        }
+      });
+    })();
+  </script>
+  <script src="/js/inactivity.js"></script>
+</body>
+</html>

@@ -1,0 +1,26 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>QR Quiz Result</title>
+  <link rel="stylesheet" href="/css/theme-c.css" />
+</head>
+<body class="qr-quiz-student-page">
+  <%- include('partials/main-header-card') %>
+
+  <main class="container stack qr-quiz-mobile-shell">
+    <section class="card qr-quiz-result-card">
+      <h2><%= result.title %></h2>
+      <p class="muted"><%= result.nickname || result.full_name %> - <%= result.class_name %></p>
+      <div class="qr-quiz-result-score"><%= result.score %> / <%= result.total_questions %></div>
+      <% if (Number(result.pitis_awarded || 0) > 0) { %>
+        <p><strong><%= result.pitis_awarded %> PITIS earned</strong></p>
+      <% } else if (Number(result.award_enabled || 0) === 1) { %>
+        <p class="muted">No PITIS earned this time.</p>
+      <% } %>
+      <p><%= Number(result.score || 0) >= Math.ceil(Number(result.total_questions || 0) / 2) ? 'Great job!' : 'Try again next time!' %></p>
+    </section>
+  </main>
+</body>
+</html>

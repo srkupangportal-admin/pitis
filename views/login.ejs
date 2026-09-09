@@ -1,0 +1,47 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>USER ID Login</title>
+  <link rel="stylesheet" href="/css/theme-c.css" />
+</head>
+<body class="center-page login-page">
+  <%- include('partials/main-header-card') %>
+  <%- include('partials/security-install-banner') %>
+  <div class="login-portal-bg login-portal-bg-a"></div>
+  <div class="login-portal-bg login-portal-bg-b"></div>
+  <div class="login-shell">
+    <div class="login-portal">
+      <div class="login-portal-ring ring-outer"></div>
+      <div class="login-portal-ring ring-mid"></div>
+      <div class="login-portal-ring ring-inner"></div>
+      <div class="login-panel card">
+        <div class="login-panel-head">
+          <span class="login-kicker">Portal Access</span>
+          <h2>USER ID Login</h2>
+          <p class="muted">Enter the school system using your assigned USER ID.</p>
+        </div>
+        <form class="form" method="post" action="/login" autocomplete="on" id="portalLoginForm" name="portalLoginForm">
+          <% if (nextPath) { %>
+            <input type="hidden" name="next" value="<%= nextPath %>" />
+          <% } %>
+          <label for="loginUsername">USER ID
+            <input id="loginUsername" type="text" name="username" autocomplete="username" autocapitalize="none" autocorrect="off" spellcheck="false" required />
+          </label>
+          <label for="loginPassword">Password
+            <input id="loginPassword" type="password" name="password" autocomplete="current-password" required />
+          </label>
+          <% if (error) { %>
+            <div class="error"><%= error %></div>
+          <% } %>
+          <div class="button-row login-actions">
+            <button class="btn" type="submit">Sign In</button>
+            <a class="btn secondary" href="/">Back</a>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+</body>
+</html>

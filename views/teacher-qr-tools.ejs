@@ -1,0 +1,43 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>QR Tools</title>
+  <link rel="stylesheet" href="/css/theme-c.css" />
+</head>
+<body>
+  <header class="site-header">
+    <h1>QR Tools</h1>
+    <span>Welcome, <%= user.displayName %></span>
+  </header>
+  <%- include('partials/teacher-nav') %>
+
+  <main class="container stack">
+    <% if (error) { %>
+      <section class="card"><div class="error"><%= error %></div></section>
+    <% } %>
+    <% if (success) { %>
+      <section class="card"><div><%= success %></div></section>
+    <% } %>
+
+    <section class="card">
+      <h2>Choose a QR Tool</h2>
+      <p class="muted">QR Attendance and Device QR are ready to use for scan-based logging workflows.</p>
+    </section>
+
+    <section class="teacher-tools-grid">
+      <a class="card action-card tool-launch-card" href="/teacher/attendance/scan">
+        <span class="tool-launch-title">QR Attendance</span>
+        <span class="tool-launch-desc">Scan student QR codes to mark attendance across all classes.</span>
+      </a>
+      <a class="card action-card tool-launch-card" href="/devices/qr">
+        <span class="tool-launch-title">Device QR</span>
+        <span class="tool-launch-desc">Scan device QR codes to auto log borrow and return times.</span>
+      </a>
+    </section>
+  </main>
+
+  <script src="/js/inactivity.js"></script>
+</body>
+</html>

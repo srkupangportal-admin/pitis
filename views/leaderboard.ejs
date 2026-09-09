@@ -1,0 +1,108 @@
+﻿<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title><%= cls.name %> P.I.T.I.S Leaders</title>
+  <link rel="stylesheet" href="/css/theme-c.css?v=20260901-tier-card-fit-2" />
+</head>
+<body class="leaderboard-bg">
+  <%- include('partials/main-header-card') %>
+  <main class="leaderboard-screen leaderboard-v2 leaderboard-ref" id="leaderboardTable" data-class-id="<%= cls.id %>" data-slideshow-duration-ms="<%= slideshowDurationMs || 4000 %>" data-slideshow-mode="<%= slideshowMode || 'points' %>" data-slideshow-student-count="<%= slideshowStudentCount || 8 %>">
+    <header class="leaderboard-titlebar">
+      <span class="title-icon ring"></span>
+      <h1>P.I.T.I.S Leaders</h1>
+      <button type="button" id="leaderboardMenuBtn" class="title-icon-btn" aria-label="P.I.T.I.S Leaders menu" aria-expanded="false">
+        <span class="title-icon menu"></span>
+      </button>
+    </header>
+
+    <div class="leaderboard-sub center"><%= cls.name %></div>
+
+    <% if (classes && classes.length) { %>
+      <section class="leaderboard-class-switch">
+        <% classes.forEach((classItem) => { %>
+          <a
+            class="leaderboard-class-card leaderboard-class-switch-card <%= Number(classItem.id) === Number(cls.id) ? 'active' : '' %>"
+            href="/leaderboard/<%= classItem.id %>"
+          ><%= classItem.name %></a>
+        <% }) %>
+      </section>
+    <% } %>
+
+    <div id="leaderboardMenuPanel" class="leaderboard-menu-panel hidden" role="menu">
+      <button type="button" class="menu-item active" data-sort-mode="desc">Sort: Descending</button>
+      <button type="button" class="menu-item" data-sort-mode="asc">Sort: Ascending</button>
+      <button type="button" class="menu-item" id="leaderboardSlideshowMenuBtn">Play as Slideshow</button>
+      <a class="menu-link" href="/leaderboard">All Classes</a>
+      <a class="menu-link" href="/">Home</a>
+    </div>
+
+    <section class="leaderboard-list-shell">
+      <div class="leaderboard-kiosk-actions">
+        <button type="button" class="btn" id="leaderboardSlideshowBtn">Play as Slideshow</button>
+        <button type="button" class="btn secondary" id="leaderboardMountainBtn">Mountain Path</button>
+        <a class="btn" href="<%= classCompassUrl %>">Class Compass</a>
+      </div>
+      <section class="leaderboard-daily-spotlight" id="leaderboardDailySpotlight" aria-label="Daily student spotlight"></section>
+      <section class="leaderboard-class-leaders-layout">
+        <div class="leaderboard-class-main">
+          <div class="leaderboard-section-heading"><strong>Class Leaders</strong><span>Ranked by accumulated P.I.T.I.S within <%= cls.name %></span></div>
+          <section class="leaderboard-podium" id="leaderboardPodium"></section>
+          <div class="leaderboard-section-heading everyone"><strong>Everyone’s Progress</strong><span>Weekly improvement within <%= cls.name %></span></div>
+          <section class="leaderboard-ranked-student-grid" id="leaderboardRows" aria-label="Every student's weekly progress"></section>
+        </div>
+        <aside class="leaderboard-recognition-grid" id="leaderboardRecognitionGrid" aria-label="Student recognition"></aside>
+      </section>
+      <div class="leaderboard-meta" id="lastUpdated">Last updated: <%= generatedAt %></div>
+    </section>
+  </main>
+
+  <div id="leaderboardSlideshowModal" class="reward-modal hidden leaderboard-slideshow-modal" aria-hidden="true">
+    <div class="reward-modal-card leaderboard-slideshow-card">
+      <div class="reward-photo-modal-head">
+        <h3>P.I.T.I.S Leaders Slideshow</h3>
+        <div class="inline-filters">
+          <button type="button" class="btn subtle secondary" id="leaderboardSlideshowFullscreenBtn">Fullscreen</button>
+          <button type="button" class="btn subtle secondary" id="leaderboardSlideshowCloseBtn">Exit</button>
+        </div>
+      </div>
+      <div class="leaderboard-slideshow-stage">
+        <div class="leaderboard-celebration-layer" id="leaderboardCelebrationLayer" aria-hidden="true"></div>
+        <div class="leaderboard-slideshow-class"><%= cls.name %></div>
+        <div class="leaderboard-slideshow-grid" id="leaderboardSlideshowGrid"></div>
+      </div>
+    </div>
+  </div>
+
+  <div id="leaderboardMountainModal" class="reward-modal hidden leaderboard-mountain-modal" aria-hidden="true">
+    <div class="leaderboard-mountain-screen">
+      <div class="leaderboard-mountain-toolbar">
+        <div><span>THE GREAT P.I.T.I.S CLIMB</span><strong><%= cls.name %></strong></div>
+        <button type="button" class="btn subtle secondary" id="leaderboardMountainReplayBtn">Replay</button>
+        <button type="button" class="btn subtle secondary" id="leaderboardMountainFullscreenBtn">Fullscreen</button>
+        <button type="button" class="btn subtle secondary" id="leaderboardMountainCloseBtn">Exit</button>
+      </div>
+      <div class="leaderboard-mountain-stage" id="leaderboardMountainStage">
+        <div class="mountain-sun"></div><div class="mountain-cloud cloud-one"></div><div class="mountain-cloud cloud-two"></div>
+        <svg class="mountain-route" viewBox="0 0 1000 600" preserveAspectRatio="none" aria-hidden="true"><path d="M90 535 C230 515 190 425 330 420 S430 315 565 325 S650 220 760 225 S805 110 925 86"/></svg>
+        <div id="leaderboardMountainStudents"></div>
+      </div>
+    </div>
+  </div>
+
+  <div id="leaderboardPhotoModal" class="reward-modal hidden leaderboard-photo-modal" aria-hidden="true">
+    <div class="reward-modal-card leaderboard-photo-modal-card">
+      <div class="reward-photo-modal-head">
+        <h3 id="leaderboardPhotoModalName">Student photo</h3>
+        <button type="button" class="btn subtle secondary" id="leaderboardPhotoModalCloseBtn">Close</button>
+      </div>
+      <img id="leaderboardPhotoModalImg" class="leaderboard-photo-large" alt="Student photo" />
+    </div>
+  </div>
+
+  <script id="leaderboardInitialRows" type="application/json"><%- JSON.stringify(rows) %></script>
+  <script id="leaderboardSpotlightRows" type="application/json"><%- JSON.stringify(spotlightRows || []) %></script>
+  <script src="/js/leaderboard.js?v=20260901-unified-slideshow-cards-1"></script>
+</body>
+</html>

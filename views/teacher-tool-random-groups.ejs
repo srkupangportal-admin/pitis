@@ -1,0 +1,345 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Random Groups</title>
+  <link rel="stylesheet" href="/css/theme-c.css" />
+</head>
+<body>
+  <header class="site-header">
+    <h1>Random Groups</h1>
+    <span>Welcome, <%= user.displayName %></span>
+  </header>
+  <%- include('partials/teacher-nav') %>
+
+  <main class="container stack">
+    <% if (error) { %>
+      <section class="card"><div class="error"><%= error %></div></section>
+    <% } %>
+    <% if (success) { %>
+      <section class="card"><div><%= success %></div></section>
+    <% } %>
+
+    <section class="card tool-card" id="randomGroupsCard">
+      <div class="tool-card-head">
+        <div>
+          <h2>Random Groups</h2>
+          <p class="muted">Select one or more classes, choose all students or selected students, then set the number of groups.</p>
+        </div>
+        <a class="btn secondary" href="/teacher/tools">Back to Tools</a>
+      </div>
+
+      <div class="form stack">
+        <div>
+          <div class="calendar-header-row report-header-row">
+            <h3>Classes</h3>
+            <span class="muted" id="randomGroupsClassCount">0 classes selected</span>
+          </div>
+          <div class="reward-bulk-actions pitis-usage-selection-actions">
+            <button class="btn subtle secondary" type="button" id="randomGroupsSelectAllClasses">Select All Classes</button>
+            <button class="btn subtle secondary" type="button" id="randomGroupsClearClasses">Clear Classes</button>
+          </div>
+          <div class="reward-grid-compact tool-class-grid">
+            <% classes.forEach(cls => { %>
+              <label class="reward-tile tool-class-card" data-class-card>
+                <span class="reward-select-check">
+                  <input type="checkbox" class="random-groups-class" value="<%= cls.id %>" data-class-name="<%= cls.name %>" />
+                  <span>Select</span>
+                </span>
+                <span class="reward-tile-head">
+                  <span class="reward-name-wrap">
+                    <span class="reward-nickname"><%= cls.name %></span>
+                    <span class="reward-fullname">Class</span>
+                  </span>
+                </span>
+              </label>
+            <% }) %>
+          </div>
+        </div>
+
+        <div class="inline-filters">
+          <label class="tool-choice"><input type="radio" name="randomGroupsScope" value="all" checked /> All students in selected classes</label>
+          <label class="tool-choice"><input type="radio" name="randomGroupsScope" value="selected" /> Selected students only</label>
+        </div>
+
+        <div id="randomGroupsStudentsWrap" class="tool-student-wrap hidden">
+          <div class="calendar-header-row report-header-row">
+            <h3>Students</h3>
+            <span class="muted" id="randomGroupsStudentCount">0 students loaded</span>
+          </div>
+          <div class="reward-bulk-actions pitis-usage-selection-actions">
+            <button class="btn subtle secondary" type="button" id="randomGroupsSelectAllStudents">Select All Students</button>
+            <button class="btn subtle secondary" type="button" id="randomGroupsClearStudents">Clear Students</button>
+          </div>
+          <div id="randomGroupsStudentGrid" class="tool-student-grid"></div>
+        </div>
+
+        <label>Number of groups
+          <input type="number" id="randomGroupsCount" min="1" step="1" value="2" />
+        </label>
+
+        <div class="inline-filters">
+          <button class="btn" type="button" id="randomGroupsMakeBtn">Create Random Groups</button>
+          <button class="btn secondary" type="button" id="randomGroupsShuffleBtn">Shuffle Again</button>
+        </div>
+
+        <div id="randomGroupsStatus" class="muted"></div>
+        <div id="randomGroupsResult" class="tool-result hidden"></div>
+      </div>
+    </section>
+  </main>
+
+  <script>
+    (function () {
+      var classBoxes = Array.prototype.slice.call(document.querySelectorAll('.random-groups-class'));
+      var classCards = Array.prototype.slice.call(document.querySelectorAll('[data-class-card]'));
+      var classCount = document.getElementById('randomGroupsClassCount');
+      var selectAllClasses = document.getElementById('randomGroupsSelectAllClasses');
+      var clearClasses = document.getElementById('randomGroupsClearClasses');
+      var studentsWrap = document.getElementById('randomGroupsStudentsWrap');
+      var studentGrid = document.getElementById('randomGroupsStudentGrid');
+      var studentCount = document.getElementById('randomGroupsStudentCount');
+      var selectAllStudents = document.getElementById('randomGroupsSelectAllStudents');
+      var clearStudents = document.getElementById('randomGroupsClearStudents');
+      var groupCountInput = document.getElementById('randomGroupsCount');
+      var makeBtn = document.getElementById('randomGroupsMakeBtn');
+      var shuffleBtn = document.getElementById('randomGroupsShuffleBtn');
+      var result = document.getElementById('randomGroupsResult');
+      var status = document.getElementById('randomGroupsStatus');
+      var loadedStudents = [];
+      var lastPool = [];
+
+      function escapeHtml(value) {
+        return String(value || '')
+          .replace(/&/g, '&amp;')
+          .replace(/</g, '&lt;')
+          .replace(/>/g, '&gt;')
+          .replace(/"/g, '&quot;')
+          .replace(/'/g, '&#39;');
+      }
+
+      function buildAppUrl(pathname) {
+        return new URL(pathname, window.location.origin).toString();
+      }
+
+      function selectedClassIds() {
+        return classBoxes.filter(function (box) { return box.checked; }).map(function (box) { return box.value; });
+      }
+
+      function getScope() {
+        var picked = document.querySelector('input[name="randomGroupsScope"]:checked');
+        return picked ? picked.value : 'all';
+      }
+
+      function shuffle(items) {
+        var arr = items.slice();
+        for (var i = arr.length - 1; i > 0; i -= 1) {
+          var j = Math.floor(Math.random() * (i + 1));
+          var tmp = arr[i];
+          arr[i] = arr[j];
+          arr[j] = tmp;
+        }
+        return arr;
+      }
+
+      function syncClassCards() {
+        var count = selectedClassIds().length;
+        if (classCount) classCount.textContent = count + ' class' + (count === 1 ? '' : 'es') + ' selected';
+        classCards.forEach(function (card) {
+          var box = card.querySelector('input[type="checkbox"]');
+          card.classList.toggle('selected', !!(box && box.checked));
+        });
+      }
+
+      function syncStudentCount() {
+        var boxes = Array.prototype.slice.call(studentGrid.querySelectorAll('input[type="checkbox"]'));
+        var selected = boxes.filter(function (box) { return box.checked; }).length;
+        var countText = loadedStudents.length + ' student' + (loadedStudents.length === 1 ? '' : 's') + ' loaded';
+        if (getScope() === 'selected') {
+          countText += ', ' + selected + ' selected';
+        }
+        if (studentCount) studentCount.textContent = countText;
+      }
+
+      function renderStudents(students) {
+        loadedStudents = students.slice();
+        if (!studentGrid) return;
+        if (!students.length) {
+          studentGrid.innerHTML = '<div class="muted">Select at least one class to load students.</div>';
+          syncStudentCount();
+          return;
+        }
+
+        studentGrid.innerHTML = students.map(function (student) {
+          var label = student.nickname || student.full_name || 'Student';
+          var photo = student.photo_src
+            ? '<img class="tool-student-photo" src="' + escapeHtml(student.photo_src) + '" alt="' + escapeHtml(label) + '" />'
+            : '<div class="tool-student-photo tool-student-photo-fallback">' + escapeHtml(label.slice(0, 1)) + '</div>';
+          return '' +
+            '<label class="tool-student-item">' +
+              '<input type="checkbox" name="random_group_students" value="' + escapeHtml(student.id) + '" data-class-id="' + escapeHtml(student.class_id || '') + '" checked />' +
+              photo +
+              '<span class="tool-student-text">' +
+                '<a class="student-detail-link" href="/teacher/students/' + encodeURIComponent(student.id) + '"><strong>' + escapeHtml(label) + '</strong></a>' +
+                '<small>' + escapeHtml(student.class_name || '') + '</small>' +
+              '</span>' +
+            '</label>';
+        }).join('');
+        Array.prototype.slice.call(studentGrid.querySelectorAll('input[type="checkbox"]')).forEach(function (box) {
+          box.addEventListener('change', syncStudentCount);
+        });
+        syncStudentCount();
+      }
+
+      function setStatus(message, isError) {
+        if (!status) return;
+        status.className = isError ? 'error' : 'muted';
+        status.textContent = message || '';
+      }
+
+      function loadSelectedClassStudents() {
+        var ids = selectedClassIds();
+        result.classList.add('hidden');
+        result.innerHTML = '';
+        lastPool = [];
+        syncClassCards();
+        if (!ids.length) {
+          renderStudents([]);
+          setStatus('Select one or more classes.', false);
+          return;
+        }
+
+        setStatus('Loading students...', false);
+        Promise.all(ids.map(function (classId) {
+          return fetch(buildAppUrl('/teacher/tools/class/' + encodeURIComponent(classId) + '/students'), {
+            headers: { Accept: 'application/json' },
+            credentials: 'same-origin'
+          }).then(function (res) {
+            if (!res.ok) throw new Error('Failed to load students for one class');
+            return res.json();
+          });
+        })).then(function (payloads) {
+          var byId = new Map();
+          payloads.forEach(function (payload) {
+            (payload.students || []).forEach(function (student) {
+              byId.set(Number(student.id), student);
+            });
+          });
+          var students = Array.from(byId.values()).sort(function (a, b) {
+            var classSort = String(a.class_name || '').localeCompare(String(b.class_name || ''));
+            if (classSort !== 0) return classSort;
+            return String(a.nickname || a.full_name || '').localeCompare(String(b.nickname || b.full_name || ''));
+          });
+          renderStudents(students);
+          setStatus(students.length ? '' : 'No students found in selected classes.', !students.length);
+        }).catch(function (err) {
+          renderStudents([]);
+          setStatus(err.message || String(err), true);
+        });
+      }
+
+      function getPoolStudents() {
+        if (getScope() === 'all') return loadedStudents.slice();
+        var selectedIds = new Set(Array.prototype.slice.call(studentGrid.querySelectorAll('input[type="checkbox"]:checked')).map(function (box) {
+          return Number(box.value);
+        }));
+        return loadedStudents.filter(function (student) { return selectedIds.has(Number(student.id)); });
+      }
+
+      function makeGroups(pool) {
+        var groupCount = Number(groupCountInput.value || 0);
+        if (!Number.isInteger(groupCount) || groupCount < 1) {
+          setStatus('Enter a valid number of groups.', true);
+          return;
+        }
+        if (!pool.length) {
+          setStatus('Select students before creating groups.', true);
+          return;
+        }
+        if (groupCount > pool.length) {
+          setStatus('Number of groups cannot be more than selected students.', true);
+          return;
+        }
+
+        var shuffled = shuffle(pool);
+        var groups = Array.from({ length: groupCount }, function () { return []; });
+        shuffled.forEach(function (student, index) {
+          groups[index % groupCount].push(student);
+        });
+
+        var html = '<div class="tool-group-grid">';
+        groups.forEach(function (group, index) {
+          html += '<section class="tool-group-card"><h3>Group ' + (index + 1) + ' <span>' + group.length + ' students</span></h3><ol>';
+          group.forEach(function (student) {
+            var label = escapeHtml(student.nickname || student.full_name || 'Student');
+            html += '<li><a class="student-detail-link" href="/teacher/students/' + encodeURIComponent(student.id) + '"><strong>' + label + '</strong></a><span>' + escapeHtml(student.class_name || '') + '</span></li>';
+          });
+          html += '</ol></section>';
+        });
+        html += '</div>';
+        result.className = 'tool-result';
+        result.innerHTML = html;
+        result.classList.remove('hidden');
+        setStatus('Created ' + groupCount + ' random group' + (groupCount === 1 ? '' : 's') + ' from ' + pool.length + ' student' + (pool.length === 1 ? '' : 's') + '.', false);
+      }
+
+      classBoxes.forEach(function (box) {
+        box.addEventListener('change', loadSelectedClassStudents);
+      });
+
+      if (selectAllClasses) {
+        selectAllClasses.addEventListener('click', function () {
+          classBoxes.forEach(function (box) { box.checked = true; });
+          loadSelectedClassStudents();
+        });
+      }
+
+      if (clearClasses) {
+        clearClasses.addEventListener('click', function () {
+          classBoxes.forEach(function (box) { box.checked = false; });
+          loadSelectedClassStudents();
+        });
+      }
+
+      Array.prototype.slice.call(document.querySelectorAll('input[name="randomGroupsScope"]')).forEach(function (input) {
+        input.addEventListener('change', function () {
+          studentsWrap.classList.toggle('hidden', getScope() !== 'selected');
+          syncStudentCount();
+        });
+      });
+
+      if (selectAllStudents) {
+        selectAllStudents.addEventListener('click', function () {
+          Array.prototype.slice.call(studentGrid.querySelectorAll('input[type="checkbox"]')).forEach(function (box) { box.checked = true; });
+          syncStudentCount();
+        });
+      }
+
+      if (clearStudents) {
+        clearStudents.addEventListener('click', function () {
+          Array.prototype.slice.call(studentGrid.querySelectorAll('input[type="checkbox"]')).forEach(function (box) { box.checked = false; });
+          syncStudentCount();
+        });
+      }
+
+      if (makeBtn) {
+        makeBtn.addEventListener('click', function () {
+          lastPool = getPoolStudents();
+          makeGroups(lastPool);
+        });
+      }
+
+      if (shuffleBtn) {
+        shuffleBtn.addEventListener('click', function () {
+          makeGroups(lastPool.length ? lastPool : getPoolStudents());
+        });
+      }
+
+      syncClassCards();
+      renderStudents([]);
+    })();
+  </script>
+  <script src="/js/inactivity.js"></script>
+</body>
+</html>

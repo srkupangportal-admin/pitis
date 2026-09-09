@@ -1,0 +1,280 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Catatan Harian</title>
+  <link rel="stylesheet" href="/css/theme-c.css" />
+</head>
+<body>
+  <%- include(currentUser && currentUser.role === 'admin' ? 'partials/admin-nav' : 'partials/teacher-nav') %>
+  <main class="container stack">
+    <% const isAdminCatatan = currentUser && currentUser.role === 'admin'; %>
+    <% if (error) { %>
+      <section class="card"><div class="error"><%= error %></div></section>
+    <% } %>
+    <% if (success) { %>
+      <section class="card"><div><%= success %></div></section>
+    <% } %>
+
+    <section class="card notes-head-card">
+      <div class="section-toggle-head">
+        <div>
+          <h2>Catatan Harian</h2>
+          <p class="muted">Simpan laporan harian mengikut nama, hari, tarikh, checklist, dan catatan bertulis.</p>
+        </div>
+        <div class="inline-filters">
+          <a class="btn secondary" href="/notes">Notes</a>
+        </div>
+      </div>
+    </section>
+
+    <section class="card">
+      <details class="notes-collapsed-card" open>
+        <summary class="notes-card-summary">
+          <div>
+            <h3>Borang Catatan Harian</h3>
+            <div class="muted">Pilih item checklist yang berkaitan sebelum menyimpan laporan.</div>
+          </div>
+          <span class="btn subtle">Open Form</span>
+        </summary>
+        <form method="post" action="/notes/catatan-harian" class="form catatan-harian-form notes-section">
+          <label>Nama
+            <select name="user_id" required>
+              <option value="">Pilih nama</option>
+              <% (users || []).forEach(user => { %>
+                <option value="<%= user.id %>" <%= Number(form.user_id || 0) === Number(user.id) ? 'selected' : '' %>><%= user.display_name %> (<%= user.role %>)</option>
+              <% }) %>
+            </select>
+          </label>
+          <label>Hari
+            <select name="hari" required>
+              <option value="">Pilih hari</option>
+              <% (days || []).forEach(day => { %>
+                <option value="<%= day %>" <%= form.hari === day ? 'selected' : '' %>><%= day %></option>
+              <% }) %>
+            </select>
+          </label>
+          <label>Tarikh
+            <input type="date" name="tarikh" value="<%= form.tarikh %>" required />
+          </label>
+
+          <fieldset class="catatan-checklist-group">
+            <legend>Catatan Pemakanan</legend>
+            <% if (!((checklist.pemakanan || []).length)) { %>
+              <div class="muted">Tiada item aktif.</div>
+            <% } %>
+            <% (checklist.pemakanan || []).forEach(item => { %>
+              <label class="catatan-checklist-item">
+                <input type="checkbox" name="checklist_items" value="<%= item.id %>" />
+                <span><%= item.item_text %></span>
+              </label>
+            <% }) %>
+          </fieldset>
+
+          <fieldset class="catatan-checklist-group">
+            <legend>Aktiviti Harian</legend>
+            <% if (!((checklist.aktiviti || []).length)) { %>
+              <div class="muted">Tiada item aktif.</div>
+            <% } %>
+            <% (checklist.aktiviti || []).forEach(item => { %>
+              <label class="catatan-checklist-item">
+                <input type="checkbox" name="checklist_items" value="<%= item.id %>" />
+                <span><%= item.item_text %></span>
+              </label>
+            <% }) %>
+          </fieldset>
+
+          <label class="catatan-full-width">Catatan
+            <textarea name="catatan" rows="6" placeholder="Tulis laporan ringkas atau isu yang perlu direkodkan..."><%= form.catatan || '' %></textarea>
+          </label>
+
+          <div class="button-row catatan-full-width">
+            <button class="btn" type="submit">Save</button>
+          </div>
+        </form>
+      </details>
+    </section>
+
+    <% if (isAdminCatatan) { %>
+      <section class="card">
+        <details class="notes-collapsed-card">
+          <summary class="notes-card-summary">
+            <div>
+              <h3>Manage</h3>
+              <div class="muted">Tambah, edit, padam, aktifkan, atau nyahaktifkan item checklist.</div>
+            </div>
+            <span class="btn subtle">Manage</span>
+          </summary>
+          <div class="notes-section stack">
+            <form method="post" action="/notes/catatan-harian/checklist/add" class="form inline-filters">
+              <label class="filter-grow">Item Checklist
+                <input type="text" name="item_text" required placeholder="Item checklist baharu" />
+              </label>
+              <label>Kategori
+                <select name="category" required>
+                  <% Object.keys(categories || {}).forEach(key => { %>
+                    <option value="<%= key %>"><%= categories[key] %></option>
+                  <% }) %>
+                </select>
+              </label>
+              <button class="btn secondary" type="submit">Add</button>
+            </form>
+
+            <% if (!((allChecklist || []).length)) { %>
+              <div class="muted">Tiada item checklist.</div>
+            <% } else { %>
+              <div class="catatan-option-list">
+                <% (allChecklist || []).forEach(item => { %>
+                  <div class="catatan-option-item">
+                    <form method="post" action="/notes/catatan-harian/checklist/<%= item.id %>/edit" class="form inline-filters">
+                      <label class="filter-grow">Item
+                        <input type="text" name="item_text" value="<%= item.item_text %>" required />
+                      </label>
+                      <label>Kategori
+                        <select name="category" required>
+                          <% Object.keys(categories || {}).forEach(key => { %>
+                            <option value="<%= key %>" <%= item.category === key ? 'selected' : '' %>><%= categories[key] %></option>
+                          <% }) %>
+                        </select>
+                      </label>
+                      <label class="catatan-active-toggle">
+                        <input type="checkbox" name="is_active" value="1" <%= item.is_active ? 'checked' : '' %> />
+                        <span>Active</span>
+                      </label>
+                      <button class="btn secondary" type="submit">Save</button>
+                    </form>
+                    <form method="post" action="/notes/catatan-harian/checklist/<%= item.id %>/delete" class="inline-form">
+                      <button class="btn danger" type="submit" onclick="return confirm('Padam item checklist ini? Laporan lama masih menyimpan teks item yang telah dipilih.');">Delete</button>
+                    </form>
+                  </div>
+                <% }) %>
+              </div>
+            <% } %>
+          </div>
+        </details>
+      </section>
+    <% } %>
+
+    <section class="stack">
+      <div class="section-toggle-head">
+        <h3>Senarai Catatan Harian</h3>
+        <% if (isAdminCatatan && (reports || []).length) { %>
+          <form method="post" action="/notes/catatan-harian/delete-selected" class="inline-form" id="catatanBulkDeleteForm">
+            <button class="btn danger" type="submit" onclick="return confirm('Padam semua catatan harian yang dipilih? Tindakan ini tidak boleh dibatalkan.');">Delete Selected</button>
+          </form>
+        <% } %>
+      </div>
+      <% if (!((reports || []).length)) { %>
+        <section class="card">
+          <div class="muted">Belum ada catatan harian disimpan.</div>
+        </section>
+      <% } %>
+      <% (reports || []).forEach(report => { %>
+        <details class="card notes-card notes-collapsed-card">
+          <summary class="notes-card-summary">
+            <div>
+              <% if (isAdminCatatan) { %>
+                <input class="catatan-report-select" form="catatanBulkDeleteForm" type="checkbox" name="report_ids" value="<%= report.id %>" onclick="event.stopPropagation();" />
+              <% } %>
+              <h3><%= report.hari %>_<%= report.tarikh %>_<%= report.user_name %></h3>
+              <div class="muted"><%= report.hari %> | Disediakan oleh <%= report.created_by_name %> pada <%= report.created_at %></div>
+            </div>
+            <span class="btn subtle">Open Report</span>
+          </summary>
+
+          <div class="notes-section catatan-report-grid">
+            <div>
+              <h4>Catatan Pemakanan</h4>
+              <% if (!(report.pemakananItems || []).length) { %>
+                <div class="muted">Tiada item dipilih.</div>
+              <% } else { %>
+                <ul class="catatan-report-list">
+                  <% report.pemakananItems.forEach(item => { %>
+                    <li><%= item.item_text %></li>
+                  <% }) %>
+                </ul>
+              <% } %>
+            </div>
+            <div>
+              <h4>Aktiviti Harian</h4>
+              <% if (!(report.aktivitiItems || []).length) { %>
+                <div class="muted">Tiada item dipilih.</div>
+              <% } else { %>
+                <ul class="catatan-report-list">
+                  <% report.aktivitiItems.forEach(item => { %>
+                    <li><%= item.item_text %></li>
+                  <% }) %>
+                </ul>
+              <% } %>
+            </div>
+          </div>
+
+          <div class="notes-body-text"><%= report.catatan || '-' %></div>
+
+          <div class="button-row notes-action-row">
+            <a class="btn secondary" href="/notes/catatan-harian/<%= report.id %>/export.doc">Export Word</a>
+            <a class="btn secondary" href="/notes/catatan-harian/<%= report.id %>/export.pdf">Export PDF</a>
+          </div>
+
+          <details class="notes-section">
+            <summary class="btn subtle">Edit Catatan Harian</summary>
+            <%
+              const selectedReportItemIds = new Set((report.items || []).map(item => Number(item.checklist_item_id || 0)).filter(Boolean));
+              const editPemakananItems = (allChecklist || []).filter(item => item.category === 'pemakanan');
+              const editAktivitiItems = (allChecklist || []).filter(item => item.category === 'aktiviti');
+            %>
+            <form method="post" action="/notes/catatan-harian/<%= report.id %>/edit" class="form catatan-harian-form">
+              <label>Nama
+                <select name="user_id" required>
+                  <% (users || []).forEach(user => { %>
+                    <option value="<%= user.id %>" <%= Number(report.user_id || 0) === Number(user.id) ? 'selected' : '' %>><%= user.display_name %> (<%= user.role %>)</option>
+                  <% }) %>
+                </select>
+              </label>
+              <label>Hari
+                <select name="hari" required>
+                  <% (days || []).forEach(day => { %>
+                    <option value="<%= day %>" <%= report.hari === day ? 'selected' : '' %>><%= day %></option>
+                  <% }) %>
+                </select>
+              </label>
+              <label>Tarikh
+                <input type="date" name="tarikh" value="<%= report.tarikh %>" required />
+              </label>
+
+              <fieldset class="catatan-checklist-group">
+                <legend>Catatan Pemakanan</legend>
+                <% editPemakananItems.forEach(item => { %>
+                  <label class="catatan-checklist-item">
+                    <input type="checkbox" name="checklist_items" value="<%= item.id %>" <%= selectedReportItemIds.has(Number(item.id)) ? 'checked' : '' %> />
+                    <span><%= item.item_text %><%= item.is_active ? '' : ' (inactive)' %></span>
+                  </label>
+                <% }) %>
+              </fieldset>
+
+              <fieldset class="catatan-checklist-group">
+                <legend>Aktiviti Harian</legend>
+                <% editAktivitiItems.forEach(item => { %>
+                  <label class="catatan-checklist-item">
+                    <input type="checkbox" name="checklist_items" value="<%= item.id %>" <%= selectedReportItemIds.has(Number(item.id)) ? 'checked' : '' %> />
+                    <span><%= item.item_text %><%= item.is_active ? '' : ' (inactive)' %></span>
+                  </label>
+                <% }) %>
+              </fieldset>
+
+              <label class="catatan-full-width">Catatan
+                <textarea name="catatan" rows="5"><%= report.catatan || '' %></textarea>
+              </label>
+              <div class="button-row catatan-full-width">
+                <button class="btn secondary" type="submit">Save Changes</button>
+              </div>
+            </form>
+          </details>
+        </details>
+      <% }) %>
+    </section>
+  </main>
+  <script src="/js/inactivity.js"></script>
+</body>
+</html>

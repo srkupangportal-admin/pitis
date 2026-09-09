@@ -1,0 +1,19 @@
+<details class="photo-folder-node card" <%= node.is_open ? 'open' : '' %>>
+  <summary class="photo-folder-summary">
+    <div>
+      <strong><%= node.name %></strong>
+      <div class="muted"><%= node.direct_file_count %> photo(s) here<%= node.subfolder_count ? `, ${node.subfolder_count} subfolder(s)` : '' %></div>
+    </div>
+    <a class="btn <%= node.is_selected ? '' : 'secondary' %>" href="/photos-upload?folder_id=<%= node.id %>&view=<%= encodeURIComponent(viewMode) %>&sort=<%= encodeURIComponent(sort) %>" onclick="event.stopPropagation();">Open Folder</a>
+  </summary>
+
+  <% if (node.children && node.children.length) { %>
+    <div class="photo-folder-children">
+      <% node.children.forEach(function (child) { %>
+        <%- include('photo-folder-tree', { node: child, viewMode: viewMode, sort: sort }) %>
+      <% }) %>
+    </div>
+  <% } else { %>
+    <div class="muted photo-folder-empty">No subfolders yet.</div>
+  <% } %>
+</details>

@@ -1,0 +1,133 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Device Reports</title>
+  <link rel="stylesheet" href="/css/theme-c.css" />
+</head>
+<body>
+  <%- include('partials/admin-nav') %>
+
+  <main class="container stack">
+    <% if (error) { %>
+      <section class="card"><div class="error"><%= error %></div></section>
+    <% } %>
+    <% if (success) { %>
+      <section class="card"><div><%= success %></div></section>
+    <% } %>
+
+    <section class="card device-page-head">
+      <div>
+        <h2>Device Usage Reports</h2>
+        <p class="muted">Monthly summary of bookings and completed lesson usage across devices, classes, and subjects.</p>
+      </div>
+      <form method="get" action="/devices/reports" class="inline-filters">
+        <label>Month
+          <input type="month" name="month" value="<%= report.month %>" required />
+        </label>
+        <button class="btn" type="submit">Load Report</button>
+      </form>
+    </section>
+
+    <section class="cards-3 device-summary-grid">
+      <div class="card device-summary-card">
+        <span class="muted">Total Bookings</span>
+        <strong><%= report.summary.totalBookings %></strong>
+        <span><%= report.monthStart %> to <%= report.monthEnd %></span>
+      </div>
+      <div class="card device-summary-card">
+        <span class="muted">Completed Usages</span>
+        <strong><%= report.summary.completedUsages %></strong>
+        <span>Closed lesson logs</span>
+      </div>
+      <div class="card device-summary-card">
+        <span class="muted">Most Used Device</span>
+        <strong><%= report.summary.mostUsedDevice %></strong>
+      </div>
+      <div class="card device-summary-card">
+        <span class="muted">Most Active User</span>
+        <strong><%= report.summary.mostActiveUser %></strong>
+      </div>
+    </section>
+
+    <section class="card">
+      <h3>Usage by Category</h3>
+      <% if (!report.usageByCategory.length) { %>
+        <div class="muted">No device activity for this month.</div>
+      <% } else { %>
+        <table>
+          <thead>
+            <tr>
+              <th>Category</th>
+              <th>Total Bookings</th>
+              <th>Completed Usages</th>
+            </tr>
+          </thead>
+          <tbody>
+            <% report.usageByCategory.forEach(row => { %>
+              <tr>
+                <td><%= row.category %></td>
+                <td><%= row.total_bookings %></td>
+                <td><%= row.completed_usages %></td>
+              </tr>
+            <% }) %>
+          </tbody>
+        </table>
+      <% } %>
+    </section>
+
+    <section class="card">
+      <h3>Usage by Class</h3>
+      <% if (!report.usageByClass.length) { %>
+        <div class="muted">No class usage recorded for this month.</div>
+      <% } else { %>
+        <table>
+          <thead>
+            <tr>
+              <th>Class</th>
+              <th>Total Bookings</th>
+              <th>Completed Usages</th>
+            </tr>
+          </thead>
+          <tbody>
+            <% report.usageByClass.forEach(row => { %>
+              <tr>
+                <td><%= row.class_name %></td>
+                <td><%= row.total_bookings %></td>
+                <td><%= row.completed_usages %></td>
+              </tr>
+            <% }) %>
+          </tbody>
+        </table>
+      <% } %>
+    </section>
+
+    <section class="card">
+      <h3>Usage by Subject</h3>
+      <% if (!report.usageBySubject.length) { %>
+        <div class="muted">No subject usage recorded for this month.</div>
+      <% } else { %>
+        <table>
+          <thead>
+            <tr>
+              <th>Subject</th>
+              <th>Total Bookings</th>
+              <th>Completed Usages</th>
+            </tr>
+          </thead>
+          <tbody>
+            <% report.usageBySubject.forEach(row => { %>
+              <tr>
+                <td><%= row.subject %></td>
+                <td><%= row.total_bookings %></td>
+                <td><%= row.completed_usages %></td>
+              </tr>
+            <% }) %>
+          </tbody>
+        </table>
+      <% } %>
+    </section>
+  </main>
+</body>
+</html>

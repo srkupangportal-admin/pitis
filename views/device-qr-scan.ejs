@@ -1,0 +1,342 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Device QR</title>
+  <link rel="stylesheet" href="/css/theme-c.css" />
+</head>
+<body>
+  <%- include('partials/teacher-nav') %>
+
+  <main class="container stack attendance-page-shell">
+    <% if (error) { %>
+      <section class="card"><div class="error"><%= error %></div></section>
+    <% } %>
+    <% if (success) { %>
+      <section class="card"><div><%= success %></div></section>
+    <% } %>
+
+    <section class="card attendance-scan-card">
+      <div class="attendance-top-head">
+        <div>
+          <h2>Device QR</h2>
+          <p class="muted">Scan a device QR code to borrow it. Scan the same device again to record the return time before another user borrows it.</p>
+        </div>
+        <div class="inline-filters">
+          <a class="btn secondary" href="/teacher/qr-tools">QR Tools</a>
+          <a class="btn secondary" href="/devices/my-bookings">My Device Logs</a>
+        </div>
+      </div>
+
+      <div class="attendance-scan-summary">
+        <div class="attendance-scan-stat">
+          <span class="muted">Borrowed</span>
+          <strong id="deviceQrBorrowedCount">0</strong>
+        </div>
+        <div class="attendance-scan-stat">
+          <span class="muted">Returned</span>
+          <strong id="deviceQrReturnedCount">0</strong>
+        </div>
+        <div class="attendance-scan-stat">
+          <span class="muted">Blocked</span>
+          <strong id="deviceQrBlockedCount">0</strong>
+        </div>
+      </div>
+
+      <div class="kiosk-camera-permission" id="deviceQrCameraPermission">
+        <p class="muted">Allow camera access to scan device QR codes.</p>
+        <div class="button-row">
+          <button class="btn" type="button" id="deviceQrGrantCameraBtn">Allow Camera</button>
+        </div>
+      </div>
+
+      <div class="kiosk-camera-controls hidden" id="deviceQrCameraControls">
+        <label class="kiosk-camera-select-wrap">
+          <span class="muted">Camera</span>
+          <select id="deviceQrCameraSelect">
+            <option value="">Auto select camera</option>
+          </select>
+        </label>
+        <button class="btn secondary" type="button" id="deviceQrRetryBtn">Retry Camera</button>
+        <button class="btn danger" type="button" id="deviceQrCloseBtn">Close</button>
+      </div>
+
+      <div id="deviceQrReader" class="kiosk-reader"></div>
+      <div class="attendance-scan-feedback" id="deviceQrFeedback" aria-live="polite">Ready to scan</div>
+      <div class="muted" id="deviceQrMessage">Point the camera at a device QR code.</div>
+
+      <form id="deviceQrManualForm" class="stack" style="margin-top:16px;">
+        <label>Manual QR Input
+          <input type="text" id="deviceQrManualInput" placeholder="Paste or type device QR text here" autocomplete="off" autocapitalize="off" spellcheck="false" inputmode="text" />
+        </label>
+        <div class="inline-filters">
+          <button class="btn secondary" type="submit">Submit QR Text</button>
+        </div>
+      </form>
+    </section>
+
+    <section class="card attendance-scan-recent-card">
+      <div class="attendance-absent-head">
+        <h3>Recent Device Scans</h3>
+        <span class="muted">Borrow, return, and blocked scan results from this session</span>
+      </div>
+      <div class="attendance-scan-recent-list" id="deviceQrRecentList">
+        <article class="attendance-scan-recent-item">
+          <strong>Waiting for scans</strong>
+          <span class="muted">Device scan results will appear here.</span>
+        </article>
+      </div>
+    </section>
+  </main>
+
+  <script src="/vendor/html5-qrcode/html5-qrcode.min.js"></script>
+  <script>
+    (function () {
+      var qrReaderId = 'deviceQrReader';
+      var cameraPermissionWrap = document.getElementById('deviceQrCameraPermission');
+      var cameraControls = document.getElementById('deviceQrCameraControls');
+      var grantCameraBtn = document.getElementById('deviceQrGrantCameraBtn');
+      var retryBtn = document.getElementById('deviceQrRetryBtn');
+      var closeBtn = document.getElementById('deviceQrCloseBtn');
+      var cameraSelect = document.getElementById('deviceQrCameraSelect');
+      var scannerMessage = document.getElementById('deviceQrMessage');
+      var scanFeedback = document.getElementById('deviceQrFeedback');
+      var manualForm = document.getElementById('deviceQrManualForm');
+      var manualInput = document.getElementById('deviceQrManualInput');
+      var recentListEl = document.getElementById('deviceQrRecentList');
+      var borrowedCountEl = document.getElementById('deviceQrBorrowedCount');
+      var returnedCountEl = document.getElementById('deviceQrReturnedCount');
+      var blockedCountEl = document.getElementById('deviceQrBlockedCount');
+      var html5QrCode = null;
+      var scannerActive = false;
+      var availableCameras = [];
+      var pendingQrs = new Set();
+      var recentScanTimestamps = new Map();
+      var borrowedCount = 0;
+      var returnedCount = 0;
+      var blockedCount = 0;
+      var processUrl = '/devices/qr/process';
+
+      function escapeHtml(value) {
+        return String(value || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+      }
+
+      function setScannerMessage(message, isError) {
+        if (!scannerMessage) return;
+        scannerMessage.textContent = String(message || '');
+        scannerMessage.className = isError ? 'error' : 'muted';
+      }
+
+      function setScanFeedback(message, tone) {
+        if (!scanFeedback) return;
+        scanFeedback.textContent = String(message || '');
+        scanFeedback.className = 'attendance-scan-feedback' + (tone ? (' is-' + tone) : '');
+      }
+
+      function setPermissionUiVisible(visible) {
+        if (cameraPermissionWrap) cameraPermissionWrap.classList.toggle('hidden', !visible);
+        if (cameraControls) cameraControls.classList.toggle('hidden', visible);
+        var reader = document.getElementById(qrReaderId);
+        if (reader) reader.classList.toggle('hidden', visible);
+      }
+
+      function isSecureForCamera() {
+        if (window.isSecureContext) return true;
+        return /^(localhost|127\.0\.0\.1)$/i.test(String(window.location.hostname || ''));
+      }
+
+      function describeCameraError(err) {
+        var message = String((err && err.message) || '').trim();
+        var combined = (String((err && err.name) || '') + ' ' + message).toLowerCase();
+        if (!isSecureForCamera()) return 'Camera access requires HTTPS on most mobile browsers. Open this page using the HTTPS school portal address.';
+        if (combined.indexOf('permission') >= 0 || combined.indexOf('denied') >= 0 || combined.indexOf('notallowed') >= 0) return 'Camera permission was denied. Allow camera access in the browser and retry.';
+        return message || 'Unable to open the camera.';
+      }
+
+      function updateCounts() {
+        if (borrowedCountEl) borrowedCountEl.textContent = String(borrowedCount);
+        if (returnedCountEl) returnedCountEl.textContent = String(returnedCount);
+        if (blockedCountEl) blockedCountEl.textContent = String(blockedCount);
+      }
+
+      function addRecentItem(label, meta, typeClass) {
+        if (!recentListEl) return;
+        var empty = recentListEl.querySelector('.attendance-scan-recent-item');
+        if (empty && /Waiting for scans/i.test(empty.textContent || '')) recentListEl.innerHTML = '';
+        var article = document.createElement('article');
+        article.className = 'attendance-scan-recent-item ' + (typeClass || '');
+        article.innerHTML = '<strong>' + escapeHtml(label) + '</strong><span class="muted">' + escapeHtml(meta) + '</span>';
+        recentListEl.insertBefore(article, recentListEl.firstChild);
+        while (recentListEl.children.length > 12) recentListEl.removeChild(recentListEl.lastChild);
+      }
+
+      function populateCameraOptions(cameras) {
+        availableCameras = Array.isArray(cameras) ? cameras.slice() : [];
+        if (!cameraSelect) return;
+        cameraSelect.innerHTML = '<option value="">Auto select camera</option>';
+        availableCameras.forEach(function (camera, index) {
+          var option = document.createElement('option');
+          option.value = String(camera.id || '');
+          option.textContent = String(camera.label || ('Camera ' + (index + 1)));
+          cameraSelect.appendChild(option);
+        });
+      }
+
+      function pickPreferredCameraId() {
+        if (cameraSelect && cameraSelect.value) return cameraSelect.value;
+        if (!availableCameras.length) return null;
+        var preferred = availableCameras.find(function (camera) {
+          return /back|rear|environment|external|usb/i.test(String(camera.label || ''));
+        });
+        return String((preferred || availableCameras[0]).id || '');
+      }
+
+      function loadCameras() {
+        if (!window.Html5Qrcode || !Html5Qrcode.getCameras) return Promise.resolve([]);
+        return Html5Qrcode.getCameras().then(function (cameras) {
+          populateCameraOptions(cameras || []);
+          return cameras || [];
+        }).catch(function () {
+          populateCameraOptions([]);
+          return [];
+        });
+      }
+
+      function stopScanner() {
+        if (!html5QrCode || !scannerActive) return Promise.resolve();
+        scannerActive = false;
+        return html5QrCode.stop().catch(function () {}).then(function () {
+          return html5QrCode.clear().catch(function () {});
+        });
+      }
+
+      function shouldIgnoreFastRepeat(qrText) {
+        var now = Date.now();
+        var lastSeenAt = Number(recentScanTimestamps.get(qrText) || 0);
+        recentScanTimestamps.set(qrText, now);
+        return now - lastSeenAt < 2200;
+      }
+
+      function submitQrText(decodedText) {
+        var qrText = String(decodedText || '').trim();
+        if (!qrText || pendingQrs.has(qrText) || shouldIgnoreFastRepeat(qrText)) return;
+        pendingQrs.add(qrText);
+        setScannerMessage('Processing device scan...', false);
+
+        fetch(processUrl, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
+          body: JSON.stringify({ qr_text: qrText })
+        })
+          .then(function (res) {
+            return res.json().then(function (data) {
+              return { ok: res.ok, data: data };
+            });
+          })
+          .then(function (result) {
+            pendingQrs.delete(qrText);
+            if (!result.ok || !result.data || !result.data.success) {
+              blockedCount += 1;
+              updateCounts();
+              addRecentItem('Scan blocked', (result.data && result.data.error) || 'Unable to process QR code.', 'is-error');
+              setScanFeedback((result.data && result.data.error) || 'Unable to process QR code.', 'error');
+              setScannerMessage((result.data && result.data.error) || 'Unable to process QR code.', true);
+              return;
+            }
+
+            var action = result.data.action === 'returned' ? 'returned' : 'borrowed';
+            if (action === 'returned') returnedCount += 1;
+            else borrowedCount += 1;
+            updateCounts();
+            addRecentItem(
+              result.data.deviceName || 'Device scanned',
+              action.charAt(0).toUpperCase() + action.slice(1) + ' at ' + (result.data.scanTime || '--:--'),
+              'is-success'
+            );
+            setScanFeedback(result.data.message || 'Device scan saved', 'success');
+            setScannerMessage('Scan saved. Continue scanning devices as needed.', false);
+          })
+          .catch(function (err) {
+            pendingQrs.delete(qrText);
+            blockedCount += 1;
+            updateCounts();
+            addRecentItem('Scan error', err.message || 'Unable to process QR code.', 'is-error');
+            setScanFeedback(err.message || 'Unable to process QR code.', 'error');
+            setScannerMessage(err.message || 'Unable to process QR code.', true);
+          });
+      }
+
+      function startScanner() {
+        setPermissionUiVisible(false);
+        setScannerMessage('Preparing camera...', false);
+        if (!html5QrCode) html5QrCode = new Html5Qrcode(qrReaderId);
+        stopScanner().finally(function () {
+          loadCameras().then(function () {
+            var cameraConfig = pickPreferredCameraId();
+            var startTarget = cameraConfig ? { deviceId: { exact: cameraConfig } } : { facingMode: { ideal: 'environment' } };
+            return html5QrCode.start(
+              startTarget,
+              { fps: 10, aspectRatio: 1.333334, disableFlip: false },
+              submitQrText,
+              function () {}
+            ).catch(function () {
+              if (!cameraConfig) throw new Error('Unable to open any available camera.');
+              return html5QrCode.start(
+                { facingMode: { ideal: 'environment' } },
+                { fps: 10, aspectRatio: 1.333334, disableFlip: false },
+                submitQrText,
+                function () {}
+              );
+            });
+          }).then(function () {
+            scannerActive = true;
+            setScanFeedback('Ready to scan', '');
+            setScannerMessage('Point the camera at a device QR code.', false);
+          }).catch(function (err) {
+            setPermissionUiVisible(true);
+            setScanFeedback(describeCameraError(err), 'error');
+            setScannerMessage(describeCameraError(err), true);
+          });
+        });
+      }
+
+      if (grantCameraBtn) grantCameraBtn.addEventListener('click', startScanner);
+      if (retryBtn) retryBtn.addEventListener('click', startScanner);
+      if (closeBtn) {
+        closeBtn.addEventListener('click', function () {
+          stopScanner().finally(function () {
+            setPermissionUiVisible(true);
+            setScanFeedback('Scanner closed', '');
+            setScannerMessage('Camera closed. Click Allow Camera to start again.', false);
+          });
+        });
+      }
+      if (cameraSelect) {
+        cameraSelect.addEventListener('change', function () {
+          if (!cameraControls.classList.contains('hidden')) startScanner();
+        });
+      }
+      if (manualForm) {
+        manualForm.addEventListener('submit', function (event) {
+          event.preventDefault();
+          var qrText = String((manualInput && manualInput.value) || '').trim();
+          if (!qrText) {
+            setScanFeedback('Enter or paste the QR text first.', 'error');
+            setScannerMessage('Enter or paste the QR text first.', true);
+            return;
+          }
+          submitQrText(qrText);
+          if (manualInput) manualInput.value = '';
+        });
+      }
+
+      loadCameras();
+      setPermissionUiVisible(true);
+      setScanFeedback('Ready to scan', '');
+      updateCounts();
+    })();
+  </script>
+  <script src="/js/inactivity.js"></script>
+</body>
+</html>

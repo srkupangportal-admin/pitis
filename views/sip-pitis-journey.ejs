@@ -1,0 +1,60 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title><%= teacher.display_name %> SIP PITIS Journey</title>
+  <link rel="stylesheet" href="/css/theme-c.css" />
+</head>
+<body>
+  <%- include('partials/teacher-nav') %>
+  <main class="container stack sip-pitis-page">
+    <div class="calendar-header-row report-header-row">
+      <div>
+        <h2><%= teacher.display_name %></h2>
+        <p class="muted">SIP PITIS journey by official school week.</p>
+      </div>
+      <div class="report-actions">
+        <a class="btn secondary" href="/teacher/reporting-tool/sip-pitis?term=<%= dashboard.filters.term %>&weeks=<%= dashboard.filters.weeks %>">Dashboard</a>
+        <button class="btn" type="button" onclick="window.print()">PDF / Print</button>
+      </div>
+    </div>
+
+    <section class="sip-kpi-grid">
+      <article class="card sip-kpi"><span>Achievement Rate</span><strong><%= teacher.termPercentage %>%</strong></article>
+      <article class="card sip-kpi"><span>Current Streak</span><strong><%= teacher.currentStreak %></strong></article>
+      <article class="card sip-kpi"><span>Longest Streak</span><strong><%= teacher.longestStreak %></strong></article>
+      <article class="card sip-kpi"><span>Trend</span><strong><%= teacher.trend %></strong></article>
+    </section>
+
+    <section class="stack">
+      <% teacher.weeks.forEach(function(week) { %>
+        <details class="card sip-journey-week" <%= week.status === 'At Risk' || week.status === 'Still Possible' ? 'open' : '' %>>
+          <summary>
+            <span>Week <%= week.weekNumber %> · <%= week.rangeLabel %></span>
+            <span class="sip-status <%= week.status.toLowerCase().replace(/\s+/g, '-') %>"><%= week.status %></span>
+          </summary>
+          <div class="sip-week-metrics">
+            <div><span>Available school days</span><strong><%= week.availableSchoolDays %></strong></div>
+            <div><span>Required days</span><strong><%= week.requiredDays %></strong></div>
+            <div><span>Teacher active days</span><strong><%= week.activeDays %></strong></div>
+            <div><span>Achievement</span><strong><%= week.achievementRate %>%</strong></div>
+          </div>
+          <div class="sip-day-grid">
+            <% week.days.forEach(function(day) { %>
+              <article class="sip-day-card <%= day.counted ? 'counted' : day.type.replace(/_/g, '-') %>">
+                <div><strong><%= day.label %></strong><span><%= day.date %></span></div>
+                <p><%= day.dailyStatus %></p>
+                <% if (day.transactionCount > 0) { %>
+                  <small><%= day.transactionCount %> transactions · <%= day.studentsRewarded %> students · <%= day.pointsAwarded %> points</small>
+                <% } %>
+              </article>
+            <% }) %>
+          </div>
+        </details>
+      <% }) %>
+    </section>
+  </main>
+  <script src="/js/inactivity.js"></script>
+</body>
+</html>

@@ -1,0 +1,484 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Attendance QR Scan</title>
+  <link rel="stylesheet" href="/css/theme-c.css" />
+</head>
+<body>
+  <%- include('partials/teacher-nav') %>
+  <main class="container stack attendance-page-shell">
+    <% if (error) { %>
+      <section class="card"><div class="error"><%= error %></div></section>
+    <% } %>
+    <% if (success) { %>
+      <section class="card"><div><%= success %></div></section>
+    <% } %>
+
+    <section class="card attendance-scan-card">
+      <div class="attendance-top-head">
+        <div>
+          <h2>Attendance QR Scan: <%= cls.name %></h2>
+          <p class="muted">Continuous teacher-device scanning for <%= attendanceDate %>. Teachers can scan any valid student QR code from any class. Successful scans are silent, duplicates are ignored, and P.I.T.I.S still follows scan time.</p>
+        </div>
+        <div class="inline-filters">
+          <a class="btn secondary" href="/teacher/attendance?date=<%= attendanceDate %>">Back to Attendance</a>
+        </div>
+      </div>
+
+      <div class="attendance-scan-summary">
+        <div class="attendance-scan-stat">
+          <span class="muted">Accepted</span>
+          <strong id="attendanceScanAcceptedCount">0</strong>
+        </div>
+        <div class="attendance-scan-stat">
+          <span class="muted">Ignored</span>
+          <strong id="attendanceScanIgnoredCount">0</strong>
+        </div>
+        <div class="attendance-scan-stat">
+          <span class="muted">Current Session</span>
+          <strong id="attendanceScanSessionLabel">--</strong>
+        </div>
+      </div>
+
+      <div class="kiosk-camera-permission" id="teacherScanCameraPermission">
+        <p class="muted">Allow camera access to keep scanning multiple student QR codes in one session.</p>
+        <div class="button-row">
+          <button class="btn" type="button" id="teacherScanGrantCameraBtn">Allow Camera</button>
+        </div>
+      </div>
+
+      <div class="kiosk-camera-controls hidden" id="teacherScanCameraControls">
+        <label class="kiosk-camera-select-wrap">
+          <span class="muted">Camera</span>
+          <select id="teacherScanCameraSelect">
+            <option value="">Auto select camera</option>
+          </select>
+        </label>
+        <button class="btn secondary" type="button" id="teacherScanRetryBtn">Retry Camera</button>
+        <button class="btn danger" type="button" id="teacherScanCloseBtn">Close</button>
+      </div>
+
+      <div id="teacherAttendanceQrReader" class="kiosk-reader"></div>
+      <div class="attendance-scan-feedback" id="teacherScanFeedback" aria-live="polite">Ready to scan</div>
+      <div class="muted" id="teacherScanMessage">Point the camera at the next student QR code.</div>
+
+      <form id="teacherScanManualForm" class="stack" style="margin-top:16px;">
+        <label>Manual QR Input
+          <input type="text" id="teacherScanManualInput" placeholder="Paste or type QR text here" autocomplete="off" autocapitalize="off" spellcheck="false" inputmode="text" />
+        </label>
+        <div class="inline-filters">
+          <button class="btn secondary" type="submit">Submit QR Text</button>
+        </div>
+      </form>
+    </section>
+
+    <section class="card attendance-scan-recent-card">
+      <div class="attendance-absent-head">
+        <h3>Recent Scan Activity</h3>
+        <span class="muted">Latest accepted and ignored scans in this camera session</span>
+      </div>
+      <div class="attendance-scan-recent-list" id="attendanceScanRecentList">
+        <article class="attendance-scan-recent-item">
+          <strong>Waiting for scans</strong>
+          <span class="muted">Accepted scans will appear here without interrupting the camera.</span>
+        </article>
+      </div>
+    </section>
+  </main>
+
+  <script src="/vendor/html5-qrcode/html5-qrcode.min.js"></script>
+  <script>
+    (function () {
+      var qrReaderId = 'teacherAttendanceQrReader';
+      var cameraPermissionWrap = document.getElementById('teacherScanCameraPermission');
+      var cameraControls = document.getElementById('teacherScanCameraControls');
+      var grantCameraBtn = document.getElementById('teacherScanGrantCameraBtn');
+      var retryBtn = document.getElementById('teacherScanRetryBtn');
+      var closeBtn = document.getElementById('teacherScanCloseBtn');
+      var cameraSelect = document.getElementById('teacherScanCameraSelect');
+      var scannerMessage = document.getElementById('teacherScanMessage');
+      var scanFeedback = document.getElementById('teacherScanFeedback');
+      var manualForm = document.getElementById('teacherScanManualForm');
+      var manualInput = document.getElementById('teacherScanManualInput');
+      var readerEl = document.getElementById(qrReaderId);
+      var acceptedCountEl = document.getElementById('attendanceScanAcceptedCount');
+      var ignoredCountEl = document.getElementById('attendanceScanIgnoredCount');
+      var sessionLabelEl = document.getElementById('attendanceScanSessionLabel');
+      var recentListEl = document.getElementById('attendanceScanRecentList');
+      var html5QrCode = null;
+      var barcodeDetector = null;
+      var barcodeDetectorTimer = null;
+      var qrOverlay = null;
+      var scannerActive = false;
+      var availableCameras = [];
+      var pendingQrs = new Set();
+      var processedQrs = new Set();
+      var qrNameCache = new Map();
+      var recentDuplicateTimestamps = new Map();
+      var acceptedCount = 0;
+      var ignoredCount = 0;
+      var attendanceDate = <%- JSON.stringify(attendanceDate).replace(/</g, '\\u003c') %>;
+      var processUrl = '/teacher/attendance/scan/process';
+
+      function escapeHtml(value) {
+        return String(value || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+      }
+
+      function setScannerMessage(message, isError) {
+        if (!scannerMessage) return;
+        scannerMessage.textContent = String(message || '');
+        scannerMessage.className = isError ? 'error' : 'muted';
+      }
+
+      function setScanFeedback(message, tone) {
+        if (!scanFeedback) return;
+        scanFeedback.textContent = String(message || '');
+        scanFeedback.className = 'attendance-scan-feedback' + (tone ? (' is-' + tone) : '');
+      }
+
+      function setPermissionUiVisible(visible) {
+        if (cameraPermissionWrap) cameraPermissionWrap.classList.toggle('hidden', !visible);
+        if (cameraControls) cameraControls.classList.toggle('hidden', visible);
+        var reader = document.getElementById(qrReaderId);
+        if (reader) reader.classList.toggle('hidden', visible);
+      }
+
+      function isSecureForCamera() {
+        if (window.isSecureContext) return true;
+        return /^(localhost|127\.0\.0\.1)$/i.test(String(window.location.hostname || ''));
+      }
+
+      function describeCameraError(err) {
+        var message = String((err && err.message) || '').trim();
+        var combined = (String((err && err.name) || '') + ' ' + message).toLowerCase();
+        if (!isSecureForCamera()) {
+          return 'Camera access requires HTTPS on most mobile browsers. Open this page using the HTTPS school portal address.';
+        }
+        if (combined.indexOf('permission') >= 0 || combined.indexOf('denied') >= 0 || combined.indexOf('notallowed') >= 0) {
+          return 'Camera permission was denied. Allow camera access in the browser and retry.';
+        }
+        return message || 'Unable to open the camera.';
+      }
+
+      function updateCounts() {
+        if (acceptedCountEl) acceptedCountEl.textContent = String(acceptedCount);
+        if (ignoredCountEl) ignoredCountEl.textContent = String(ignoredCount);
+      }
+
+      function ensureQrOverlay() {
+        if (!readerEl) return null;
+        if (!qrOverlay || qrOverlay.parentNode !== readerEl) {
+          qrOverlay = document.createElement('div');
+          qrOverlay.className = 'attendance-scan-overlay';
+          readerEl.appendChild(qrOverlay);
+        }
+        return qrOverlay;
+      }
+
+      function clearQrOverlays() {
+        if (qrOverlay) qrOverlay.innerHTML = '';
+      }
+
+      function placeQrLabel(label, scanMeta) {
+        var overlay = ensureQrOverlay();
+        if (!overlay) return;
+        var marker = document.createElement('div');
+        marker.className = 'attendance-scan-qr-label';
+        marker.textContent = String(label || 'Scanned');
+        marker.style.left = ((scanMeta && Number.isFinite(scanMeta.x)) ? scanMeta.x : 50) + '%';
+        marker.style.top = ((scanMeta && Number.isFinite(scanMeta.y)) ? scanMeta.y : 50) + '%';
+        overlay.appendChild(marker);
+        window.setTimeout(function () {
+          if (marker && marker.parentNode) marker.parentNode.removeChild(marker);
+        }, 2200);
+      }
+
+      function shouldSuppressDuplicate(qrText) {
+        var now = Date.now();
+        var lastSeenAt = Number(recentDuplicateTimestamps.get(qrText) || 0);
+        recentDuplicateTimestamps.set(qrText, now);
+        return now - lastSeenAt < 1500;
+      }
+
+      function addRecentItem(label, meta, typeClass) {
+        if (!recentListEl) return;
+        var empty = recentListEl.querySelector('.attendance-scan-recent-item');
+        if (empty && /Waiting for scans/i.test(empty.textContent || '')) {
+          recentListEl.innerHTML = '';
+        }
+        var article = document.createElement('article');
+        article.className = 'attendance-scan-recent-item ' + (typeClass || '');
+        article.innerHTML = '<strong>' + escapeHtml(label) + '</strong><span class="muted">' + escapeHtml(meta) + '</span>';
+        recentListEl.insertBefore(article, recentListEl.firstChild);
+        while (recentListEl.children.length > 12) {
+          recentListEl.removeChild(recentListEl.lastChild);
+        }
+      }
+
+      function populateCameraOptions(cameras) {
+        availableCameras = Array.isArray(cameras) ? cameras.slice() : [];
+        if (!cameraSelect) return;
+        cameraSelect.innerHTML = '<option value="">Auto select camera</option>';
+        availableCameras.forEach(function (camera, index) {
+          var option = document.createElement('option');
+          option.value = String(camera.id || '');
+          option.textContent = String(camera.label || ('Camera ' + (index + 1)));
+          cameraSelect.appendChild(option);
+        });
+      }
+
+      function pickPreferredCameraId() {
+        if (cameraSelect && cameraSelect.value) return cameraSelect.value;
+        if (!availableCameras.length) return null;
+        var preferred = availableCameras.find(function (camera) {
+          return /back|rear|environment|external|usb/i.test(String(camera.label || ''));
+        });
+        return String((preferred || availableCameras[0]).id || '');
+      }
+
+      function loadCameras() {
+        if (!window.Html5Qrcode || !Html5Qrcode.getCameras) return Promise.resolve([]);
+        return Html5Qrcode.getCameras()
+          .then(function (cameras) {
+            populateCameraOptions(cameras || []);
+            return cameras || [];
+          })
+          .catch(function () {
+            populateCameraOptions([]);
+            return [];
+          });
+      }
+
+      function stopScanner() {
+        stopMultiQrDetector();
+        if (!html5QrCode || !scannerActive) return Promise.resolve();
+        scannerActive = false;
+        return html5QrCode.stop().catch(function () {}).then(function () {
+          return html5QrCode.clear().catch(function () {});
+        });
+      }
+
+      function submitQrText(decodedText, scanMeta) {
+        var qrText = String(decodedText || '').trim();
+        if (!qrText || pendingQrs.has(qrText) || processedQrs.has(qrText)) {
+          if (qrText && processedQrs.has(qrText) && !shouldSuppressDuplicate(qrText)) {
+            ignoredCount += 1;
+            updateCounts();
+            placeQrLabel(qrNameCache.get(qrText) || 'Already scanned', scanMeta);
+          }
+          return;
+        }
+
+        pendingQrs.add(qrText);
+        setScannerMessage('Scanning... keep pointing the camera at the next QR code.', false);
+
+        fetch(processUrl, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
+          body: JSON.stringify({ qr_text: qrText, attendance_date: attendanceDate })
+        })
+          .then(function (res) {
+            return res.json().then(function (data) {
+              return { ok: res.ok, data: data };
+            });
+          })
+          .then(function (result) {
+            pendingQrs.delete(qrText);
+            if (!result.ok || !result.data || !result.data.success) {
+              addRecentItem('Scan error', (result.data && result.data.error) || 'Unable to process QR code.', 'is-error');
+              setScanFeedback((result.data && result.data.error) || 'Unable to process QR code.', 'error');
+              setScannerMessage((result.data && result.data.error) || 'Unable to process QR code.', true);
+              return;
+            }
+
+            processedQrs.add(qrText);
+            qrNameCache.set(qrText, result.data.studentName || 'Student scanned');
+            placeQrLabel(result.data.studentName || 'Student scanned', scanMeta);
+            if (result.data.sessionType && sessionLabelEl) {
+              sessionLabelEl.textContent = String(result.data.sessionType || '').replace(/^./, function (m) { return m.toUpperCase(); });
+            }
+
+            if (result.data.ignored) {
+              ignoredCount += 1;
+              updateCounts();
+              addRecentItem(result.data.studentName || 'Already scanned', 'Already scanned for ' + (result.data.sessionType || 'session'), 'is-success');
+              setScanFeedback(result.data.studentName || 'Already scanned', 'success');
+              setScannerMessage('Already scanned. Keep scanning the next QR code.', false);
+              return;
+            }
+
+            acceptedCount += 1;
+            updateCounts();
+            addRecentItem(
+              result.data.studentName || 'Student scanned',
+              (result.data.scanTime || '--:--') + ' • ' + (result.data.pointsAwarded || 0) + ' P.I.T.I.S',
+              'is-success'
+            );
+            setScanFeedback(result.data.studentName || 'Student scanned', 'success');
+            setScannerMessage('Scan saved. Keep scanning the next QR code.', false);
+          })
+          .catch(function (err) {
+            pendingQrs.delete(qrText);
+            addRecentItem('Scan error', err.message || 'Unable to process QR code.', 'is-error');
+            setScanFeedback(err.message || 'Unable to process QR code.', 'error');
+            setScannerMessage(err.message || 'Unable to process QR code.', true);
+          });
+      }
+
+      function getVideoElement() {
+        return readerEl ? readerEl.querySelector('video') : null;
+      }
+
+      function getBarcodeCenterPercent(barcode, video) {
+        if (!barcode || !video || !readerEl) return null;
+        var box = barcode.boundingBox || null;
+        if (!box && barcode.cornerPoints && barcode.cornerPoints.length) {
+          var xs = barcode.cornerPoints.map(function (point) { return Number(point.x || 0); });
+          var ys = barcode.cornerPoints.map(function (point) { return Number(point.y || 0); });
+          var minX = Math.min.apply(Math, xs);
+          var maxX = Math.max.apply(Math, xs);
+          var minY = Math.min.apply(Math, ys);
+          var maxY = Math.max.apply(Math, ys);
+          box = { x: minX, y: minY, width: maxX - minX, height: maxY - minY };
+        }
+        if (!box || !video.videoWidth || !video.videoHeight) return null;
+
+        var videoRect = video.getBoundingClientRect();
+        var readerRect = readerEl.getBoundingClientRect();
+        var centerX = (Number(box.x || 0) + Number(box.width || 0) / 2) / video.videoWidth;
+        var centerY = (Number(box.y || 0) + Number(box.height || 0) / 2) / video.videoHeight;
+        var absoluteX = (videoRect.left - readerRect.left) + centerX * videoRect.width;
+        var absoluteY = (videoRect.top - readerRect.top) + centerY * videoRect.height;
+        return {
+          x: Math.max(0, Math.min(100, (absoluteX / Math.max(readerRect.width, 1)) * 100)),
+          y: Math.max(0, Math.min(100, (absoluteY / Math.max(readerRect.height, 1)) * 100))
+        };
+      }
+
+      function stopMultiQrDetector() {
+        if (barcodeDetectorTimer) {
+          window.clearInterval(barcodeDetectorTimer);
+          barcodeDetectorTimer = null;
+        }
+        clearQrOverlays();
+      }
+
+      function startMultiQrDetector() {
+        stopMultiQrDetector();
+        ensureQrOverlay();
+        if (!('BarcodeDetector' in window)) return;
+
+        try {
+          barcodeDetector = new BarcodeDetector({ formats: ['qr_code'] });
+        } catch (_) {
+          barcodeDetector = null;
+          return;
+        }
+
+        barcodeDetectorTimer = window.setInterval(function () {
+          var video = getVideoElement();
+          if (!scannerActive || !barcodeDetector || !video || video.readyState < 2) return;
+          barcodeDetector.detect(video)
+            .then(function (barcodes) {
+              (barcodes || []).forEach(function (barcode) {
+                var qrText = String(barcode.rawValue || '').trim();
+                if (!qrText) return;
+                submitQrText(qrText, getBarcodeCenterPercent(barcode, video));
+              });
+            })
+            .catch(function () {});
+        }, 450);
+      }
+
+      function startScanner() {
+        setPermissionUiVisible(false);
+        setScannerMessage('Preparing camera...', false);
+        if (!html5QrCode) {
+          html5QrCode = new Html5Qrcode(qrReaderId);
+        }
+        stopScanner().finally(function () {
+          loadCameras().then(function () {
+            var cameraConfig = pickPreferredCameraId();
+            var startTarget = cameraConfig ? { deviceId: { exact: cameraConfig } } : { facingMode: { ideal: 'environment' } };
+            return html5QrCode.start(
+              startTarget,
+              { fps: 10, aspectRatio: 1.333334, disableFlip: false },
+              function (decodedText) {
+                submitQrText(decodedText, { x: 50, y: 50 });
+              },
+              function () {}
+            ).catch(function () {
+              if (!cameraConfig) throw new Error('Unable to open any available camera.');
+              return html5QrCode.start(
+                { facingMode: { ideal: 'environment' } },
+                { fps: 10, aspectRatio: 1.333334, disableFlip: false },
+                function (decodedText) {
+                  submitQrText(decodedText, { x: 50, y: 50 });
+                },
+                function () {}
+              );
+            });
+          }).then(function () {
+            scannerActive = true;
+            startMultiQrDetector();
+            setScanFeedback('Ready to scan', '');
+            setScannerMessage('Point the camera at the next student QR code.', false);
+          }).catch(function (err) {
+            setPermissionUiVisible(true);
+            setScanFeedback(describeCameraError(err), 'error');
+            setScannerMessage(describeCameraError(err), true);
+          });
+        });
+      }
+
+      if (grantCameraBtn) {
+        grantCameraBtn.addEventListener('click', startScanner);
+      }
+
+      if (retryBtn) {
+        retryBtn.addEventListener('click', startScanner);
+      }
+
+      if (closeBtn) {
+        closeBtn.addEventListener('click', function () {
+          stopScanner().finally(function () {
+            setPermissionUiVisible(true);
+            setScanFeedback('Scanner closed', '');
+            setScannerMessage('Camera closed. Click Allow Camera to start again.', false);
+          });
+        });
+      }
+
+      if (cameraSelect) {
+        cameraSelect.addEventListener('change', function () {
+          if (!cameraControls.classList.contains('hidden')) {
+            startScanner();
+          }
+        });
+      }
+
+      if (manualForm) {
+        manualForm.addEventListener('submit', function (event) {
+          event.preventDefault();
+          var qrText = String((manualInput && manualInput.value) || '').trim();
+          if (!qrText) {
+            setScanFeedback('Enter or paste the QR text first.', 'error');
+            setScannerMessage('Enter or paste the QR text first.', true);
+            return;
+          }
+          submitQrText(qrText, { x: 50, y: 50 });
+          if (manualInput) manualInput.value = '';
+        });
+      }
+
+      loadCameras();
+      setPermissionUiVisible(true);
+      setScanFeedback('Ready to scan', '');
+      updateCounts();
+    })();
+  </script>
+  <script src="/js/inactivity.js"></script>
+</body>
+</html>

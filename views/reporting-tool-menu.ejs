@@ -1,0 +1,46 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Reporting Tool</title>
+  <link rel="stylesheet" href="/css/theme-c.css" />
+</head>
+<body>
+  <%- include('partials/teacher-nav') %>
+  <main class="container stack reporting-tool-menu-page">
+    <div class="calendar-header-row report-header-row">
+      <div>
+        <h2>Reporting Tool</h2>
+        <p class="muted">Choose a report to view or print.</p>
+      </div>
+    </div>
+
+    <section class="reporting-tool-menu-grid">
+      <article class="card reporting-tool-menu-card">
+        <div>
+          <span class="reporting-tool-menu-kicker">Dashboard</span>
+          <h3>Teacher Usage Report Dashboard</h3>
+          <p class="muted">SIP PITIS dashboard with target progress, weekly trends, teacher matrix, raw audit, and settings.</p>
+        </div>
+        <a class="btn" href="/teacher/reporting-tool/sip-pitis" target="_blank" rel="noopener">Open Dashboard</a>
+      </article>
+
+      <article class="card reporting-tool-menu-card">
+        <div>
+          <span class="reporting-tool-menu-kicker">Spreadsheet</span>
+          <h3>Students' P.I.T.I.S. Report</h3>
+          <p class="muted">Class-based PITIS award report with date range and all-time export options.</p>
+        </div>
+        <a class="btn secondary" href="/teacher/report">Open Report</a>
+      </article>
+    </section>
+
+    <section class="card">
+      <h3>SIP PITIS Source</h3>
+      <p class="muted">The dashboard uses raw PITIS transaction logs and the official 2026 calendar interpretation only. The existing portal calendar is not used for these calculations.</p>
+    </section>
+  </main>
+  <script src="/js/inactivity.js"></script>
+</body>
+</html>

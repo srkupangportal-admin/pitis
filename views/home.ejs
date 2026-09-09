@@ -1,0 +1,205 @@
+<!DOCTYPE html>
+<%
+  const rewardsGalleryHref = '/rewards';
+  const homeUser = typeof currentUser !== 'undefined' && currentUser ? currentUser : null;
+  const controlPanelHref = homeUser && homeUser.role === 'admin' ? '/admin/dashboard' : '/teacher/dashboard';
+  function formatHomeDate(value) {
+    const date = new Date(String(value || '') + 'T00:00:00');
+    if (Number.isNaN(date.getTime())) return value || '';
+    const day = String(date.getDate()).padStart(2, '0');
+    const month = date.toLocaleDateString('en-US', { month: 'short' });
+    return day + '.' + month + '.' + date.getFullYear();
+  }
+%>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>SRKupang</title>
+  <link rel="stylesheet" href="/css/theme-c.css" />
+</head>
+<body class="landing-home">
+  <div class="landing-glow glow-a"></div>
+  <div class="landing-glow glow-b"></div>
+
+  <%- include('partials/main-header-card') %>
+  <%- include('partials/security-install-banner') %>
+
+  <main class="home-dashboard-shell">
+    <section class="home-welcome-hero">
+      <div>
+        <span class="home-hero-eyebrow">P.I.T.I.S.</span>
+        <h1>Promoting Improvement through Token Based Incentive System</h1>
+        <p><%= homeUser ? ('Welcome back, ' + homeUser.displayName + '.') : 'Access school information, activities and learning services.' %></p>
+      </div>
+    </section>
+
+    <section class="home-metrics-grid" aria-label="School overview">
+      <article class="home-metric-card">
+        <span class="home-metric-icon" aria-hidden="true">ST</span>
+        <div><span class="home-metric-label">Total Students</span><strong><%= Number(dashboard.totalStudents || 0).toLocaleString() %></strong><small>Across all classes</small></div>
+      </article>
+      <a class="home-metric-card home-metric-link" href="/teacher/attendance" aria-label="Open attendance page">
+        <span class="home-metric-icon" aria-hidden="true">AT</span>
+        <div><span class="home-metric-label">Today's Attendance</span><strong><%= dashboard.attendancePercentage %>%</strong><small><%= dashboard.studentsPresentToday %> students recorded present</small></div>
+      </a>
+      <a class="home-metric-card home-metric-link" href="/teacher/reporting-tool/sip-pitis" aria-label="Open SIP-PITIS reporting tool">
+        <span class="home-metric-icon" aria-hidden="true">SC</span>
+        <div><span class="home-metric-label">School Consistency</span><strong><%= Number(sipPitisKpis.schoolConsistency || 0) %>%</strong><small>Completed teacher weeks meeting target</small></div>
+      </a>
+      <a class="home-metric-card home-metric-link" href="/teacher/calendar" aria-label="Open school calendar">
+        <span class="home-metric-icon" aria-hidden="true">EV</span>
+        <div><span class="home-metric-label">Upcoming Events</span><strong><%= dashboard.upcomingSevenDayEvents %></strong><small>During the next 7 days</small></div>
+      </a>
+    </section>
+
+    <div class="landing-shell home-dashboard-content">
+    <section class="landing-card quick-access">
+      <h2>Quick Access</h2>
+      <p class="muted">Select a destination</p>
+      <div class="recent-login-strip recent-login-strip-card" aria-label="Recent portal users">
+        <span class="recent-login-title">Recent users:</span>
+        <% const quickRecentUsers = Array.isArray(typeof recentPortalUsers !== 'undefined' ? recentPortalUsers : null) ? recentPortalUsers : []; %>
+        <% if (quickRecentUsers.length) { %>
+          <% quickRecentUsers.forEach(function (login, index) { %>
+            <span class="recent-login-user"><%= login.display_name || login.username %></span><%= index < quickRecentUsers.length - 1 ? ', ' : '' %>
+          <% }) %>
+        <% } else { %>
+          <span class="muted">No recent non-admin logins yet.</span>
+        <% } %>
+      </div>
+
+      <a class="landing-action teacher" href="<%= homeUser ? controlPanelHref : '/login' %>">
+        <span class="action-title"><%= homeUser ? 'Control Panel' : 'USER ID' %></span>
+        <span class="action-desc"><%= homeUser ? 'Open administration and staff controls' : 'Manage P.I.T.I.S, students, reports' %></span>
+      </a>
+
+      <a class="landing-action leaderboard" href="/leaderboard">
+        <span class="action-title">P.I.T.I.S Leaders</span>
+        <span class="action-desc">Display class rankings live</span>
+      </a>
+
+      <a class="landing-action teacher" href="/kiosk">
+        <span class="action-title">Kiosk</span>
+        <span class="action-desc">Scan student QR for attendance</span>
+      </a>
+
+      <a class="landing-action teacher" href="/login?next=%2Fteacher%2Fattendance%2Fscan">
+        <span class="action-title">QR Scan</span>
+        <span class="action-desc">Open teacher multi-scan attendance mode</span>
+      </a>
+
+      <a class="landing-action teacher" href="<%= rewardsGalleryHref %>">
+        <span class="action-title">P.I.T.I.S Gallery</span>
+        <span class="action-desc">View prizes and pitis targets</span>
+      </a>
+
+      <a class="landing-action teacher" href="/login?next=%2Fphotos-upload">
+        <span class="action-title">Photos Upload</span>
+        <span class="action-desc">Upload and browse shared school photos</span>
+      </a>
+    </section>
+
+    <section class="landing-card events-card">
+      <div class="events-head">
+        <h2>Upcoming Events</h2>
+        <span class="events-range">Next 5 events</span>
+      </div>
+
+      <% if (!events.length) { %>
+        <div class="event-empty">No upcoming events.</div>
+      <% } else { %>
+        <div class="event-cards">
+          <% events.forEach(event => { %>
+            <article class="event-item">
+              <div class="event-date"><%= formatHomeDate(event.event_date) %></div>
+              <div class="event-title"><%= event.title %></div>
+              <% if (event.details) { %>
+                <div class="event-detail"><%= event.details %></div>
+              <% } %>
+            </article>
+          <% }) %>
+        </div>
+      <% } %>
+    </section>
+    </div>
+  </main>
+
+  <% if (teacherProgressWelcome && teacherProgressWelcome.currentTeacher) { %>
+    <div class="teacher-progress-modal" id="teacherProgressWelcome" role="dialog" aria-modal="true" aria-labelledby="teacherProgressWelcomeTitle">
+      <div class="teacher-progress-backdrop" data-progress-close></div>
+      <section class="teacher-progress-dialog" tabindex="-1">
+        <button class="teacher-progress-close" type="button" data-progress-close aria-label="Close progress summary">&times;</button>
+        <header class="teacher-progress-header">
+          <span class="teacher-progress-kicker"><%= teacherProgressWelcome.weekNumber ? ('Week ' + teacherProgressWelcome.weekNumber + ' · Term ' + teacherProgressWelcome.term) : ('Term ' + teacherProgressWelcome.term) %> consistency</span>
+          <h2 id="teacherProgressWelcomeTitle">Welcome back, <%= homeUser.displayName %></h2>
+          <p>See how your current school week compares with every teacher.</p>
+        </header>
+
+        <% const currentProgress = teacherProgressWelcome.currentTeacher; %>
+        <section class="teacher-progress-personal" aria-label="Your term progress">
+          <div class="teacher-progress-ring" style="--progress: <%= Math.max(0, Math.min(100, currentProgress.percentage)) %>">
+            <strong><%= currentProgress.percentage %>%</strong>
+            <span>weekly target</span>
+          </div>
+          <div class="teacher-progress-personal-copy">
+            <span class="teacher-progress-rank">Position <strong>#<%= currentProgress.rank %></strong> of <%= teacherProgressWelcome.teachers.length %></span>
+            <% if (currentProgress.requiredDays > 0 && currentProgress.activeDays >= currentProgress.requiredDays) { %>
+              <h3>Current-week target met: <%= currentProgress.activeDays %> of <%= currentProgress.requiredDays %> required school days.</h3>
+            <% } else if (currentProgress.requiredDays > 0) { %>
+              <h3>This week: <%= currentProgress.activeDays %> of <%= currentProgress.requiredDays %> required school days.</h3>
+              <p><strong><%= currentProgress.requiredDays - currentProgress.activeDays %> more active day<%= (currentProgress.requiredDays - currentProgress.activeDays) === 1 ? '' : 's' %></strong> needed to meet this week's target.</p>
+            <% } else { %>
+              <h3>No weekly target is available right now.</h3>
+            <% } %>
+            <% if (currentProgress.days && currentProgress.days.length) { %>
+              <div class="teacher-progress-weekdays" aria-label="Your P.I.T.I.S. activity by school day">
+                <% currentProgress.days.forEach(function(day) { %>
+                  <% const dayState = day.counted ? 'met' : (day.type !== 'school_day' ? 'excluded' : (day.isFuture ? 'future' : 'not-met')); %>
+                  <% const dayStatus = day.counted ? 'P.I.T.I.S. awarded' : (day.type !== 'school_day' ? (day.exclusionReason || 'Not an available school day') : (day.isFuture ? 'Upcoming' : 'No P.I.T.I.S. recorded')); %>
+                  <div class="teacher-progress-day is-<%= dayState %> <%= day.isToday ? 'is-today' : '' %>" title="<%= day.label %>, <%= day.date %>: <%= dayStatus %>">
+                    <span class="teacher-progress-day-name"><%= day.shortLabel %></span>
+                    <span class="teacher-progress-day-check" aria-hidden="true"><%= day.counted ? '✓' : (day.type !== 'school_day' ? '—' : '○') %></span>
+                    <small><%= day.counted ? 'Done' : (day.type !== 'school_day' ? 'Excluded' : (day.isFuture ? 'Upcoming' : 'Not yet')) %></small>
+                  </div>
+                <% }) %>
+              </div>
+              <div class="teacher-progress-weekday-key" aria-hidden="true"><span>✓ Awarded</span><span>○ Available day</span><span>— Excluded</span></div>
+            <% } %>
+            <p class="teacher-progress-reminder"><strong>Weekly target:</strong> Each teacher awards P.I.T.I.S. on at least 60% of available school days—normally 3 out of 5 school days.</p>
+          </div>
+        </section>
+
+        <div class="teacher-progress-list-heading">
+          <h3>Current-week teacher progress</h3>
+          <span><%= teacherProgressWelcome.weekRange %></span>
+        </div>
+        <div class="teacher-progress-list" role="list">
+          <% teacherProgressWelcome.teachers.forEach(function(teacher) { %>
+            <% const isCurrentTeacher = Number(teacher.id) === Number(homeUser.id); %>
+            <% const statusLabel = teacher.requiredDays > 0 ? teacher.status : 'No weekly target'; %>
+            <article class="teacher-progress-row <%= isCurrentTeacher ? 'is-current' : '' %>" role="listitem">
+              <span class="teacher-progress-position"><%= teacher.rank %></span>
+              <div class="teacher-progress-name">
+                <strong><%= teacher.displayName %><%= isCurrentTeacher ? ' (You)' : '' %></strong>
+                <span><%= teacher.requiredDays > 0 ? (teacher.activeDays + ' of ' + teacher.requiredDays + ' required days') : 'No weekly target' %></span>
+              </div>
+              <div class="teacher-progress-bar-wrap" aria-label="<%= teacher.displayName %>: <%= teacher.percentage %> percent">
+                <div class="teacher-progress-bar"><span style="width: <%= Math.max(0, Math.min(100, teacher.percentage)) %>%"></span></div>
+                <small><%= statusLabel %></small>
+              </div>
+              <strong class="teacher-progress-percent"><%= teacher.percentage %>%</strong>
+            </article>
+          <% }) %>
+        </div>
+        <footer class="teacher-progress-actions">
+          <button class="btn secondary" type="button" data-progress-close>Close</button>
+          <a class="btn" href="/teacher/reporting-tool/sip-pitis?term=<%= teacherProgressWelcome.term %>">View full SIP-PITIS progress</a>
+        </footer>
+      </section>
+    </div>
+    <script src="/js/teacher-progress-welcome.js"></script>
+  <% } %>
+</body>
+</html>
+

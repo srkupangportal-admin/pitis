@@ -1,0 +1,48 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Install School Certificate</title>
+  <link rel="stylesheet" href="/css/theme-c.css" />
+</head>
+<body class="landing-home">
+  <%- include('partials/main-header-card') %>
+  <main class="container stack certificate-help-shell">
+    <section class="card certificate-help-card">
+      <h2>Install School Certificate</h2>
+      <p class="muted">Download the school root certificate, install it on your device, then reopen the secure portal.</p>
+      <p class="muted">If you are seeing the regular portal over HTTP, that does not mean the certificate is missing. It only means this visit is not currently using HTTPS.</p>
+      <div class="button-row">
+        <a class="btn" href="<%= caDownloadPath %>">Download CRT File</a>
+        <% if (httpsUrl) { %>
+          <a class="btn secondary" href="<%= httpsUrl %>">Open Secure Portal</a>
+        <% } %>
+      </div>
+    </section>
+
+    <section class="card certificate-help-card">
+      <h3>Android</h3>
+      <ol>
+        <li>Download the CRT file to your phone.</li>
+        <li>Open <strong>Settings</strong>.</li>
+        <li>Go to <strong>Security</strong> or <strong>Encryption &amp; credentials</strong>.</li>
+        <li>Choose <strong>Install a certificate</strong>.</li>
+        <li>Select the downloaded CRT file and approve the installation.</li>
+        <li>Close and reopen your browser, then open the secure portal.</li>
+      </ol>
+    </section>
+
+    <section class="card certificate-help-card">
+      <h3>iPhone / iPad</h3>
+      <ol>
+        <li>Download the CRT file to the device.</li>
+        <li>Open <strong>Settings</strong> and install the downloaded profile.</li>
+        <li>Go to <strong>Settings &gt; General &gt; About &gt; Certificate Trust Settings</strong>.</li>
+        <li>Enable full trust for the installed school root certificate.</li>
+        <li>Close and reopen the browser, then open the secure portal.</li>
+      </ol>
+    </section>
+  </main>
+</body>
+</html>

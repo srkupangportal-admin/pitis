@@ -1,0 +1,412 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Photos Upload</title>
+  <link rel="stylesheet" href="/css/theme-c.css" />
+</head>
+<body>
+  <% if (user && user.role === 'admin') { %>
+    <%- include('partials/admin-nav') %>
+  <% } else { %>
+    <%- include('partials/teacher-nav') %>
+  <% } %>
+
+  <main class="container stack">
+    <% if (error) { %>
+      <section class="card"><div class="error"><%= error %></div></section>
+    <% } %>
+    <% if (success) { %>
+      <section class="card"><div><%= success %></div></section>
+    <% } %>
+
+    <section class="card photo-library-head-card">
+      <div class="section-toggle-head">
+        <div>
+          <h2>Photos Upload</h2>
+          <p class="muted">Welcome. Upload photos from your mobile device or computer, place them into an existing folder or a new folder, and share them with other portal users.</p>
+        </div>
+      </div>
+
+      <div class="photo-library-intro-grid">
+        <details class="card photo-upload-form photo-collapsible-card">
+          <summary class="section-toggle-head photo-collapsible-summary">
+            <div>
+              <h3>Upload Photos</h3>
+              <p class="muted">Select an existing folder or create one during upload.</p>
+            </div>
+          </summary>
+          <form method="post" action="/photos-upload/upload" enctype="multipart/form-data" class="stack photo-collapsible-body">
+            <div class="inline-filters">
+              <label style="min-width:240px; flex:1 1 260px;">Existing Folder
+                <select name="folder_id" id="photoExistingFolder">
+                  <option value="">Select folder</option>
+                  <% folderOptions.forEach(function (folder) { %>
+                    <option value="<%= folder.id %>" <%= selectedFolder && Number(selectedFolder.id) === Number(folder.id) ? 'selected' : '' %>><%= folder.label %></option>
+                  <% }) %>
+                </select>
+              </label>
+              <label style="min-width:240px; flex:1 1 260px;">New Folder Name
+                <input type="text" name="new_folder_name" id="photoNewFolderName" placeholder="Create new folder while uploading" />
+              </label>
+              <label style="min-width:240px; flex:1 1 260px;">Parent Folder for New Folder
+                <select name="new_folder_parent_id" id="photoNewFolderParent">
+                  <option value="">Top level</option>
+                  <% folderOptions.forEach(function (folder) { %>
+                    <option value="<%= folder.id %>" <%= selectedFolder && Number(selectedFolder.id) === Number(folder.id) ? 'selected' : '' %>><%= folder.label %></option>
+                  <% }) %>
+                </select>
+              </label>
+            </div>
+            <div class="photo-upload-picker-grid">
+              <label>Take Photo
+                <input type="file" name="photo_files" id="photoCameraInput" accept="image/*" capture="environment" />
+              </label>
+              <label>Choose From Device
+                <input type="file" name="photo_files" id="photoStorageInput" accept="image/*" multiple />
+              </label>
+            </div>
+            <div class="button-row">
+              <button class="btn" type="submit">Upload Selected Photos</button>
+            </div>
+            <div class="muted">Use `Take Photo` to open the camera, or `Choose From Device` to browse files already saved on your phone or computer. You can upload up to 15 photos at one time. If you enter a new folder name, the upload goes into that new folder.</div>
+          </form>
+        </details>
+
+        <details class="card photo-upload-form photo-collapsible-card">
+          <summary class="section-toggle-head photo-collapsible-summary">
+            <div>
+              <h3>Create Folder</h3>
+              <p class="muted">Add a top-level folder or a subfolder.</p>
+            </div>
+          </summary>
+          <form method="post" action="/photos-upload/folders/create" class="stack photo-collapsible-body">
+            <label>Folder Name
+              <input type="text" name="folder_name" placeholder="New folder name" required />
+            </label>
+            <label>Parent Folder
+              <select name="parent_folder_id">
+                <option value="">Top level</option>
+                <% folderOptions.forEach(function (folder) { %>
+                  <option value="<%= folder.id %>"><%= folder.label %></option>
+                <% }) %>
+              </select>
+            </label>
+            <div class="button-row">
+              <button class="btn secondary" type="submit">Create Folder Only</button>
+            </div>
+            <div class="muted">Folders are collapsed by default in the browser below. Expand a folder card to explore its subfolders.</div>
+          </form>
+        </details>
+      </div>
+    </section>
+
+    <section class="photo-library-layout">
+      <aside class="card photo-folder-browser">
+        <div class="section-toggle-head">
+          <div>
+            <h3>Photos Folders</h3>
+            <p class="muted">Expand a folder to inspect its subfolders.</p>
+          </div>
+        </div>
+
+        <% if (!folderTree.length) { %>
+          <div class="muted">No folders yet. Create the first folder above.</div>
+        <% } else { %>
+          <div class="photo-folder-tree">
+            <% folderTree.forEach(function (node) { %>
+              <%- include('partials/photo-folder-tree', { node: node, viewMode: viewMode, sort: sort }) %>
+            <% }) %>
+          </div>
+        <% } %>
+      </aside>
+
+      <section class="card photo-library-content">
+        <div class="section-toggle-head">
+          <div>
+            <h3><%= selectedFolder ? selectedFolder.name : 'Latest Uploaded Photos' %></h3>
+            <% if (selectedFolder && folderPath.length) { %>
+              <p class="muted">
+                <% folderPath.forEach(function (part, index) { %>
+                  <a href="/photos-upload?folder_id=<%= part.id %>&view=<%= encodeURIComponent(viewMode) %>&sort=<%= encodeURIComponent(sort) %>"><%= part.name %></a><%= index < folderPath.length - 1 ? ' / ' : '' %>
+                <% }) %>
+              </p>
+            <% } else { %>
+              <p class="muted">Showing recent uploads across the library. Select a folder to browse one location in detail.</p>
+            <% } %>
+          </div>
+          <div class="inline-filters photo-library-toolbar">
+            <a class="btn <%= sort === 'latest' ? '' : 'secondary' %>" href="/photos-upload?<%= selectedFolder ? 'folder_id=' + encodeURIComponent(selectedFolder.id) + '&' : '' %>view=<%= encodeURIComponent(viewMode) %>&sort=latest">Latest Upload</a>
+            <a class="btn <%= sort === 'oldest' ? '' : 'secondary' %>" href="/photos-upload?<%= selectedFolder ? 'folder_id=' + encodeURIComponent(selectedFolder.id) + '&' : '' %>view=<%= encodeURIComponent(viewMode) %>&sort=oldest">Oldest</a>
+            <a class="btn <%= sort === 'alpha' ? '' : 'secondary' %>" href="/photos-upload?<%= selectedFolder ? 'folder_id=' + encodeURIComponent(selectedFolder.id) + '&' : '' %>view=<%= encodeURIComponent(viewMode) %>&sort=alpha">A-Z</a>
+            <a class="btn <%= viewMode === 'list' ? '' : 'secondary' %>" href="/photos-upload?<%= selectedFolder ? 'folder_id=' + encodeURIComponent(selectedFolder.id) + '&' : '' %>view=list&sort=<%= encodeURIComponent(sort) %>">Detail List</a>
+            <a class="btn <%= viewMode === 'thumbnails' ? '' : 'secondary' %>" href="/photos-upload?<%= selectedFolder ? 'folder_id=' + encodeURIComponent(selectedFolder.id) + '&' : '' %>view=thumbnails&sort=<%= encodeURIComponent(sort) %>">Thumbnails</a>
+            <a class="btn <%= viewMode === 'icons' ? '' : 'secondary' %>" href="/photos-upload?<%= selectedFolder ? 'folder_id=' + encodeURIComponent(selectedFolder.id) + '&' : '' %>view=icons&sort=<%= encodeURIComponent(sort) %>">Icons</a>
+          </div>
+        </div>
+
+        <% if (selectedFolder && selectedFolder.children && selectedFolder.children.length) { %>
+          <div class="photo-subfolder-strip">
+            <% selectedFolder.children.forEach(function (child) { %>
+              <a class="card photo-subfolder-card" href="/photos-upload?folder_id=<%= child.id %>&view=<%= encodeURIComponent(viewMode) %>&sort=<%= encodeURIComponent(sort) %>">
+                <strong><%= child.name %></strong>
+                <span class="muted"><%= child.direct_file_count %> photo(s)</span>
+              </a>
+            <% }) %>
+          </div>
+        <% } %>
+
+        <% if (!files.length) { %>
+          <div class="muted">No photos found for this view yet.</div>
+        <% } else { %>
+          <form method="post" action="/photos-upload/bulk-manage" id="photoBulkManageForm" class="stack">
+            <input type="hidden" name="current_folder_id" value="<%= selectedFolder ? selectedFolder.id : '' %>" />
+            <div class="photo-bulk-actions">
+              <button class="btn secondary" type="button" id="photoSelectAllBtn">Select All</button>
+              <button class="btn secondary" type="button" id="photoClearAllBtn">Clear</button>
+              <button class="btn" type="button" id="photoDownloadSelectedBtn">Download Selected</button>
+              <label style="min-width:220px; flex:1 1 240px;">Move to Existing Folder
+                <select name="folder_id" id="photoBulkFolderSelect">
+                  <option value="">Select folder for move</option>
+                  <% folderOptions.forEach(function (folder) { %>
+                    <option value="<%= folder.id %>"><%= folder.label %></option>
+                  <% }) %>
+                </select>
+              </label>
+              <label style="min-width:220px; flex:1 1 240px;">New Folder for Move
+                <input type="text" name="new_folder_name" id="photoBulkNewFolderName" placeholder="Create new folder for move" />
+              </label>
+              <label style="min-width:220px; flex:1 1 240px;">Parent Folder for New Move Folder
+                <select name="new_folder_parent_id" id="photoBulkNewFolderParent">
+                  <option value="">Top level</option>
+                  <% folderOptions.forEach(function (folder) { %>
+                    <option value="<%= folder.id %>"><%= folder.label %></option>
+                  <% }) %>
+                </select>
+              </label>
+              <button class="btn" type="submit" name="bulk_action" value="move">Move Selected</button>
+              <button class="btn danger" type="submit" name="bulk_action" value="delete" onclick="return confirm('Delete selected photo(s)? This cannot be undone.');">Delete Selected</button>
+              <span class="muted" id="photoSelectionCount">0 selected</span>
+            </div>
+
+            <% if (viewMode === 'list') { %>
+              <div class="calendar-filtered-events-table-wrap">
+                <table class="calendar-filtered-events-table">
+                  <thead>
+                    <tr>
+                      <th>Select</th>
+                      <th>Preview</th>
+                      <th>File Name</th>
+                      <th>Taken At</th>
+                      <th>Uploaded By</th>
+                      <th>Uploaded At</th>
+                      <th>Size</th>
+                      <th>Open</th>
+                      <th>Download</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <% files.forEach(function (file) { %>
+                      <tr>
+                        <td><input type="checkbox" class="photo-file-select" name="selected_files" value="<%= file.id %>" data-download-url="/photos-upload/files/<%= file.id %>/download" /></td>
+                        <td><img class="photo-list-preview" src="<%= file.file_path %>" alt="<%= file.original_name %>" loading="lazy" /></td>
+                        <td><%= file.original_name %></td>
+                        <td><%= file.captured_at_display || '-' %></td>
+                        <td><%= file.uploaded_by_name %></td>
+                        <td><%= file.uploaded_at_display %></td>
+                        <td><%= file.file_size_display %></td>
+                        <td><a class="btn secondary" href="/photos-upload/files/<%= file.id %>?<%= selectedFolder ? 'folder_id=' + encodeURIComponent(selectedFolder.id) + '&' : '' %>view=<%= encodeURIComponent(viewMode) %>&sort=<%= encodeURIComponent(sort) %>">Open</a></td>
+                        <td><a class="btn" href="/photos-upload/files/<%= file.id %>/download">Download</a></td>
+                      </tr>
+                    <% }) %>
+                  </tbody>
+                </table>
+              </div>
+            <% } else { %>
+              <div class="photo-grid <%= viewMode === 'icons' ? 'photo-grid-icons' : 'photo-grid-thumbnails' %>">
+                <% files.forEach(function (file) { %>
+                  <article class="card photo-grid-item">
+                    <label class="photo-grid-check">
+                      <input type="checkbox" class="photo-file-select" name="selected_files" value="<%= file.id %>" data-download-url="/photos-upload/files/<%= file.id %>/download" />
+                      <span>Select</span>
+                    </label>
+                    <a class="photo-grid-link" href="/photos-upload/files/<%= file.id %>?<%= selectedFolder ? 'folder_id=' + encodeURIComponent(selectedFolder.id) + '&' : '' %>view=<%= encodeURIComponent(viewMode) %>&sort=<%= encodeURIComponent(sort) %>">
+                      <img src="<%= file.file_path %>" alt="<%= file.original_name %>" loading="lazy" />
+                      <strong><%= file.original_name %></strong>
+                    </a>
+                    <div class="muted">Taken: <%= file.captured_at_display || '-' %></div>
+                    <div class="muted"><%= file.uploaded_at_display %></div>
+                    <div class="muted"><%= file.file_size_display %></div>
+                    <div class="button-row">
+                      <a class="btn secondary" href="/photos-upload/files/<%= file.id %>?<%= selectedFolder ? 'folder_id=' + encodeURIComponent(selectedFolder.id) + '&' : '' %>view=<%= encodeURIComponent(viewMode) %>&sort=<%= encodeURIComponent(sort) %>">Open</a>
+                      <a class="btn" href="/photos-upload/files/<%= file.id %>/download">Download</a>
+                    </div>
+                  </article>
+                <% }) %>
+              </div>
+            <% } %>
+          </form>
+        <% } %>
+      </section>
+    </section>
+  </main>
+
+  <script>
+    (function () {
+      var existingFolder = document.getElementById('photoExistingFolder');
+      var newFolderName = document.getElementById('photoNewFolderName');
+      var newFolderParent = document.getElementById('photoNewFolderParent');
+      var uploadForm = document.querySelector('form[action="/photos-upload/upload"]');
+      var bulkManageForm = document.getElementById('photoBulkManageForm');
+      var photoCameraInput = document.getElementById('photoCameraInput');
+      var photoStorageInput = document.getElementById('photoStorageInput');
+      var photoBulkFolderSelect = document.getElementById('photoBulkFolderSelect');
+      var photoBulkNewFolderName = document.getElementById('photoBulkNewFolderName');
+      var photoBulkNewFolderParent = document.getElementById('photoBulkNewFolderParent');
+      var selectionCounter = document.getElementById('photoSelectionCount');
+      var selectAllBtn = document.getElementById('photoSelectAllBtn');
+      var clearAllBtn = document.getElementById('photoClearAllBtn');
+      var downloadSelectedBtn = document.getElementById('photoDownloadSelectedBtn');
+      var maxUploadFiles = 15;
+
+      function getCheckboxes() {
+        return Array.prototype.slice.call(document.querySelectorAll('.photo-file-select'));
+      }
+
+      function updateSelectionCounter() {
+        if (!selectionCounter) return;
+        var selected = getCheckboxes().filter(function (checkbox) { return checkbox.checked; }).length;
+        selectionCounter.textContent = selected + ' selected';
+      }
+
+      function syncFolderInputs() {
+        if (!existingFolder || !newFolderName || !newFolderParent) return;
+        var hasNewFolder = String(newFolderName.value || '').trim().length > 0;
+        existingFolder.disabled = hasNewFolder;
+        newFolderParent.disabled = !hasNewFolder;
+      }
+
+      function syncBulkFolderInputs() {
+        if (!photoBulkFolderSelect || !photoBulkNewFolderName || !photoBulkNewFolderParent) return;
+        var hasNewFolder = String(photoBulkNewFolderName.value || '').trim().length > 0;
+        photoBulkFolderSelect.disabled = hasNewFolder;
+        photoBulkNewFolderParent.disabled = !hasNewFolder;
+      }
+
+      function triggerQueuedDownloads(urls) {
+        urls.forEach(function (url, index) {
+          window.setTimeout(function () {
+            var iframe = document.createElement('iframe');
+            iframe.style.display = 'none';
+            iframe.src = url;
+            document.body.appendChild(iframe);
+            window.setTimeout(function () {
+              if (iframe.parentNode) iframe.parentNode.removeChild(iframe);
+            }, 5000);
+          }, index * 800);
+        });
+      }
+
+      if (uploadForm) {
+        uploadForm.addEventListener('submit', function (event) {
+          var hasExistingFolder = existingFolder && String(existingFolder.value || '').trim().length > 0;
+          var hasNewFolder = newFolderName && String(newFolderName.value || '').trim().length > 0;
+          var hasCameraFiles = photoCameraInput && photoCameraInput.files && photoCameraInput.files.length > 0;
+          var hasStorageFiles = photoStorageInput && photoStorageInput.files && photoStorageInput.files.length > 0;
+          var totalUploadFiles = (photoCameraInput && photoCameraInput.files ? photoCameraInput.files.length : 0)
+            + (photoStorageInput && photoStorageInput.files ? photoStorageInput.files.length : 0);
+          if (!hasExistingFolder && !hasNewFolder) {
+            event.preventDefault();
+            alert('Please choose an existing folder or enter a new folder name.');
+            return;
+          }
+          if (!hasCameraFiles && !hasStorageFiles) {
+            event.preventDefault();
+            alert('Please take a photo or choose at least one file from your device.');
+            return;
+          }
+          if (totalUploadFiles > maxUploadFiles) {
+            event.preventDefault();
+            alert('Please upload no more than 15 photos at one time.');
+          }
+        });
+      }
+
+      if (newFolderName) {
+        newFolderName.addEventListener('input', syncFolderInputs);
+      }
+      if (existingFolder) {
+        existingFolder.addEventListener('change', syncFolderInputs);
+      }
+      syncFolderInputs();
+
+      if (photoBulkNewFolderName) {
+        photoBulkNewFolderName.addEventListener('input', syncBulkFolderInputs);
+      }
+      if (photoBulkFolderSelect) {
+        photoBulkFolderSelect.addEventListener('change', syncBulkFolderInputs);
+      }
+      syncBulkFolderInputs();
+
+      getCheckboxes().forEach(function (checkbox) {
+        checkbox.addEventListener('change', updateSelectionCounter);
+      });
+
+      if (selectAllBtn) {
+        selectAllBtn.addEventListener('click', function () {
+          getCheckboxes().forEach(function (checkbox) { checkbox.checked = true; });
+          updateSelectionCounter();
+        });
+      }
+
+      if (clearAllBtn) {
+        clearAllBtn.addEventListener('click', function () {
+          getCheckboxes().forEach(function (checkbox) { checkbox.checked = false; });
+          updateSelectionCounter();
+        });
+      }
+
+      if (downloadSelectedBtn) {
+        downloadSelectedBtn.addEventListener('click', function () {
+          var urls = getCheckboxes()
+            .filter(function (checkbox) { return checkbox.checked; })
+            .map(function (checkbox) { return checkbox.getAttribute('data-download-url'); })
+            .filter(Boolean);
+
+          if (!urls.length) {
+            alert('Please select at least one photo to download.');
+            return;
+          }
+
+          triggerQueuedDownloads(urls);
+        });
+      }
+
+      if (bulkManageForm) {
+        bulkManageForm.addEventListener('submit', function (event) {
+          var submitter = event.submitter;
+          if (!submitter) return;
+          var selectedCount = getCheckboxes().filter(function (checkbox) { return checkbox.checked; }).length;
+          if (!selectedCount) {
+            event.preventDefault();
+            alert('Please select at least one photo first.');
+            return;
+          }
+          if (submitter.value === 'move') {
+            var hasExistingFolder = photoBulkFolderSelect && !photoBulkFolderSelect.disabled && String(photoBulkFolderSelect.value || '').trim().length > 0;
+            var hasNewFolder = photoBulkNewFolderName && String(photoBulkNewFolderName.value || '').trim().length > 0;
+            if (!hasExistingFolder && !hasNewFolder) {
+              event.preventDefault();
+              alert('Please choose an existing folder or enter a new folder name for the move.');
+            }
+          }
+        });
+      }
+
+      updateSelectionCounter();
+    })();
+  </script>
+  <script src="/js/inactivity.js"></script>
+</body>
+</html>

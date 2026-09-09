@@ -1,0 +1,184 @@
+<%
+  const headerUser = typeof currentUser !== 'undefined' && currentUser ? currentUser : (typeof user !== 'undefined' ? user : null);
+  const isAuthenticated = !!headerUser;
+  const isAdmin = isAuthenticated && headerUser.role === 'admin';
+  const recentUsers = Array.isArray(typeof recentPortalUsers !== 'undefined' ? recentPortalUsers : null) ? recentPortalUsers : [];
+  function authHref(path) {
+    return isAuthenticated ? path : '/login?next=' + encodeURIComponent(path);
+  }
+  const mainHeaderShortcuts = [
+    { label: 'Home', href: '/' },
+    { label: 'P.I.T.I.S.', href: authHref('/teacher/reward') },
+    { label: 'PITIS Leaders', href: '/leaderboard' },
+    { label: 'Class Compass', href: classCompassUrl },
+    { label: 'Calendar', href: authHref('/teacher/calendar') },
+    { label: 'Student Details', href: authHref('/teacher/students') },
+    { label: 'Tools', href: authHref('/teacher/tools') },
+    { label: 'PITIS Gallery', href: '/rewards' },
+    { label: 'Device Bookings', href: authHref(isAdmin ? '/admin/devices' : '/devices') },
+    { label: 'Informations', href: authHref('/informations') },
+    { label: 'Attendance', href: authHref('/teacher/attendance') },
+    isAdmin ? { label: 'Admin Dashboard', href: '/admin/dashboard' } : null,
+    { label: 'Inventory', href: authHref('/inventory'), className: 'main-header-inventory-shortcut' },
+    { label: 'QR Tools', href: authHref('/teacher/qr-tools') },
+    { label: 'Notes', href: authHref('/notes') },
+    { label: 'Photos Upload', href: authHref('/photos-upload') },
+    { label: 'Reporting Tool', href: authHref('/teacher/reporting-tool') }
+  ].filter(Boolean);
+%>
+<header class="site-header landing-header main-header-card <%= isAuthenticated ? 'portal-sidebar' : 'portal-public-header' %>">
+  <div class="landing-header-inner">
+    <img class="portal-school-logo" src="/images/brunei-school-logo.jpg" alt="Sekolah Rendah Brunei logo" />
+    <h1>Sekolah Rendah Orang Kaya Ali Wanika Setia Diraja Kupang, Tutong.</h1>
+    <p class="landing-subtitle">School Portal</p>
+    <div class="landing-datetime muted" data-main-header-clock>
+      <%= now.format('DD.MMM.YYYY hh:mm a') %>
+    </div>
+    <div class="recent-login-strip" aria-label="Recent portal users">
+      <span class="recent-login-title">Recent users</span>
+      <% if (recentUsers.length) { %>
+        <div class="recent-login-user-list">
+          <% recentUsers.forEach(function (login) { %>
+            <span class="recent-login-user"><%= login.display_name || login.username %></span>
+          <% }) %>
+        </div>
+      <% } else { %>
+        <span class="muted">No recent non-admin logins yet.</span>
+      <% } %>
+    </div>
+    <nav class="landing-shortcuts main-header-shortcuts main-header-shortcuts-desktop" aria-label="Main shortcuts">
+      <% mainHeaderShortcuts.forEach(function (item) { %>
+        <a class="btn <%= item.className || '' %>" href="<%= item.href %>"><%= item.label %></a>
+      <% }) %>
+      <% if (isAuthenticated) { %>
+        <form action="/logout" method="post" class="inline-form">
+          <button type="submit" class="btn">Logout</button>
+        </form>
+      <% } else { %>
+        <a class="btn" href="/login">USER ID</a>
+      <% } %>
+    </nav>
+    <div class="main-header-mobile-menu">
+      <button type="button" class="btn main-header-mobile-toggle" data-mobile-shortcuts-toggle aria-expanded="false" aria-controls="mainHeaderMobileShortcuts">
+        Quick Menu
+      </button>
+      <nav id="mainHeaderMobileShortcuts" class="main-header-mobile-panel hidden" aria-label="Mobile shortcuts">
+        <% mainHeaderShortcuts.forEach(function (item) { %>
+          <a class="btn <%= item.className || '' %>" href="<%= item.href %>"><%= item.label %></a>
+        <% }) %>
+        <% if (isAuthenticated) { %>
+          <form action="/logout" method="post" class="inline-form">
+            <button type="submit" class="btn">Logout</button>
+          </form>
+        <% } else { %>
+          <a class="btn" href="/login">USER ID</a>
+        <% } %>
+      </nav>
+    </div>
+  </div>
+</header>
+<% if (isAuthenticated) { %>
+  <nav class="portal-top-shortcuts" aria-label="Top shortcuts">
+    <% mainHeaderShortcuts.forEach(function (item) { %>
+      <a class="btn <%= item.className || '' %>" href="<%= item.href %>"><%= item.label %></a>
+    <% }) %>
+    <form action="/logout" method="post" class="inline-form">
+      <button type="submit" class="btn">Logout</button>
+    </form>
+  </nav>
+<% } %>
+<script>
+  (function () {
+    var headerClock = document.querySelector('[data-main-header-clock]');
+    var mobileMenuToggle = document.querySelector('[data-mobile-shortcuts-toggle]');
+    var mobileMenuPanel = document.getElementById('mainHeaderMobileShortcuts');
+    var scrollStorageKey = 'portal-scroll:' + window.location.pathname;
+
+    function formatDateTime(date) {
+      var day = String(date.getDate()).padStart(2, '0');
+      var month = date.toLocaleString('en-US', { month: 'short' });
+      var year = date.getFullYear();
+      var hours = date.getHours();
+      var minutes = String(date.getMinutes()).padStart(2, '0');
+      var suffix = hours >= 12 ? 'pm' : 'am';
+      var twelveHour = hours % 12;
+      if (twelveHour === 0) twelveHour = 12;
+      return day + '.' + month + '.' + year + ' ' + String(twelveHour).padStart(2, '0') + ':' + minutes + ' ' + suffix;
+    }
+
+    function refreshDateTime() {
+      headerClock.textContent = formatDateTime(new Date());
+    }
+
+    if (headerClock) {
+      refreshDateTime();
+      window.setInterval(refreshDateTime, 1000);
+    }
+
+    if (mobileMenuToggle && mobileMenuPanel) {
+      mobileMenuToggle.addEventListener('click', function () {
+        var isHidden = mobileMenuPanel.classList.contains('hidden');
+        mobileMenuPanel.classList.toggle('hidden', !isHidden);
+        mobileMenuToggle.setAttribute('aria-expanded', isHidden ? 'true' : 'false');
+      });
+    }
+
+    function saveScrollPosition() {
+      try {
+        sessionStorage.setItem(scrollStorageKey, JSON.stringify({
+          x: window.scrollX || 0,
+          y: window.scrollY || 0,
+          savedAt: Date.now()
+        }));
+      } catch (_err) {}
+    }
+
+    function restoreScrollPosition() {
+      try {
+        var raw = sessionStorage.getItem(scrollStorageKey);
+        if (!raw) return;
+        sessionStorage.removeItem(scrollStorageKey);
+        var saved = JSON.parse(raw);
+        if (!saved || typeof saved.y !== 'number') return;
+        window.requestAnimationFrame(function () {
+          window.scrollTo(Number(saved.x || 0), Number(saved.y || 0));
+        });
+      } catch (_err) {}
+    }
+
+    try {
+      if ('scrollRestoration' in history) {
+        history.scrollRestoration = 'manual';
+      }
+    } catch (_err) {}
+
+    document.addEventListener('submit', function (event) {
+      var form = event.target;
+      if (!form || form.tagName !== 'FORM') return;
+      if (form.hasAttribute('data-skip-scroll-preserve')) return;
+      var action = form.getAttribute('action') || window.location.pathname;
+      if (/\/logout$/i.test(action)) return;
+      saveScrollPosition();
+    }, true);
+
+    window.addEventListener('beforeunload', function () {
+      saveScrollPosition();
+    });
+
+    restoreScrollPosition();
+
+    /* Presentation only: identify the current destination in both nav variants. */
+    document.querySelectorAll('.main-header-shortcuts a[href], .main-header-mobile-panel a[href], .portal-top-shortcuts a[href]').forEach(function (link) {
+      try {
+        var linkPath = new URL(link.href, window.location.origin).pathname.replace(/\/$/, '') || '/';
+        var pagePath = window.location.pathname.replace(/\/$/, '') || '/';
+        var isCurrent = linkPath === pagePath || (linkPath !== '/' && pagePath.indexOf(linkPath + '/') === 0);
+        if (isCurrent) {
+          link.classList.add('is-active');
+          link.setAttribute('aria-current', 'page');
+        }
+      } catch (_err) {}
+    });
+  })();
+</script>
+<script src="/js/async-forms.js"></script>

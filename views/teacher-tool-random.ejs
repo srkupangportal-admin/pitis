@@ -1,0 +1,392 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Random Selector</title>
+  <link rel="stylesheet" href="/css/theme-c.css" />
+</head>
+<body>
+  <header class="site-header">
+    <h1>Random Selector</h1>
+    <span>Welcome, <%= user.displayName %></span>
+  </header>
+  <%- include('partials/teacher-nav') %>
+
+  <main class="container stack">
+    <% if (error) { %>
+      <section class="card"><div class="error"><%= error %></div></section>
+    <% } %>
+    <% if (success) { %>
+      <section class="card"><div><%= success %></div></section>
+    <% } %>
+
+    <section class="card tool-card" id="randomSelectorCard">
+      <div class="tool-card-head">
+        <div>
+          <h2>Random Selector</h2>
+          <p class="muted">Pick one random student from a chosen class or selected student set.</p>
+        </div>
+        <a class="btn secondary" href="/teacher/tools">Back to Tools</a>
+      </div>
+
+      <div class="form stack">
+        <label>Class
+          <select id="randomClassSelect">
+            <option value="">Select class</option>
+            <option value="all-school">All Students in School</option>
+            <% classes.forEach(cls => { %>
+              <option value="<%= cls.id %>"><%= cls.name %></option>
+            <% }) %>
+          </select>
+        </label>
+
+        <div class="inline-filters">
+          <label class="tool-choice"><input type="radio" name="randomScope" value="all" checked /> All students</label>
+          <label class="tool-choice"><input type="radio" name="randomScope" value="selected" /> Selected students only</label>
+        </div>
+
+        <div id="randomStudentsWrap" class="tool-student-wrap hidden"></div>
+
+        <div class="inline-filters">
+          <button class="btn" type="button" id="randomPickBtn">Select Random Student</button>
+          <button class="btn secondary" type="button" id="randomResetBtn">Reset Session Picks</button>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <div id="randomStudentModal" class="reward-modal hidden" aria-hidden="true">
+    <div class="reward-modal-card tool-random-modal-card">
+      <div class="reward-photo-modal-head">
+        <h3>Selected Student</h3>
+        <button type="button" class="btn subtle secondary" id="randomModalClose">Close</button>
+      </div>
+
+      <div id="randomModalContent" class="tool-random-picked"></div>
+      <div id="randomModalStatus" class="muted"></div>
+
+      <div class="button-row tool-random-actions">
+        <button type="button" class="btn" id="randomAward1Btn">+1 Pitis</button>
+        <button type="button" class="btn secondary" id="randomAward2Btn">+2 Pitis</button>
+        <button type="button" class="btn" id="randomNextBtn">Select Next</button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    (function () {
+      var randomClassSelect = document.getElementById('randomClassSelect');
+      var randomStudentsWrap = document.getElementById('randomStudentsWrap');
+      var randomPickBtn = document.getElementById('randomPickBtn');
+      var randomResetBtn = document.getElementById('randomResetBtn');
+      var randomStudentModal = document.getElementById('randomStudentModal');
+      var randomModalContent = document.getElementById('randomModalContent');
+      var randomModalStatus = document.getElementById('randomModalStatus');
+      var randomModalClose = document.getElementById('randomModalClose');
+      var randomAward1Btn = document.getElementById('randomAward1Btn');
+      var randomAward2Btn = document.getElementById('randomAward2Btn');
+      var randomNextBtn = document.getElementById('randomNextBtn');
+      var currentRandomStudent = null;
+      var randomRevealTimer = null;
+      var randomRevealInterval = null;
+      var isRevealingRandomStudent = false;
+
+      function shuffle(items) {
+        var arr = items.slice();
+        for (var i = arr.length - 1; i > 0; i -= 1) {
+          var j = Math.floor(Math.random() * (i + 1));
+          var tmp = arr[i];
+          arr[i] = arr[j];
+          arr[j] = tmp;
+        }
+        return arr;
+      }
+
+      function escapeHtml(value) {
+        return String(value || '')
+          .replace(/&/g, '&amp;')
+          .replace(/</g, '&lt;')
+          .replace(/>/g, '&gt;')
+          .replace(/"/g, '&quot;')
+          .replace(/'/g, '&#39;');
+      }
+
+      function buildAppUrl(pathname) {
+        return new URL(pathname, window.location.origin).toString();
+      }
+
+      function getScope() {
+        var picked = document.querySelector('input[name="randomScope"]:checked');
+        return picked ? picked.value : 'all';
+      }
+
+      function renderStudentChecklist(students) {
+        if (!randomStudentsWrap) return;
+        if (!students.length) {
+          randomStudentsWrap.innerHTML = '<div class="muted">No students in selected class.</div>';
+          return;
+        }
+
+        var html = '<div class="tool-student-grid">';
+        students.forEach(function (student) {
+          var photo = student.photo_src
+            ? '<img class="tool-student-photo" src="' + escapeHtml(student.photo_src) + '" alt="' + escapeHtml(student.nickname || student.full_name) + '" />'
+            : '<div class="tool-student-photo tool-student-photo-fallback">' + escapeHtml((student.nickname || student.full_name || '?').slice(0, 1)) + '</div>';
+          html += '' +
+            '<label class="tool-student-item">' +
+              '<input type="checkbox" name="random_students" value="' + escapeHtml(student.id) + '" data-class-id="' + escapeHtml(student.class_id || '') + '" data-class-name="' + escapeHtml(student.class_name || '') + '" checked />' +
+              photo +
+              '<span class="tool-student-text">' +
+                '<a class="student-detail-link" href="/teacher/students/' + encodeURIComponent(student.id) + '"><strong>' + escapeHtml(student.nickname || student.full_name) + '</strong></a>' +
+              '</span>' +
+            '</label>';
+        });
+        html += '</div>';
+        randomStudentsWrap.innerHTML = html;
+      }
+
+      function syncWrapVisibility() {
+        randomStudentsWrap.classList.toggle('hidden', getScope() !== 'selected');
+      }
+
+      function loadClassStudents(classId) {
+        if (!classId) {
+          randomStudentsWrap.innerHTML = '';
+          return;
+        }
+
+        fetch(buildAppUrl('/teacher/tools/class/' + encodeURIComponent(classId) + '/students'), {
+          headers: { Accept: 'application/json' },
+          credentials: 'same-origin'
+        })
+          .then(function (res) {
+            if (!res.ok) throw new Error('Failed to load students');
+            return res.json();
+          })
+          .then(function (payload) {
+            renderStudentChecklist(payload && payload.students ? payload.students : []);
+          })
+          .catch(function (err) {
+            randomStudentsWrap.innerHTML = '<div class="error">' + escapeHtml(err.message || String(err)) + '</div>';
+          });
+      }
+
+      function getPoolStudents() {
+        var checked = Array.prototype.slice.call(randomStudentsWrap.querySelectorAll('input[type="checkbox"]:checked'));
+        var all = Array.prototype.slice.call(randomStudentsWrap.querySelectorAll('input[type="checkbox"]'));
+        var source = getScope() === 'all' ? all : checked;
+        return source.map(function (input) {
+          var item = input.parentElement;
+          var photoNode = item.querySelector('.tool-student-photo');
+          return {
+            id: Number(input.value),
+            class_id: Number(input.getAttribute('data-class-id') || 0),
+            class_name: String(input.getAttribute('data-class-name') || ''),
+            nickname: item.querySelector('strong') ? item.querySelector('strong').textContent : '',
+            full_name: '',
+            photo_src: photoNode && photoNode.tagName === 'IMG' ? photoNode.getAttribute('src') : ''
+          };
+        }).filter(function (student) { return student.id; });
+      }
+
+      function getSessionKey(students) {
+        var classId = String(randomClassSelect.value || '').trim();
+        var ids = (students || []).map(function (student) { return Number(student.id); }).filter(Boolean).sort(function (a, b) { return a - b; });
+        return 'random-selector-picked::' + classId + '::' + ids.join(',');
+      }
+
+      function loadPickedIds(key) {
+        if (!key) return [];
+        try {
+          var raw = window.sessionStorage.getItem(key);
+          var parsed = raw ? JSON.parse(raw) : [];
+          return Array.isArray(parsed) ? parsed.map(function (value) { return Number(value); }).filter(Boolean) : [];
+        } catch (_err) {
+          return [];
+        }
+      }
+
+      function savePickedIds(key, values) {
+        if (!key) return;
+        window.sessionStorage.setItem(key, JSON.stringify((values || []).map(function (value) { return Number(value); }).filter(Boolean)));
+      }
+
+      function clearCurrentPoolSession() {
+        var students = getPoolStudents();
+        var key = getSessionKey(students);
+        if (!key) return;
+        window.sessionStorage.removeItem(key);
+      }
+
+      function setStatus(message, isError) {
+        randomModalStatus.textContent = message || '';
+        randomModalStatus.className = isError ? 'error' : 'muted';
+      }
+
+      function setRandomActionButtonsDisabled(disabled) {
+        [randomAward1Btn, randomAward2Btn, randomNextBtn].forEach(function (btn) {
+          if (btn) btn.disabled = !!disabled;
+        });
+      }
+
+      function renderRandomStudentCard(student, isAnimating) {
+        var photo = student && student.photo_src
+          ? '<img class="tool-random-photo' + (isAnimating ? ' spinning' : '') + '" src="' + escapeHtml(student.photo_src) + '" alt="' + escapeHtml(student.nickname || student.full_name) + '" />'
+          : '<div class="tool-random-photo tool-student-photo-fallback' + (isAnimating ? ' spinning' : '') + '">' + escapeHtml(((student && (student.nickname || student.full_name)) || '?').slice(0, 1)) + '</div>';
+        var name = student ? escapeHtml(student.nickname || student.full_name) : 'Selecting...';
+        var classLine = student && randomClassSelect && randomClassSelect.value === 'all-school' && student.class_name
+          ? '<div class="tool-random-class">' + escapeHtml(student.class_name) + '</div>'
+          : '';
+        var nameLink = student && student.id
+          ? '<a class="student-detail-link" href="/teacher/students/' + encodeURIComponent(student.id) + '"><strong>' + name + '</strong></a>'
+          : '<strong>' + name + '</strong>';
+        randomModalContent.innerHTML = '<div class="tool-random-picked-card' + (isAnimating ? ' is-shuffling' : '') + '">' + photo + '<div class="tool-random-picked-text">' + nameLink + classLine + '</div></div>';
+      }
+
+      function stopRandomRevealAnimation() {
+        if (randomRevealInterval) {
+          clearInterval(randomRevealInterval);
+          randomRevealInterval = null;
+        }
+        if (randomRevealTimer) {
+          clearTimeout(randomRevealTimer);
+          randomRevealTimer = null;
+        }
+        isRevealingRandomStudent = false;
+      }
+
+      function openModal(student, poolForAnimation) {
+        currentRandomStudent = student;
+        stopRandomRevealAnimation();
+        randomStudentModal.classList.remove('hidden');
+        randomStudentModal.setAttribute('aria-hidden', 'false');
+        setRandomActionButtonsDisabled(true);
+        setStatus('Selecting student...', false);
+
+        var animationPool = Array.isArray(poolForAnimation) && poolForAnimation.length ? poolForAnimation.slice() : [student];
+        isRevealingRandomStudent = true;
+        renderRandomStudentCard(animationPool[0], true);
+
+        randomRevealInterval = setInterval(function () {
+          var preview = shuffle(animationPool)[0] || student;
+          renderRandomStudentCard(preview, true);
+        }, 90);
+
+        randomRevealTimer = setTimeout(function () {
+          stopRandomRevealAnimation();
+          renderRandomStudentCard(student, false);
+          setStatus('', false);
+          setRandomActionButtonsDisabled(false);
+        }, 2000);
+      }
+
+      function closeModal() {
+        stopRandomRevealAnimation();
+        randomStudentModal.classList.add('hidden');
+        randomStudentModal.setAttribute('aria-hidden', 'true');
+        setRandomActionButtonsDisabled(false);
+      }
+
+      function pickRandomStudent() {
+        if (!randomClassSelect.value) {
+          alert('Select a class first.');
+          return;
+        }
+
+        var students = getPoolStudents();
+        if (!students.length) {
+          alert('No students available for selection.');
+          return;
+        }
+
+        var key = getSessionKey(students);
+        var pickedIds = loadPickedIds(key);
+        var remaining = students.filter(function (student) {
+          return pickedIds.indexOf(Number(student.id)) === -1;
+        });
+
+        if (!remaining.length) {
+          if (randomStudentModal.classList.contains('hidden')) {
+            alert('All students in this current selection have already been picked in this session.');
+          } else {
+            setStatus('All students in this current selection have already been picked in this session.', true);
+          }
+          return;
+        }
+
+        var picked = shuffle(remaining)[0];
+        pickedIds.push(Number(picked.id));
+        savePickedIds(key, pickedIds);
+        openModal(picked, remaining);
+        setStatus('Selected from remaining session pool: ' + remaining.length + ' available before this pick.', false);
+      }
+
+      function awardPoints(points) {
+        if (isRevealingRandomStudent) return;
+        if (!currentRandomStudent || !randomClassSelect.value) return;
+        setStatus('Updating pitis...', false);
+        fetch(buildAppUrl('/teacher/tools/random-selector/award'), {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            Accept: 'application/json'
+          },
+          credentials: 'same-origin',
+          body: JSON.stringify({
+            student_id: currentRandomStudent.id,
+            class_id: Number(currentRandomStudent.class_id || randomClassSelect.value || 0),
+            points: points
+          })
+        })
+          .then(function (res) {
+            return res.json().then(function (data) {
+              return { ok: res.ok, data: data };
+            });
+          })
+          .then(function (result) {
+            if (!result.ok) throw new Error((result.data && result.data.error) || 'Failed to update pitis');
+            var savedLabel = currentRandomStudent.nickname || 'student';
+            if (randomClassSelect && randomClassSelect.value === 'all-school' && currentRandomStudent.class_name) {
+              savedLabel += ' (' + currentRandomStudent.class_name + ')';
+            }
+            setStatus('Pitis updated: +' + points + ' saved for ' + savedLabel + '. Selecting next student...', false);
+            setTimeout(function () {
+              pickRandomStudent();
+            }, 350);
+          })
+          .catch(function (err) {
+            console.error('Random selector award failed', err);
+            setStatus(err && err.message ? err.message : String(err), true);
+          });
+      }
+
+      randomClassSelect.addEventListener('change', function () {
+        closeModal();
+        setStatus('', false);
+        loadClassStudents(randomClassSelect.value);
+      });
+
+      Array.prototype.slice.call(document.querySelectorAll('input[name="randomScope"]')).forEach(function (input) {
+        input.addEventListener('change', syncWrapVisibility);
+      });
+      syncWrapVisibility();
+
+      randomPickBtn.addEventListener('click', pickRandomStudent);
+      randomResetBtn.addEventListener('click', function () {
+        clearCurrentPoolSession();
+        setStatus('Session picks reset for the current class and selection.', false);
+      });
+      randomAward1Btn.addEventListener('click', function () { awardPoints(1); });
+      randomAward2Btn.addEventListener('click', function () { awardPoints(2); });
+      randomNextBtn.addEventListener('click', function () { if (!isRevealingRandomStudent) pickRandomStudent(); });
+      randomModalClose.addEventListener('click', closeModal);
+      randomStudentModal.addEventListener('click', function (e) {
+        if (e.target === randomStudentModal) closeModal();
+      });
+    })();
+  </script>
+
+  <script src="/js/inactivity.js"></script>
+</body>
+</html>

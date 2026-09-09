@@ -1,0 +1,199 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>SIP PITIS Dashboard</title>
+  <link rel="stylesheet" href="/css/theme-c.css" />
+</head>
+<body class="<%= printMode ? 'print-mode' : '' %>">
+  <% if (!printMode) { %><%- include('partials/teacher-nav') %><% } %>
+  <main class="container stack sip-pitis-page">
+    <div class="calendar-header-row report-header-row print-hide">
+      <div>
+        <h2>SIP PITIS Dashboard</h2>
+        <p class="muted">Built from raw PITIS transactions and the official 2026 school calendar source.</p>
+      </div>
+      <div class="report-actions">
+        <a class="btn secondary" href="/teacher/reporting-tool">Reporting Tool</a>
+        <a class="btn secondary" href="/teacher/reporting-tool/sip-pitis/raw-audit">Raw Audit</a>
+        <% if (user && user.role === 'admin') { %>
+          <a class="btn secondary" href="/teacher/reporting-tool/sip-pitis/settings">Settings</a>
+        <% } %>
+        <% var dashboardQuery = new URLSearchParams(); Object.keys(dashboard.filters).forEach(function(key) { if (Array.isArray(dashboard.filters[key])) { dashboard.filters[key].forEach(function(value) { dashboardQuery.append(key, value); }); } else { dashboardQuery.set(key, dashboard.filters[key]); } }); %>
+        <a class="btn secondary" href="/teacher/reporting-tool/sip-pitis/export.csv?<%= dashboardQuery.toString() %>">Excel CSV</a>
+        <a class="btn" href="/teacher/reporting-tool/sip-pitis/print?<%= dashboardQuery.toString() %>" target="_blank" rel="noopener">PDF / Print</a>
+      </div>
+    </div>
+
+    <form class="card form sip-pitis-filter print-hide" method="get" action="/teacher/reporting-tool/sip-pitis">
+      <input type="hidden" name="teacherFilter" value="1" />
+      <div class="sip-filter-row">
+        <label>Term
+          <select name="term">
+            <% [1,2,3,4].forEach(function(term) { %>
+              <option value="<%= term %>" <%= String(dashboard.filters.term) === String(term) ? 'selected' : '' %>>Term <%= term %></option>
+            <% }) %>
+          </select>
+        </label>
+        <label>Weeks
+          <select name="weeks">
+            <% ['all','4','8','12'].forEach(function(limit) { %>
+              <option value="<%= limit %>" <%= dashboard.filters.weeks === limit ? 'selected' : '' %>><%= limit === 'all' ? 'All weeks' : 'Last ' + limit %></option>
+            <% }) %>
+          </select>
+        </label>
+        <label>Status
+          <select name="status">
+            <% [['all','All'],['met','Met'],['still_possible','Still Possible'],['at_risk','At Risk'],['missed','Missed'],['future','Future']].forEach(function(opt) { %>
+              <option value="<%= opt[0] %>" <%= dashboard.filters.status === opt[0] ? 'selected' : '' %>><%= opt[1] %></option>
+            <% }) %>
+          </select>
+        </label>
+        <label>Usage Days
+          <select name="usageDays">
+            <option value="all" <%= dashboard.filters.usageDays === 'all' ? 'selected' : '' %>>Any</option>
+            <% [1,2,3,4,5].forEach(function(dayCount) { %>
+              <option value="<%= dayCount %>" <%= String(dashboard.filters.usageDays) === String(dayCount) ? 'selected' : '' %>><%= dayCount %>+ days</option>
+            <% }) %>
+          </select>
+        </label>
+        <button class="btn" type="submit">Apply</button>
+      </div>
+      <details class="sip-teacher-filter" open>
+        <summary>
+          <span>Teachers</span>
+          <span class="muted"><%= dashboard.teachers.length %> selected</span>
+        </summary>
+        <div class="reward-bulk-actions pitis-usage-selection-actions">
+          <button class="btn subtle secondary" type="button" id="sipSelectAllTeachers">Select All</button>
+          <button class="btn subtle secondary" type="button" id="sipClearTeachers">Clear</button>
+        </div>
+        <div class="sip-teacher-select-grid">
+          <% var selectedTeachers = new Set(dashboard.filters.teacherIds.map(function(id) { return Number(id); })); %>
+          <% dashboard.allTeachers.forEach(function(teacher) { %>
+            <label class="reward-tile pitis-usage-user-card <%= selectedTeachers.has(Number(teacher.id)) ? 'selected' : '' %>">
+              <input type="checkbox" name="teacherIds" value="<%= teacher.id %>" <%= selectedTeachers.has(Number(teacher.id)) ? 'checked' : '' %> />
+              <strong><%= teacher.display_name %></strong>
+              <span class="muted"><%= teacher.username %></span>
+            </label>
+          <% }) %>
+        </div>
+      </details>
+    </form>
+
+    <section class="sip-kpi-grid">
+      <% [
+        ['Current Term', dashboard.kpis.currentTerm],
+        ['Current School Week', dashboard.kpis.currentWeek],
+        ['Current SIP Target', dashboard.kpis.currentSipTarget],
+        ['Teachers On Track', dashboard.kpis.teachersOnTrack],
+        ['Teachers Needing Support', dashboard.kpis.teachersNeedingSupport],
+        ['School Consistency %', dashboard.kpis.schoolConsistency + '%']
+      ].forEach(function(kpi) { %>
+        <article class="card sip-kpi"><span><%= kpi[0] %></span><strong><%= kpi[1] %></strong></article>
+      <% }) %>
+    </section>
+
+    <section class="sip-dashboard-grid">
+      <article class="card sip-target-card">
+        <span class="reporting-tool-menu-kicker">SIP Target</span>
+        <h3>Term <%= dashboard.sipTarget.term %></h3>
+        <div class="sip-target-numbers">
+          <div><span>Target</span><strong><%= dashboard.sipTarget.target %> of <%= dashboard.sipTarget.denominator %></strong></div>
+          <div><span>Current</span><strong><%= dashboard.sipTarget.current %> of <%= dashboard.teachers.length %></strong></div>
+          <div><span>Status</span><strong><%= dashboard.sipTarget.status %></strong></div>
+        </div>
+      </article>
+
+      <article class="card sip-weekly-card">
+        <div class="report-card-head">
+          <div>
+            <span class="reporting-tool-menu-kicker">Weekly Performance</span>
+            <h3>Teachers Meeting vs Missing</h3>
+          </div>
+        </div>
+        <div class="sip-week-chart">
+          <% dashboard.weeklyChart.forEach(function(week) {
+            var max = Math.max(1, dashboard.teachers.length);
+            var metPct = Math.round((week.meeting / max) * 100);
+            var missPct = Math.round((week.missing / max) * 100);
+          %>
+            <div class="sip-week-bar" title="Week <%= week.weekNumber %>: <%= week.meeting %> meeting, <%= week.missing %> missing">
+              <div class="sip-week-stack">
+                <span class="met" style="height:<%= metPct %>%"></span>
+                <span class="missed" style="height:<%= missPct %>%"></span>
+              </div>
+              <small>W<%= week.weekNumber %></small>
+            </div>
+          <% }) %>
+        </div>
+      </article>
+    </section>
+
+    <section class="card sip-matrix-wrap">
+      <div class="report-card-head">
+        <div>
+          <span class="reporting-tool-menu-kicker">Teacher Weekly Matrix</span>
+          <h3>Target Status by Week</h3>
+        </div>
+        <div class="sip-legend">
+          <% ['Met','Still Possible','At Risk','Missed','Excluded','Future'].forEach(function(status) { %>
+            <span class="sip-status <%= status.toLowerCase().replace(/\s+/g, '-') %>"><%= status %></span>
+          <% }) %>
+        </div>
+      </div>
+      <div class="table-scroll">
+        <table class="sip-matrix">
+          <thead>
+            <tr>
+              <th>Teacher</th>
+              <% dashboard.weeks.forEach(function(week) { %><th>W<%= week.weekNumber %></th><% }) %>
+              <th>Term %</th>
+              <th>Term PITIS</th>
+              <th>Current Streak</th>
+              <th>Longest Streak</th>
+            </tr>
+          </thead>
+          <tbody>
+            <% dashboard.teacherReports.forEach(function(teacher) { %>
+              <tr>
+                <td><a href="/teacher/reporting-tool/sip-pitis/teacher/<%= teacher.id %>?term=<%= dashboard.filters.term %>&weeks=<%= dashboard.filters.weeks %>"><%= teacher.display_name %></a><br><span class="muted"><%= teacher.username %></span></td>
+                <% teacher.weeks.forEach(function(week) { %>
+                  <td><span class="sip-dot <%= week.status.toLowerCase().replace(/\s+/g, '-') %>" title="<%= week.status %>: <%= week.activeDays %>/<%= week.requiredDays %>"><%= week.status.charAt(0) %></span></td>
+                <% }) %>
+                <td><strong><%= teacher.termPercentage %>%</strong></td>
+                <td><strong><%= Number(teacher.termPitisAwarded || 0).toLocaleString() %></strong></td>
+                <td><%= teacher.currentStreak %></td>
+                <td><%= teacher.longestStreak %></td>
+              </tr>
+            <% }) %>
+          </tbody>
+        </table>
+      </div>
+    </section>
+  </main>
+  <script>
+    (function() {
+      var selectAll = document.getElementById('sipSelectAllTeachers');
+      var clear = document.getElementById('sipClearTeachers');
+      var boxes = Array.prototype.slice.call(document.querySelectorAll('input[name="teacherIds"]'));
+      function setBoxes(checked) {
+        boxes.forEach(function(box) {
+          box.checked = checked;
+          if (box.closest('label')) box.closest('label').classList.toggle('selected', checked);
+        });
+      }
+      boxes.forEach(function(box) {
+        box.addEventListener('change', function() {
+          if (box.closest('label')) box.closest('label').classList.toggle('selected', box.checked);
+        });
+      });
+      if (selectAll) selectAll.addEventListener('click', function() { setBoxes(true); });
+      if (clear) clear.addEventListener('click', function() { setBoxes(false); });
+    })();
+  </script>
+  <% if (printMode) { %><script>window.print();</script><% } %>
+  <script src="/js/inactivity.js"></script>
+</body>
+</html>

@@ -1,0 +1,727 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Attendance</title>
+  <link rel="stylesheet" href="/css/theme-c.css" />
+</head>
+<body>
+  <%- include('partials/teacher-nav') %>
+  <main class="container stack attendance-page-shell">
+    <% if (error) { %>
+      <section class="card"><div class="error"><%= error %></div></section>
+    <% } %>
+    <% if (success) { %>
+      <section class="card"><div><%= success %></div></section>
+    <% } %>
+
+    <section class="card attendance-top-card">
+      <div class="attendance-class-shortcuts attendance-class-switch">
+        <% classes.forEach(c => { %>
+          <a class="card action-card attendance-class-shortcut-card <%= Number(cls.id) === Number(c.id) ? 'active' : '' %>" href="/teacher/attendance/<%= c.id %>?date=<%= attendanceDate %>"><%= c.displayLabel || c.name %></a>
+        <% }) %>
+      </div>
+      <div class="attendance-top-head">
+        <div>
+          <h2>Attendance: <%= cls.name %></h2>
+        </div>
+        <form method="get" action="/teacher/attendance/<%= cls.id %>" class="attendance-top-date-form">
+          <a class="btn" href="/teacher/attendance/scan?date=<%= attendanceDate %>">Scan Attendance</a>
+          <label class="report-date-field attendance-date-picker">Attendance Date
+            <input type="date" name="date" value="<%= attendanceDate %>" required />
+          </label>
+          <a class="btn secondary" href="/teacher/attendance/<%= cls.id %>/export?date=<%= attendanceDate %>">Export CSV</a>
+          <button class="btn" type="submit">Load Date</button>
+        </form>
+      </div>
+    </section>
+
+    <form method="post" action="/teacher/attendance/<%= cls.id %>/save" class="card attendance-form-shell">
+      <input type="hidden" name="attendance_date" value="<%= attendanceDate %>" />
+      <div class="attendance-bulk-toolbar">
+        <div class="attendance-bulk-summary">
+          <strong id="attendanceSelectedCount">0 selected</strong>
+          <span class="muted">Choose students, then update their attendance in one click.</span>
+        </div>
+        <div class="button-row attendance-bulk-actions">
+          <button type="button" class="btn secondary" id="attendanceSelectAllBtn">Select All</button>
+          <button type="button" class="btn secondary" id="attendanceClearSelectionBtn">Clear</button>
+          <button type="button" class="btn secondary attendance-bulk-btn" data-bulk-action="morning_present">AM Present</button>
+          <button type="button" class="btn secondary attendance-bulk-btn" data-bulk-action="morning_absent">AM Absent</button>
+          <% if (hasAfternoonSession) { %>
+            <button type="button" class="btn secondary attendance-bulk-btn" data-bulk-action="afternoon_present">PM Present</button>
+            <button type="button" class="btn secondary attendance-bulk-btn" data-bulk-action="afternoon_absent">PM Absent</button>
+            <button type="button" class="btn attendance-bulk-btn" data-bulk-action="both_present">AM + PM Present</button>
+            <button type="button" class="btn attendance-bulk-btn" data-bulk-action="both_absent">AM + PM Absent</button>
+          <% } %>
+        </div>
+      </div>
+      <div class="button-row attendance-actions">
+        <span class="attendance-dirty-indicator hidden" id="attendanceDirtyIndicator">Unsaved changes</span>
+        <button type="submit" class="btn">Save Attendance</button>
+      </div>
+      <div class="attendance-table-head">
+        <div>Student</div>
+        <div>Morning</div>
+        <div>Afternoon</div>
+      </div>
+
+      <div class="attendance-list">
+        <% attendanceRows.forEach(student => { %>
+          <div class="attendance-row <%= hasAfternoonSession ? '' : 'is-am-only' %>" data-student-id="<%= student.id %>" data-absent-name="<%= student.nickname %>">
+            <input type="hidden" name="student_ids" value="<%= student.id %>" />
+            <div class="attendance-student-main">
+              <label class="attendance-select-wrap">
+                <input type="checkbox" class="attendance-row-select" value="<%= student.id %>" />
+                <span>Select</span>
+              </label>
+              <a class="attendance-student-link" href="/teacher/students/<%= student.id %>" data-photo-src="<%= student.photo_path || student.photo_url || '' %>" data-photo-name="<%= student.full_name %>">
+                <img class="attendance-thumb" src="<%= student.photo_path || student.photo_url || 'https://api.dicebear.com/7.x/adventurer/svg?seed=' + encodeURIComponent(student.full_name) %>" alt="<%= student.full_name %> thumbnail" />
+                <span class="attendance-student-name"><%= student.nickname %></span>
+              </a>
+              <div class="attendance-student-meta">
+                <span class="attendance-day-chip" data-role="day-tally"><%= student.day_tally %></span>
+                <span class="attendance-day-percent" data-role="day-percent"><%= student.day_percentage %>%</span>
+              </div>
+              <div class="attendance-reason-summary" data-role="reason-summary">
+                <% if (student.morning.absence_reason) { %><span class="attendance-reason-badge">AM: <%= student.morning.absence_reason %></span><% } %>
+              <% if (hasAfternoonSession && student.afternoon.absence_reason) { %><span class="attendance-reason-badge">PM: <%= student.afternoon.absence_reason %></span><% } %>
+              </div>
+            </div>
+
+            <div class="attendance-session-cell <%= student.morning.is_present ? 'is-present' : 'is-absent' %>" data-session="morning" data-explicit="<%= student.morning.is_explicit ? '1' : '0' %>">
+              <label class="attendance-check-wrap">
+                <input type="checkbox" name="morning_present_ids" value="<%= student.id %>" <%= student.morning.is_present ? 'checked' : '' %> />
+                <span>Present</span>
+              </label>
+              <button type="button" class="btn subtle secondary attendance-reason-open">Reason</button>
+              <input type="hidden" name="morning_reason_<%= student.id %>" value="<%= student.morning.absence_reason %>" class="attendance-reason-value" />
+            </div>
+
+            <% if (hasAfternoonSession) { %>
+              <div class="attendance-session-cell <%= student.afternoon.is_present ? 'is-present' : 'is-absent' %>" data-session="afternoon" data-explicit="<%= student.afternoon.is_explicit ? '1' : '0' %>">
+                <label class="attendance-check-wrap">
+                  <input type="checkbox" name="afternoon_present_ids" value="<%= student.id %>" <%= student.afternoon.is_present ? 'checked' : '' %> />
+                  <span>Present</span>
+                </label>
+                <button type="button" class="btn subtle secondary attendance-reason-open">Reason</button>
+                <input type="hidden" name="afternoon_reason_<%= student.id %>" value="<%= student.afternoon.absence_reason %>" class="attendance-reason-value" />
+              </div>
+            <% } %>
+
+          </div>
+        <% }) %>
+      </div>
+    </form>
+
+    <section class="card attendance-summary-shell">
+      <div class="attendance-summary-grid">
+        <div class="attendance-summary-card">
+          <span class="muted">Morning</span>
+          <strong id="attendanceMorningCount"><%= summary.morningPresent %>/<%= summary.totalStudents %></strong>
+          <span id="attendanceMorningPercent"><%= summary.morningPercentage %>% present</span>
+        </div>
+        <% if (hasAfternoonSession) { %>
+          <div class="attendance-summary-card">
+            <span class="muted">Afternoon</span>
+            <strong id="attendanceAfternoonCount"><%= summary.afternoonPresent %>/<%= summary.totalStudents %></strong>
+            <span id="attendanceAfternoonPercent"><%= summary.afternoonPercentage %>% present</span>
+          </div>
+        <% } %>
+        <div class="attendance-summary-card">
+          <span class="muted">Daily</span>
+          <strong id="attendanceDailyPercent"><%= summary.dailyPercentage %>%</strong>
+          <span>combined attendance</span>
+        </div>
+        <div class="attendance-summary-card attendance-audit-card">
+          <span class="muted">Last Edited By</span>
+          <strong id="attendanceAuditActor"><%= audit.actor_label %></strong>
+          <span id="attendanceAuditTime"><%= audit.created_at || 'Not yet edited' %></span>
+        </div>
+      </div>
+      <div class="attendance-absent-panel">
+        <div class="attendance-absent-head">
+          <h3>Absent Students</h3>
+          <span class="muted" id="attendanceAbsentCount"></span>
+        </div>
+        <div class="attendance-absent-columns">
+          <% if (showMorningAbsentList) { %>
+            <div class="attendance-absent-column">
+              <h4>AM Session</h4>
+              <div id="attendanceAbsentMorningList" class="attendance-absent-list"></div>
+            </div>
+          <% } %>
+          <% if (hasAfternoonSession && showAfternoonAbsentList) { %>
+            <div class="attendance-absent-column">
+              <h4>PM Session</h4>
+              <div id="attendanceAbsentAfternoonList" class="attendance-absent-list"></div>
+            </div>
+          <% } else if (hasAfternoonSession) { %>
+            <div class="attendance-absent-column">
+              <h4>PM Session</h4>
+              <div class="muted">PM absentees will appear after 12:00 PM.</div>
+            </div>
+          <% } %>
+        </div>
+      </div>
+    </section>
+
+    <section class="card attendance-log-shell">
+      <div class="attendance-absent-head">
+        <h3>Attendance Logs</h3>
+        <span class="muted">Latest activity for this class and date</span>
+      </div>
+      <div class="attendance-log-list" id="attendanceLogList">
+        <% if (!recentLogs.length) { %>
+          <article class="attendance-log-item">
+            <strong>By system</strong>
+            <span class="muted">Not yet edited</span>
+            <div>No attendance changes detected</div>
+          </article>
+        <% } else { %>
+          <% recentLogs.forEach(function (log) { %>
+            <article class="attendance-log-item">
+              <strong><%= log.actor_label %></strong>
+              <span class="muted"><%= log.created_at || 'Not yet edited' %></span>
+              <div><%= log.action_type === 'no_change' ? 'No changes detected' : log.action_type === 'reset' ? 'Attendance reset' : 'Attendance saved' %></div>
+              <% if (log.details) { %>
+                <div class="muted"><%= log.details %></div>
+              <% } %>
+            </article>
+          <% }) %>
+        <% } %>
+      </div>
+    </section>
+  </main>
+
+  <div id="attendancePhotoModal" class="reward-modal hidden" role="dialog" aria-modal="true" aria-labelledby="attendancePhotoTitle">
+    <div class="reward-modal-card reward-photo-modal-card">
+      <div class="reward-photo-modal-head">
+        <h3 id="attendancePhotoTitle">Student Photo</h3>
+        <button type="button" class="btn subtle" id="attendancePhotoClose">Close</button>
+      </div>
+      <img id="attendancePhotoPreview" class="reward-photo-preview" alt="Student photo preview" src="" />
+    </div>
+  </div>
+
+  <div id="attendanceReasonModal" class="reward-modal hidden" role="dialog" aria-modal="true" aria-labelledby="attendanceReasonTitle">
+    <div class="reward-modal-card attendance-reason-modal-card">
+      <div class="reward-photo-modal-head">
+        <h3 id="attendanceReasonTitle">Absence Reason</h3>
+        <button type="button" class="btn subtle" id="attendanceReasonClose">Close</button>
+      </div>
+      <div class="attendance-reason-modal-body">
+        <p class="muted" id="attendanceReasonStudentLabel"></p>
+        <label>Reason
+          <input type="text" id="attendanceReasonInput" placeholder="Type reason for absence" />
+        </label>
+      </div>
+      <div class="button-row attendance-reason-modal-actions">
+        <button type="button" class="btn" id="attendanceReasonSave">Save</button>
+        <button type="button" class="btn secondary" id="attendanceReasonCancel">Cancel</button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    (function () {
+      var rows = Array.prototype.slice.call(document.querySelectorAll('.attendance-row'));
+      var morningCountEl = document.getElementById('attendanceMorningCount');
+      var morningPercentEl = document.getElementById('attendanceMorningPercent');
+      var afternoonCountEl = document.getElementById('attendanceAfternoonCount');
+      var afternoonPercentEl = document.getElementById('attendanceAfternoonPercent');
+      var dailyPercentEl = document.getElementById('attendanceDailyPercent');
+      var absentMorningListEl = document.getElementById('attendanceAbsentMorningList');
+      var absentAfternoonListEl = document.getElementById('attendanceAbsentAfternoonList');
+      var absentCountEl = document.getElementById('attendanceAbsentCount');
+      var reasonModal = document.getElementById('attendanceReasonModal');
+      var reasonInput = document.getElementById('attendanceReasonInput');
+      var reasonStudentLabel = document.getElementById('attendanceReasonStudentLabel');
+      var reasonSaveBtn = document.getElementById('attendanceReasonSave');
+      var reasonCancelBtn = document.getElementById('attendanceReasonCancel');
+      var reasonCloseBtn = document.getElementById('attendanceReasonClose');
+      var activeReasonField = null;
+      var activeReasonCell = null;
+      var attendanceForm = document.querySelector('.attendance-form-shell');
+      var attendanceDirtyIndicator = document.getElementById('attendanceDirtyIndicator');
+      var attendanceDateForm = document.querySelector('.attendance-top-date-form');
+      var attendanceAuditActor = document.getElementById('attendanceAuditActor');
+      var attendanceAuditTime = document.getElementById('attendanceAuditTime');
+      var attendanceLogList = document.getElementById('attendanceLogList');
+      var attendanceSelectedCount = document.getElementById('attendanceSelectedCount');
+      var attendanceSelectAllBtn = document.getElementById('attendanceSelectAllBtn');
+      var attendanceClearSelectionBtn = document.getElementById('attendanceClearSelectionBtn');
+      var hasUnsavedChanges = false;
+      var isSavingAttendance = false;
+      var leavePromptMessage = 'You have unsaved attendance changes. Leave without saving?';
+      var afternoonOverrideState = new Map();
+
+      function escapeHtml(value) {
+        return String(value || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+      }
+
+      function showSaveMessage(message, isError) {
+        var existing = document.getElementById('attendanceSaveNotice');
+        if (!existing) {
+          existing = document.createElement('section');
+          existing.id = 'attendanceSaveNotice';
+          existing.className = 'card attendance-save-notice';
+          attendanceForm.parentNode.insertBefore(existing, attendanceForm);
+        }
+        existing.innerHTML = '<div class="' + (isError ? 'error' : 'attendance-save-ok') + '">' + escapeHtml(message) + '</div>';
+      }
+
+      function renderLogItem(log) {
+        var actionLabel = log.action_type === 'no_change' ? 'No changes detected' : log.action_type === 'reset' ? 'Attendance reset' : 'Attendance saved';
+        return '<article class="attendance-log-item">'
+          + '<strong>' + escapeHtml(log.actor_label || 'By system') + '</strong>'
+          + '<span class="muted">' + escapeHtml(log.created_at || 'Not yet edited') + '</span>'
+          + '<div>' + actionLabel + '</div>'
+          + (log.details ? '<div class="muted">' + escapeHtml(log.details) + '</div>' : '')
+          + '</article>';
+      }
+
+      function updateAuditTrail(data) {
+        if (data && data.audit) {
+          if (attendanceAuditActor) attendanceAuditActor.textContent = data.audit.actor_label || 'By system';
+          if (attendanceAuditTime) attendanceAuditTime.textContent = data.audit.created_at || 'Not yet edited';
+        }
+        if (data && data.logs && data.logs.length && attendanceLogList) {
+          if (attendanceLogList.children.length === 1) {
+            var firstText = attendanceLogList.children[0].textContent || '';
+            if (firstText.indexOf('By system') !== -1 && firstText.indexOf('Not yet edited') !== -1) {
+              attendanceLogList.innerHTML = '';
+            }
+          }
+          attendanceLogList.insertAdjacentHTML('afterbegin', renderLogItem(data.logs[0]));
+        }
+      }
+
+      function setDirtyState(isDirty) {
+        hasUnsavedChanges = !!isDirty;
+        if (attendanceDirtyIndicator) {
+          attendanceDirtyIndicator.classList.toggle('hidden', !hasUnsavedChanges);
+        }
+      }
+
+      function confirmLeaveIfDirty() {
+        if (!hasUnsavedChanges || isSavingAttendance) return true;
+        return window.confirm(leavePromptMessage);
+      }
+
+      function requestJson(url, formData, errorFallback) {
+        return fetch(url, {
+          method: 'POST',
+          body: formData,
+          headers: {
+            Accept: 'application/json',
+            'X-Requested-With': 'XMLHttpRequest',
+            'Content-Type': 'application/x-www-form-urlencoded; charset=UTF-8'
+          }
+        })
+          .then(function (response) {
+            return response.json().then(function (data) {
+              return { ok: response.ok, data: data };
+            });
+          })
+          .then(function (result) {
+            if (!result.ok || !result.data || !result.data.success) {
+              throw new Error((result.data && result.data.error) || errorFallback || 'Request failed');
+            }
+            return result.data;
+          });
+      }
+
+      function submitAttendanceForm() {
+        if (!attendanceForm) return;
+        isSavingAttendance = true;
+        var formData = new URLSearchParams(new FormData(attendanceForm));
+        requestJson(attendanceForm.action, formData, 'Unable to save attendance')
+          .then(function (data) {
+            showSaveMessage(data.message || 'Attendance saved', false);
+            updateAuditTrail(data);
+            setDirtyState(false);
+          })
+          .catch(function (error) {
+            showSaveMessage(error.message || 'Unable to save attendance', true);
+          })
+          .finally(function () {
+            isSavingAttendance = false;
+          });
+      }
+
+      function getRowState(row) {
+        var studentName = row.querySelector('.attendance-student-name').textContent.trim();
+        var absentName = String(row.getAttribute('data-absent-name') || studentName).trim();
+        var morningCell = row.querySelector('.attendance-session-cell[data-session="morning"]');
+        var afternoonCell = row.querySelector('.attendance-session-cell[data-session="afternoon"]');
+        var morningCheckbox = morningCell ? morningCell.querySelector('input[type="checkbox"]') : null;
+        var afternoonCheckbox = afternoonCell ? afternoonCell.querySelector('input[type="checkbox"]') : null;
+        var morningInput = morningCell ? morningCell.querySelector('.attendance-reason-value') : null;
+        var afternoonInput = afternoonCell ? afternoonCell.querySelector('.attendance-reason-value') : null;
+        return {
+          studentName: studentName,
+          absentName: absentName,
+          morningPresent: !!(morningCheckbox && morningCheckbox.checked),
+          afternoonPresent: !!(afternoonCheckbox && afternoonCheckbox.checked),
+          morningReason: morningInput ? morningInput.value.trim() : '',
+          afternoonReason: afternoonInput ? afternoonInput.value.trim() : ''
+        };
+      }
+
+      function getRowId(row) {
+        return String(row.getAttribute('data-student-id') || '');
+      }
+
+      function getSelectedRows() {
+        return rows.filter(function (row) {
+          var selectBox = row.querySelector('.attendance-row-select');
+          return !!(selectBox && selectBox.checked);
+        });
+      }
+
+      function refreshSelectedRows() {
+        var selectedRows = getSelectedRows();
+        rows.forEach(function (row) {
+          row.classList.toggle('is-selected', selectedRows.indexOf(row) !== -1);
+        });
+        if (attendanceSelectedCount) {
+          attendanceSelectedCount.textContent = selectedRows.length + ' selected';
+        }
+      }
+
+      function hasReasonValue(cell) {
+        var reasonField = cell ? cell.querySelector('.attendance-reason-value') : null;
+        return !!(reasonField && reasonField.value.trim());
+      }
+
+      function isCellExplicit(cell) {
+        return String(cell && cell.getAttribute('data-explicit') || '') === '1';
+      }
+
+      function syncAfternoonOverrideState(row) {
+        var rowId = getRowId(row);
+        var afternoonCell = row.querySelector('.attendance-session-cell[data-session="afternoon"]');
+        if (!rowId || !afternoonCell) return;
+        if (!afternoonOverrideState.has(rowId)) {
+          afternoonOverrideState.set(rowId, isCellExplicit(afternoonCell) || hasReasonValue(afternoonCell));
+        }
+      }
+
+      function applyMorningStateToAfternoon(row) {
+        var morningCell = row.querySelector('.attendance-session-cell[data-session="morning"]');
+        var afternoonCell = row.querySelector('.attendance-session-cell[data-session="afternoon"]');
+        if (!morningCell || !afternoonCell) return;
+        var morningCheckbox = morningCell.querySelector('input[type="checkbox"]');
+        var afternoonCheckbox = afternoonCell.querySelector('input[type="checkbox"]');
+        var morningReason = morningCell.querySelector('.attendance-reason-value');
+        var afternoonReason = afternoonCell.querySelector('.attendance-reason-value');
+        if (!morningCheckbox || !afternoonCheckbox) return;
+        afternoonCheckbox.checked = !!morningCheckbox.checked;
+        if (afternoonReason) {
+          afternoonReason.value = morningCheckbox.checked ? '' : (morningReason ? morningReason.value.trim() : '');
+        }
+      }
+
+      function setSessionPresence(row, sessionType, isPresent, options) {
+        options = options || {};
+        var cell = row.querySelector('.attendance-session-cell[data-session="' + sessionType + '"]');
+        if (!cell) return;
+        var checkbox = cell.querySelector('input[type="checkbox"]');
+        var reasonField = cell.querySelector('.attendance-reason-value');
+        if (!checkbox) return;
+        if (sessionType === 'afternoon') {
+          afternoonOverrideState.set(getRowId(row), !!options.forceOverride);
+        }
+        checkbox.checked = !!isPresent;
+        if (isPresent && reasonField) reasonField.value = '';
+        updateSessionCell(cell, {
+          skipAfternoonSync: !!options.skipAfternoonSync,
+          suppressDirty: !!options.suppressDirty
+        });
+      }
+
+      function applyBulkAction(action) {
+        var selectedRows = getSelectedRows();
+        if (!selectedRows.length) {
+          window.alert('Select at least one student first.');
+          return;
+        }
+
+        selectedRows.forEach(function (row) {
+          syncAfternoonOverrideState(row);
+          if (action === 'morning_present') {
+            setSessionPresence(row, 'morning', true, { skipAfternoonSync: true });
+          } else if (action === 'morning_absent') {
+            setSessionPresence(row, 'morning', false, { skipAfternoonSync: true });
+          } else if (action === 'afternoon_present') {
+            setSessionPresence(row, 'afternoon', true, { forceOverride: true });
+          } else if (action === 'afternoon_absent') {
+            setSessionPresence(row, 'afternoon', false, { forceOverride: true });
+          } else if (action === 'both_present') {
+            setSessionPresence(row, 'morning', true, { suppressDirty: true });
+            setSessionPresence(row, 'afternoon', true, { forceOverride: true, suppressDirty: true, skipAfternoonSync: true });
+          } else if (action === 'both_absent') {
+            setSessionPresence(row, 'morning', false, { suppressDirty: true });
+            setSessionPresence(row, 'afternoon', false, { forceOverride: true, suppressDirty: true, skipAfternoonSync: true });
+          }
+        });
+
+        setDirtyState(true);
+        refreshSummary();
+      }
+
+      function refreshAbsentList() {
+        if (!absentMorningListEl && !absentAfternoonListEl) return;
+        var morningItems = [];
+        var afternoonItems = [];
+        rows.forEach(function (row) {
+          var state = getRowState(row);
+          if (!state.morningPresent) {
+            morningItems.push('<div class="attendance-absent-item"><strong>' + escapeHtml(state.absentName) + '</strong><span>' + escapeHtml(state.morningReason || 'No reason added') + '</span></div>');
+          }
+          if (absentAfternoonListEl && !state.afternoonPresent) {
+            afternoonItems.push('<div class="attendance-absent-item"><strong>' + escapeHtml(state.absentName) + '</strong><span>' + escapeHtml(state.afternoonReason || 'No reason added') + '</span></div>');
+          }
+        });
+        if (absentMorningListEl) absentMorningListEl.innerHTML = morningItems.length ? morningItems.join('') : '<div class="muted">No absences in AM.</div>';
+        if (absentAfternoonListEl) absentAfternoonListEl.innerHTML = afternoonItems.length ? afternoonItems.join('') : '<div class="muted">No absences in PM.</div>';
+        if (absentCountEl) {
+          var totalAbsent = morningItems.length + afternoonItems.length;
+          absentCountEl.textContent = totalAbsent ? (totalAbsent + ' absence record(s) today') : 'All present';
+        }
+      }
+
+      function refreshRow(row) {
+        var morningCell = row.querySelector('.attendance-session-cell[data-session="morning"]');
+        var afternoonCell = row.querySelector('.attendance-session-cell[data-session="afternoon"]');
+        var morningCheckbox = morningCell ? morningCell.querySelector('input[type="checkbox"]') : null;
+        var afternoonCheckbox = afternoonCell ? afternoonCell.querySelector('input[type="checkbox"]') : null;
+        var morningInput = morningCell ? morningCell.querySelector('.attendance-reason-value') : null;
+        var afternoonInput = afternoonCell ? afternoonCell.querySelector('.attendance-reason-value') : null;
+        var tallyEl = row.querySelector('[data-role="day-tally"]');
+        var percentEl = row.querySelector('[data-role="day-percent"]');
+        var summaryEl = row.querySelector('[data-role="reason-summary"]');
+
+        var morningPresent = !!(morningCheckbox && morningCheckbox.checked);
+        var afternoonPresent = !!(afternoonCheckbox && afternoonCheckbox.checked);
+        var sessionCount = afternoonCell ? 2 : 1;
+        var presentCount = (morningPresent ? 1 : 0) + (afternoonCell && afternoonPresent ? 1 : 0);
+        var percentage = Math.round((presentCount / sessionCount) * 100);
+
+        if (tallyEl) tallyEl.textContent = presentCount + '/' + sessionCount;
+        if (percentEl) percentEl.textContent = percentage + '%';
+
+        if (summaryEl) {
+          var badges = [];
+          var morningReason = morningInput ? morningInput.value.trim() : '';
+          var afternoonReason = afternoonInput ? afternoonInput.value.trim() : '';
+          if (!morningPresent && morningReason) badges.push('<span class="attendance-reason-badge">AM: ' + escapeHtml(morningReason) + '</span>');
+          if (afternoonCell && !afternoonPresent && afternoonReason) badges.push('<span class="attendance-reason-badge">PM: ' + escapeHtml(afternoonReason) + '</span>');
+          summaryEl.innerHTML = badges.join('');
+        }
+      }
+
+      function refreshSummary() {
+        var total = rows.length;
+        var morningPresent = 0;
+        var afternoonPresent = 0;
+        var afternoonSlots = 0;
+        rows.forEach(function (row) {
+          var morningCheckbox = row.querySelector('.attendance-session-cell[data-session="morning"] input[type="checkbox"]');
+          var afternoonCheckbox = row.querySelector('.attendance-session-cell[data-session="afternoon"] input[type="checkbox"]');
+          if (morningCheckbox && morningCheckbox.checked) morningPresent += 1;
+          if (afternoonCheckbox) {
+            afternoonSlots += 1;
+            if (afternoonCheckbox.checked) afternoonPresent += 1;
+          }
+        });
+        var combined = morningPresent + afternoonPresent;
+        var combinedSlots = total + afternoonSlots;
+        var morningPercent = total ? Math.round((morningPresent / total) * 100) : 0;
+        var afternoonPercent = afternoonSlots ? Math.round((afternoonPresent / afternoonSlots) * 100) : 0;
+        var dailyPercent = combinedSlots ? Math.round((combined / combinedSlots) * 100) : 0;
+        if (morningCountEl) morningCountEl.textContent = morningPresent + '/' + total;
+        if (morningPercentEl) morningPercentEl.textContent = morningPercent + '% present';
+        if (afternoonCountEl) afternoonCountEl.textContent = afternoonPresent + '/' + afternoonSlots;
+        if (afternoonPercentEl) afternoonPercentEl.textContent = afternoonPercent + '% present';
+        if (dailyPercentEl) dailyPercentEl.textContent = dailyPercent + '%';
+        refreshAbsentList();
+      }
+
+      function updateSessionCell(cell, options) {
+        options = options || {};
+        if (!cell) return;
+        var row = cell.closest('.attendance-row');
+        var checkbox = cell.querySelector('input[type="checkbox"]');
+        var hiddenReason = cell.querySelector('.attendance-reason-value');
+        var present = checkbox && checkbox.checked;
+        if (present && hiddenReason) hiddenReason.value = '';
+        cell.classList.toggle('is-present', !!present);
+        cell.classList.toggle('is-absent', !present);
+        if (row && cell.getAttribute('data-session') === 'morning' && !options.skipAfternoonSync) {
+          var rowId = getRowId(row);
+          syncAfternoonOverrideState(row);
+          if (!afternoonOverrideState.get(rowId)) {
+            applyMorningStateToAfternoon(row);
+            updateSessionCell(row.querySelector('.attendance-session-cell[data-session="afternoon"]'), { skipAfternoonSync: true, suppressDirty: true });
+          }
+        }
+        refreshRow(row);
+        refreshSummary();
+        if (!options.suppressDirty) setDirtyState(true);
+      }
+
+      function openReasonModal(cell) {
+        activeReasonCell = cell;
+        activeReasonField = cell.querySelector('.attendance-reason-value');
+        var row = cell.closest('.attendance-row');
+        var studentName = row ? row.querySelector('.attendance-student-name').textContent.trim() : 'Student';
+        var sessionName = cell.getAttribute('data-session') === 'afternoon' ? 'Afternoon' : 'Morning';
+        reasonStudentLabel.textContent = studentName + ' - ' + sessionName + ' session';
+        reasonInput.value = activeReasonField ? activeReasonField.value : '';
+        reasonModal.classList.remove('hidden');
+        window.setTimeout(function () { reasonInput.focus(); }, 0);
+      }
+
+      function closeReasonModal() {
+        reasonModal.classList.add('hidden');
+        activeReasonCell = null;
+        activeReasonField = null;
+        reasonInput.value = '';
+      }
+
+      if (reasonSaveBtn) {
+        reasonSaveBtn.addEventListener('click', function () {
+          if (activeReasonField) activeReasonField.value = reasonInput.value.trim();
+          if (activeReasonCell) {
+            var row = activeReasonCell.closest('.attendance-row');
+            var sessionType = activeReasonCell.getAttribute('data-session');
+            if (row) syncAfternoonOverrideState(row);
+            if (row && sessionType === 'morning') {
+              var rowId = getRowId(row);
+              if (!afternoonOverrideState.get(rowId)) {
+                applyMorningStateToAfternoon(row);
+              }
+            } else if (row && sessionType === 'afternoon') {
+              afternoonOverrideState.set(getRowId(row), true);
+            }
+            refreshRow(row);
+            refreshSummary();
+            setDirtyState(true);
+          }
+          closeReasonModal();
+        });
+      }
+      if (reasonCancelBtn) reasonCancelBtn.addEventListener('click', closeReasonModal);
+      if (reasonCloseBtn) reasonCloseBtn.addEventListener('click', closeReasonModal);
+      if (reasonModal) {
+        reasonModal.addEventListener('click', function (event) {
+          if (event.target === reasonModal) closeReasonModal();
+        });
+      }
+
+      document.querySelectorAll('.attendance-session-cell').forEach(function (cell) {
+        var checkbox = cell.querySelector('input[type="checkbox"]');
+        var reasonButton = cell.querySelector('.attendance-reason-open');
+        if (checkbox) {
+          checkbox.addEventListener('change', function () {
+            var row = cell.closest('.attendance-row');
+            if (row) syncAfternoonOverrideState(row);
+            if (cell.getAttribute('data-session') === 'afternoon' && row) {
+              afternoonOverrideState.set(getRowId(row), true);
+            }
+            updateSessionCell(cell);
+          });
+        }
+        if (reasonButton) {
+          reasonButton.addEventListener('click', function () {
+            openReasonModal(cell);
+          });
+        }
+        var row = cell.closest('.attendance-row');
+        if (row) syncAfternoonOverrideState(row);
+        updateSessionCell(cell, { suppressDirty: true });
+      });
+
+      document.querySelectorAll('.attendance-row-select').forEach(function (checkbox) {
+        checkbox.addEventListener('change', refreshSelectedRows);
+      });
+
+      document.querySelectorAll('.attendance-bulk-btn').forEach(function (btn) {
+        btn.addEventListener('click', function () {
+          applyBulkAction(btn.getAttribute('data-bulk-action'));
+        });
+      });
+
+      if (attendanceSelectAllBtn) {
+        attendanceSelectAllBtn.addEventListener('click', function () {
+          document.querySelectorAll('.attendance-row-select').forEach(function (checkbox) {
+            checkbox.checked = true;
+          });
+          refreshSelectedRows();
+        });
+      }
+
+      if (attendanceClearSelectionBtn) {
+        attendanceClearSelectionBtn.addEventListener('click', function () {
+          document.querySelectorAll('.attendance-row-select').forEach(function (checkbox) {
+            checkbox.checked = false;
+          });
+          refreshSelectedRows();
+        });
+      }
+
+      var modal = document.getElementById('attendancePhotoModal');
+      var modalImg = document.getElementById('attendancePhotoPreview');
+      var closeBtn = document.getElementById('attendancePhotoClose');
+      function closeModal() {
+        if (!modal || !modalImg) return;
+        modal.classList.add('hidden');
+        modalImg.src = '';
+      }
+      if (closeBtn) closeBtn.addEventListener('click', closeModal);
+      if (modal) {
+        modal.addEventListener('click', function (event) {
+          if (event.target === modal) closeModal();
+        });
+      }
+
+      if (attendanceForm) {
+        attendanceForm.addEventListener('submit', function (event) {
+          event.preventDefault();
+          submitAttendanceForm();
+        });
+      }
+
+      if (attendanceDateForm) {
+        attendanceDateForm.addEventListener('submit', function (event) {
+          if (!confirmLeaveIfDirty()) {
+            event.preventDefault();
+          }
+        });
+      }
+
+      document.querySelectorAll('.attendance-class-switch a, .topnav a').forEach(function (link) {
+        link.addEventListener('click', function (event) {
+          if (!confirmLeaveIfDirty()) {
+            event.preventDefault();
+          }
+        });
+      });
+
+      window.addEventListener('beforeunload', function (event) {
+        if (!hasUnsavedChanges || isSavingAttendance) return;
+        event.preventDefault();
+        event.returnValue = '';
+      });
+
+      setDirtyState(false);
+      refreshSelectedRows();
+      refreshSummary();
+    })();
+  </script>
+  <script src="/js/inactivity.js"></script>
+</body>
+</html>

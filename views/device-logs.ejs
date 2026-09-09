@@ -1,0 +1,132 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Device Usage Logs</title>
+  <link rel="stylesheet" href="/css/theme-c.css" />
+</head>
+<body>
+  <%- include('partials/admin-nav') %>
+
+  <main class="container stack">
+    <% if (error) { %>
+      <section class="card"><div class="error"><%= error %></div></section>
+    <% } %>
+    <% if (success) { %>
+      <section class="card"><div><%= success %></div></section>
+    <% } %>
+
+    <section class="card device-page-head">
+      <div>
+        <h2>Device Logs</h2>
+        <p class="muted">Review all device bookings, actual usage records, and hub handover times.</p>
+      </div>
+      <div class="button-row">
+        <a class="btn secondary" href="/inventory">Manage Inventory</a>
+        <a class="btn secondary" href="/devices/reports">Reports</a>
+      </div>
+    </section>
+
+    <section class="card report-filter-card">
+      <form method="get" action="/devices/logs" class="form grid-form report-filter-grid">
+        <label class="report-date-field">Date
+          <input type="date" name="date" value="<%= filters.date %>" />
+        </label>
+        <label>Device
+          <select name="device_id">
+            <option value="">All devices</option>
+            <% devices.forEach(device => { %>
+              <option value="<%= device.id %>" <%= Number(filters.deviceId) === Number(device.id) ? 'selected' : '' %>><%= device.name %> (<%= device.code %>)</option>
+            <% }) %>
+          </select>
+        </label>
+        <label>User
+          <select name="user_id">
+            <option value="">All users</option>
+            <% users.forEach(user => { %>
+              <option value="<%= user.id %>" <%= Number(filters.userId) === Number(user.id) ? 'selected' : '' %>><%= user.display_name %> (<%= user.username %>)</option>
+            <% }) %>
+          </select>
+        </label>
+        <label>Class
+          <input type="text" name="class_name" value="<%= filters.className %>" placeholder="Filter class" />
+        </label>
+        <label>Subject
+          <input type="text" name="subject" value="<%= filters.subject %>" placeholder="Filter subject" />
+        </label>
+        <label>Status
+          <select name="status">
+            <option value="">All statuses</option>
+            <% bookingStatuses.forEach(status => { %>
+              <option value="<%= status %>" <%= filters.status === status ? 'selected' : '' %>><%= status.replace(/_/g, ' ') %></option>
+            <% }) %>
+          </select>
+        </label>
+        <div class="button-row">
+          <button class="btn" type="submit">Apply Filters</button>
+          <a class="btn secondary" href="/devices/logs">Reset</a>
+          <a class="btn secondary" href="/devices/logs/export?<%= new URLSearchParams({ date: filters.date || '', device_id: filters.deviceId || '', user_id: filters.userId || '', class_name: filters.className || '', subject: filters.subject || '', status: filters.status || '' }).toString() %>">Export Excel</a>
+        </div>
+      </form>
+    </section>
+
+    <section class="card">
+      <% if (!rows.length) { %>
+        <div class="muted">No logs found for the selected filters.</div>
+      <% } else { %>
+        <div class="device-table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>Date</th>
+                <th>Device</th>
+                <th>User</th>
+                <th>Class / Subject</th>
+                <th>Planned Time</th>
+                <th>Actual Time</th>
+                <th>Hub Times</th>
+                <th>Status</th>
+                <th>Actions</th>
+              </tr>
+            </thead>
+            <tbody>
+              <% rows.forEach(row => { %>
+                <tr>
+                  <td><%= row.booking_date %></td>
+                  <td><strong><%= row.device_name %></strong><br /><span class="muted"><%= row.device_code %> | <%= row.device_category %></span></td>
+                  <td><%= row.user_display_name %><br /><span class="muted"><%= row.username %></span></td>
+                  <td><strong><%= row.class_name %></strong><br /><span class="muted"><%= row.subject %> | <%= row.lesson_topic %></span></td>
+                  <td><%= row.planned_start_time %> - <%= row.planned_end_time %></td>
+                  <td><%= row.actual_start_time || '-' %><br /><%= row.actual_end_time || '-' %></td>
+                  <td><%= row.took_from_hub_at || '-' %><br /><%= row.returned_to_hub_at || '-' %></td>
+                  <td><span class="device-status-badge status-<%= String(row.status).replace(/_/g, '-') %>"><%= String(row.status).replace(/_/g, ' ') %></span></td>
+                  <td>
+                    <% if (row.status === 'booked') { %>
+                      <form method="post" action="/devices/bookings/<%= row.id %>/start" class="device-log-action-form" data-async-form="1">
+                        <input type="hidden" name="return_to" value="/devices/logs" />
+                        <button class="btn secondary" type="submit">Start</button>
+                      </form>
+                      <form method="post" action="/devices/bookings/<%= row.id %>/cancel" class="device-log-action-form" data-async-form="1">
+                        <input type="hidden" name="return_to" value="/devices/logs" />
+                        <button class="btn danger" type="submit" onclick="return confirm('Cancel this booking?');">Cancel</button>
+                      </form>
+                    <% } else if (row.status === 'in_use') { %>
+                      <form method="post" action="/devices/bookings/<%= row.id %>/end" class="device-log-action-form" data-async-form="1">
+                        <input type="hidden" name="return_to" value="/devices/logs" />
+                        <button class="btn" type="submit">End</button>
+                      </form>
+                    <% } else { %>
+                      <span class="muted">No action</span>
+                    <% } %>
+                  </td>
+                </tr>
+              <% }) %>
+            </tbody>
+          </table>
+        </div>
+      <% } %>
+    </section>
+  </main>
+</body>
+</html>

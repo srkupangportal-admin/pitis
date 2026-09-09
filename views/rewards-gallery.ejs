@@ -1,0 +1,489 @@
+<!DOCTYPE html>
+<%
+  const canManageRewards = !!(user && ['admin', 'teacher', 'staff'].includes(user.role));
+%>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>P.I.T.I.S Gallery</title>
+  <link rel="stylesheet" href="/css/theme-c.css" />
+</head>
+<body>
+  <% if (user && user.role === 'admin') { %>
+    <%- include('partials/admin-nav') %>
+  <% } else if (user) { %>
+    <%- include('partials/teacher-nav') %>
+  <% } else { %>
+    <%- include('partials/main-header-card') %>
+  <% } %>
+
+  <main class="container stack">
+    <% if (error) { %>
+      <section class="card"><div class="error"><%= error %></div></section>
+    <% } %>
+    <% if (success) { %>
+      <section class="card"><div><%= success %></div></section>
+    <% } %>
+
+    <section class="card rewards-gallery-head">
+      <div>
+        <h2>P.I.T.I.S Gallery</h2>
+        <p class="muted">Browse the P.I.T.I.S items students can aim for, open each preview, or play slideshows by teacher or for all P.I.T.I.S.</p>
+      </div>
+      <div class="inline-filters">
+        <% if (canManageRewards) { %>
+          <a class="btn secondary" href="/teacher/rewards">Manage P.I.T.I.S</a>
+        <% } else { %>
+          <a class="btn secondary" href="/login?next=%2Fteacher%2Frewards">Sign In to Manage P.I.T.I.S</a>
+        <% } %>
+        <button type="button" class="btn" id="playAllRewardsSlideshowBtn" <%= rewards.length ? '' : 'disabled' %>>Play All P.I.T.I.S</button>
+      </div>
+    </section>
+
+    <section class="card reward-slideshow-options">
+      <div>
+        <h3>Slideshow Options</h3>
+        <p class="muted">Choose one or more teachers to show only P.I.T.I.S uploaded by them, or play all active P.I.T.I.S.</p>
+      </div>
+      <div class="inline-filters">
+        <label class="reward-creator-filter">Uploaded By
+          <select id="rewardCreatorFilter" multiple size="<%= Math.min(Math.max((rewardCreators || []).length, 2), 5) %>">
+            <% (rewardCreators || []).forEach(function (creator) { %>
+              <option value="<%= creator.id || '' %>"><%= creator.display_name %></option>
+            <% }) %>
+          </select>
+          <span class="muted">Hold Ctrl on computer to select multiple teachers.</span>
+        </label>
+        <button type="button" class="btn" id="playTeacherRewardsSlideshowBtn" <%= rewards.length ? '' : 'disabled' %>>Play Selected Teachers</button>
+      </div>
+    </section>
+
+    <section class="card reward-gallery-filter-card">
+      <div>
+        <h3>Sort & Filter P.I.T.I.S</h3>
+        <p class="muted">Filter the gallery by uploader or pitis value, then choose the display order.</p>
+      </div>
+      <div class="inline-filters">
+        <label style="min-width:220px; flex:1 1 240px;">Uploader
+          <select id="rewardGalleryUploaderFilter">
+            <option value="">All uploaders</option>
+            <% (rewardCreators || []).forEach(function (creator) { %>
+              <option value="<%= creator.id || '' %>"><%= creator.display_name %></option>
+            <% }) %>
+          </select>
+        </label>
+        <label style="min-width:150px; flex:1 1 160px;">Min pitis
+          <input type="number" id="rewardGalleryMinPitis" min="0" step="1" placeholder="Any" />
+        </label>
+        <label style="min-width:150px; flex:1 1 160px;">Max pitis
+          <input type="number" id="rewardGalleryMaxPitis" min="0" step="1" placeholder="Any" />
+        </label>
+        <label style="min-width:220px; flex:1 1 240px;">Sort By
+          <select id="rewardGallerySort">
+            <option value="pitis_asc">Pitis: low to high</option>
+            <option value="pitis_desc">Pitis: high to low</option>
+            <option value="title_asc">Title: A to Z</option>
+            <option value="uploader_asc">Uploader: A to Z</option>
+            <option value="latest">Latest uploaded</option>
+          </select>
+        </label>
+        <button type="button" class="btn secondary" id="rewardGalleryResetFilters">Reset</button>
+      </div>
+      <div class="muted" id="rewardGalleryFilterSummary"></div>
+    </section>
+
+    <% if (!canManageRewards) { %>
+      <section class="card">
+        <div class="muted">Public access is browse-only. You can view P.I.T.I.S cards and run the slideshow here, while creation, editing, activation, and deletion stay available only after authentication.</div>
+      </section>
+    <% } %>
+
+    <section class="card">
+      <% if (!rewards.length) { %>
+        <div class="muted">No active P.I.T.I.S items available yet.</div>
+      <% } else { %>
+        <div class="rewards-gallery-grid" id="rewardsGalleryGrid">
+          <% rewards.forEach((reward, idx) => { %>
+            <article
+              class="reward-gallery-card"
+              data-reward-card="<%= idx %>"
+              data-pitis="<%= reward.points_required %>"
+              data-uploader-id="<%= reward.created_by || '' %>"
+              data-uploader-name="<%= reward.creator_name || '' %>"
+              data-title="<%= reward.title %>"
+              data-created-at="<%= reward.created_at || '' %>">
+              <button
+                type="button"
+                class="reward-gallery-thumb-btn"
+                data-reward-open="<%= idx %>"
+                aria-label="Open larger image for <%= reward.title %>">
+                <% if (reward.image_path) { %>
+                  <div class="reward-gallery-thumb-wrap">
+                    <img class="reward-gallery-thumb" src="<%= reward.image_path %>" alt="<%= reward.title %>" onerror="this.style.display='none'; this.nextElementSibling.style.display='grid';" />
+                    <div class="reward-gallery-placeholder" style="display:none;">No image</div>
+                  </div>
+                <% } else { %>
+                  <div class="reward-gallery-placeholder">No image</div>
+                <% } %>
+              </button>
+              <div class="reward-gallery-body">
+                <div class="reward-gallery-title"><%= reward.title %></div>
+                <div class="reward-gallery-points"><%= reward.points_required %> pitis</div>
+                <% if (reward.creator_name) { %>
+                  <div class="muted">By: <%= reward.creator_name %></div>
+                <% } %>
+                <% if (reward.description) { %>
+                  <div class="reward-gallery-description"><%= reward.description %></div>
+                <% } %>
+              </div>
+            </article>
+          <% }) %>
+        </div>
+      <% } %>
+    </section>
+  </main>
+
+  <div id="rewardImageModal" class="reward-modal hidden" aria-hidden="true">
+    <div class="reward-modal-card reward-gallery-modal-card">
+      <div class="reward-photo-modal-head">
+        <h3 id="rewardImageModalTitle">P.I.T.I.S Preview</h3>
+        <button type="button" class="btn subtle secondary" id="rewardImageModalClose">Close</button>
+      </div>
+      <div class="reward-gallery-modal-visual">
+        <img id="rewardImageModalImage" class="reward-gallery-modal-image hidden" src="" alt="P.I.T.I.S preview" />
+        <div id="rewardImageModalPlaceholder" class="reward-gallery-modal-placeholder hidden">No image available</div>
+      </div>
+      <div class="reward-gallery-modal-meta">
+        <strong id="rewardImageModalPoints"></strong>
+        <div class="muted" id="rewardImageModalDescription"></div>
+      </div>
+    </div>
+  </div>
+
+  <div id="rewardSlideshowModal" class="reward-modal hidden" aria-hidden="true">
+    <div class="reward-modal-card reward-slideshow-card">
+      <div class="reward-photo-modal-head">
+        <h3 id="rewardSlideshowHeading">P.I.T.I.S Slideshow</h3>
+        <div class="inline-filters">
+          <button type="button" class="btn subtle secondary" id="rewardSlideshowFullscreenBtn">Fullscreen</button>
+          <button type="button" class="btn subtle secondary" id="rewardSlideshowCloseBtn">Exit</button>
+        </div>
+      </div>
+      <div class="reward-slideshow-stage">
+        <img id="rewardSlideshowImage" class="reward-slideshow-image hidden" src="" alt="P.I.T.I.S slideshow image" />
+        <div id="rewardSlideshowPlaceholder" class="reward-gallery-modal-placeholder hidden">No image available</div>
+      </div>
+      <div class="reward-slideshow-caption">
+        <div class="reward-slideshow-title" id="rewardSlideshowTitle"></div>
+        <div class="reward-slideshow-points" id="rewardSlideshowPoints"></div>
+        <div class="muted" id="rewardSlideshowDescription"></div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    (function () {
+      var rewards = <%- JSON.stringify(rewards).replace(/</g, '\\u003c') %>;
+      var rewardCreators = <%- JSON.stringify(rewardCreators || []).replace(/</g, '\\u003c') %>;
+      var imageModal = document.getElementById('rewardImageModal');
+      var imageModalTitle = document.getElementById('rewardImageModalTitle');
+      var imageModalImage = document.getElementById('rewardImageModalImage');
+      var imageModalPlaceholder = document.getElementById('rewardImageModalPlaceholder');
+      var imageModalPoints = document.getElementById('rewardImageModalPoints');
+      var imageModalDescription = document.getElementById('rewardImageModalDescription');
+      var imageModalClose = document.getElementById('rewardImageModalClose');
+
+      var slideshowModal = document.getElementById('rewardSlideshowModal');
+      var slideshowImage = document.getElementById('rewardSlideshowImage');
+      var slideshowPlaceholder = document.getElementById('rewardSlideshowPlaceholder');
+      var slideshowTitle = document.getElementById('rewardSlideshowTitle');
+      var slideshowPoints = document.getElementById('rewardSlideshowPoints');
+      var slideshowDescription = document.getElementById('rewardSlideshowDescription');
+      var slideshowFullscreenBtn = document.getElementById('rewardSlideshowFullscreenBtn');
+      var slideshowCloseBtn = document.getElementById('rewardSlideshowCloseBtn');
+      var slideshowHeading = document.getElementById('rewardSlideshowHeading');
+      var playAllSlideshowBtn = document.getElementById('playAllRewardsSlideshowBtn');
+      var playTeacherSlideshowBtn = document.getElementById('playTeacherRewardsSlideshowBtn');
+      var rewardCreatorFilter = document.getElementById('rewardCreatorFilter');
+      var rewardsGalleryGrid = document.getElementById('rewardsGalleryGrid');
+      var galleryUploaderFilter = document.getElementById('rewardGalleryUploaderFilter');
+      var galleryMinPitis = document.getElementById('rewardGalleryMinPitis');
+      var galleryMaxPitis = document.getElementById('rewardGalleryMaxPitis');
+      var gallerySort = document.getElementById('rewardGallerySort');
+      var galleryResetFilters = document.getElementById('rewardGalleryResetFilters');
+      var galleryFilterSummary = document.getElementById('rewardGalleryFilterSummary');
+
+      var slideshowTimer = null;
+      var slideshowIndex = 0;
+      var slideshowRewards = rewards.slice();
+      var galleryCards = Array.prototype.slice.call(document.querySelectorAll('[data-reward-card]'));
+
+      function showRewardImage(imgEl, placeholderEl, reward) {
+        var imagePath = reward && reward.image_path ? reward.image_path : '';
+        if (imgEl) {
+          imgEl.onerror = function () {
+            imgEl.classList.add('hidden');
+            if (placeholderEl) placeholderEl.classList.remove('hidden');
+          };
+        }
+        if (imagePath && imgEl) {
+          imgEl.src = imagePath;
+          imgEl.classList.remove('hidden');
+          if (placeholderEl) placeholderEl.classList.add('hidden');
+        } else {
+          if (imgEl) {
+            imgEl.src = '';
+            imgEl.classList.add('hidden');
+          }
+          if (placeholderEl) placeholderEl.classList.remove('hidden');
+        }
+      }
+
+      function openImageModal(index) {
+        var reward = rewards[index];
+        if (!reward || !imageModal) return;
+        if (imageModalTitle) imageModalTitle.textContent = reward.title || 'P.I.T.I.S Preview';
+        if (imageModalPoints) imageModalPoints.textContent = String(reward.points_required || 0) + ' pitis';
+        if (imageModalDescription) imageModalDescription.textContent = reward.description || '';
+        showRewardImage(imageModalImage, imageModalPlaceholder, reward);
+        imageModal.classList.remove('hidden');
+        imageModal.setAttribute('aria-hidden', 'false');
+      }
+
+      function closeImageModal() {
+        if (!imageModal) return;
+        imageModal.classList.add('hidden');
+        imageModal.setAttribute('aria-hidden', 'true');
+        if (imageModalImage) {
+          imageModalImage.src = '';
+          imageModalImage.classList.add('hidden');
+        }
+      }
+
+      function renderSlideshow(index) {
+        var reward = slideshowRewards[index];
+        if (!reward) return;
+        slideshowIndex = index;
+        if (slideshowTitle) slideshowTitle.textContent = reward.title || '';
+        if (slideshowPoints) slideshowPoints.textContent = String(reward.points_required || 0) + ' pitis required';
+        if (slideshowDescription) slideshowDescription.textContent = reward.description || '';
+        showRewardImage(slideshowImage, slideshowPlaceholder, reward);
+      }
+
+      function getFilteredSortedRewards() {
+        var uploaderId = galleryUploaderFilter ? String(galleryUploaderFilter.value || '') : '';
+        var minValue = galleryMinPitis && galleryMinPitis.value !== '' ? Number(galleryMinPitis.value) : null;
+        var maxValue = galleryMaxPitis && galleryMaxPitis.value !== '' ? Number(galleryMaxPitis.value) : null;
+        var sortMode = gallerySort ? String(gallerySort.value || 'pitis_asc') : 'pitis_asc';
+
+        var filtered = rewards.filter(function (reward) {
+          var pitis = Number(reward.points_required || 0);
+          if (uploaderId && String(reward.created_by || '') !== uploaderId) return false;
+          if (minValue !== null && pitis < minValue) return false;
+          if (maxValue !== null && pitis > maxValue) return false;
+          return true;
+        });
+
+        filtered.sort(function (a, b) {
+          var aPitis = Number(a.points_required || 0);
+          var bPitis = Number(b.points_required || 0);
+          var aTitle = String(a.title || '').toLowerCase();
+          var bTitle = String(b.title || '').toLowerCase();
+          var aUploader = String(a.creator_name || '').toLowerCase();
+          var bUploader = String(b.creator_name || '').toLowerCase();
+          if (sortMode === 'pitis_desc') return bPitis - aPitis || aTitle.localeCompare(bTitle);
+          if (sortMode === 'title_asc') return aTitle.localeCompare(bTitle) || aPitis - bPitis;
+          if (sortMode === 'uploader_asc') return aUploader.localeCompare(bUploader) || aPitis - bPitis || aTitle.localeCompare(bTitle);
+          if (sortMode === 'latest') return String(b.created_at || '').localeCompare(String(a.created_at || '')) || aTitle.localeCompare(bTitle);
+          return aPitis - bPitis || aTitle.localeCompare(bTitle);
+        });
+
+        return filtered;
+      }
+
+      function applyGalleryFilters() {
+        if (!rewardsGalleryGrid) return;
+        var filteredRewards = getFilteredSortedRewards();
+        var visibleIds = new Set(filteredRewards.map(function (reward) {
+          return String(reward.id || '');
+        }));
+        var cardByRewardId = new Map();
+
+        galleryCards.forEach(function (card) {
+          var rewardIndex = Number(card.getAttribute('data-reward-card') || 0);
+          var reward = rewards[rewardIndex];
+          if (!reward) return;
+          cardByRewardId.set(String(reward.id || ''), card);
+          card.style.display = visibleIds.has(String(reward.id || '')) ? '' : 'none';
+        });
+
+        filteredRewards.forEach(function (reward) {
+          var card = cardByRewardId.get(String(reward.id || ''));
+          if (card) rewardsGalleryGrid.appendChild(card);
+        });
+
+        if (galleryFilterSummary) {
+          galleryFilterSummary.textContent = filteredRewards.length + ' of ' + rewards.length + ' P.I.T.I.S shown';
+        }
+      }
+
+      function clearSlideshowTimer() {
+        if (slideshowTimer) {
+          window.clearInterval(slideshowTimer);
+          slideshowTimer = null;
+        }
+      }
+
+      function isFullscreenActive() {
+        return !!document.fullscreenElement;
+      }
+
+      function syncFullscreenButton() {
+        if (!slideshowFullscreenBtn) return;
+        slideshowFullscreenBtn.textContent = isFullscreenActive() ? 'Exit Fullscreen' : 'Fullscreen';
+      }
+
+      function toggleSlideshowFullscreen() {
+        if (!slideshowModal) return;
+        if (isFullscreenActive()) {
+          if (document.exitFullscreen) {
+            document.exitFullscreen().catch(function () {});
+          }
+          return;
+        }
+        if (slideshowModal.requestFullscreen) {
+          slideshowModal.requestFullscreen().catch(function () {});
+        }
+      }
+
+      function getCreatorName(creatorId) {
+        var match = rewardCreators.find(function (creator) {
+          return String(creator.id || '') === String(creatorId || '');
+        });
+        return match ? match.display_name : 'Selected Teacher';
+      }
+
+      function getSelectedCreatorIds() {
+        if (!rewardCreatorFilter) return [];
+        return Array.prototype.slice.call(rewardCreatorFilter.selectedOptions || [])
+          .map(function (option) { return String(option.value || ''); })
+          .filter(Boolean);
+      }
+
+      function getSelectedCreatorLabel(creatorIds) {
+        if (!creatorIds.length) return 'Selected Teachers';
+        if (creatorIds.length === 1) return getCreatorName(creatorIds[0]);
+        return creatorIds.length + ' Selected Teachers';
+      }
+
+      function startSlideshow(items, label) {
+        slideshowRewards = Array.isArray(items) ? items.slice() : [];
+        if (!slideshowRewards.length || !slideshowModal) {
+          alert('No active P.I.T.I.S found for this slideshow.');
+          return;
+        }
+        clearSlideshowTimer();
+        if (slideshowHeading) slideshowHeading.textContent = label || 'P.I.T.I.S Slideshow';
+        renderSlideshow(0);
+        slideshowModal.classList.remove('hidden');
+        slideshowModal.setAttribute('aria-hidden', 'false');
+        slideshowTimer = window.setInterval(function () {
+          var nextIndex = (slideshowIndex + 1) % slideshowRewards.length;
+          renderSlideshow(nextIndex);
+        }, 4000);
+      }
+
+      function playAllRewards() {
+        startSlideshow(getFilteredSortedRewards(), 'Filtered P.I.T.I.S Slideshow');
+      }
+
+      function playSelectedTeacherRewards() {
+        var creatorIds = getSelectedCreatorIds();
+        if (!creatorIds.length) {
+          playAllRewards();
+          return;
+        }
+        var filteredRewards = rewards.filter(function (reward) {
+          return creatorIds.indexOf(String(reward.created_by || '')) !== -1;
+        });
+        startSlideshow(filteredRewards, getSelectedCreatorLabel(creatorIds) + ' P.I.T.I.S Slideshow');
+      }
+
+      function stopSlideshow() {
+        clearSlideshowTimer();
+        if (isFullscreenActive() && document.exitFullscreen) {
+          document.exitFullscreen().catch(function () {});
+        }
+        if (!slideshowModal) return;
+        slideshowModal.classList.add('hidden');
+        slideshowModal.setAttribute('aria-hidden', 'true');
+        if (slideshowImage) {
+          slideshowImage.src = '';
+          slideshowImage.classList.add('hidden');
+        }
+      }
+
+      document.querySelectorAll('[data-reward-open]').forEach(function (btn) {
+        btn.addEventListener('click', function () {
+          openImageModal(Number(btn.getAttribute('data-reward-open') || 0));
+        });
+      });
+
+      if (imageModalClose) {
+        imageModalClose.addEventListener('click', closeImageModal);
+      }
+      if (imageModal) {
+        imageModal.addEventListener('click', function (e) {
+          if (e.target === imageModal) closeImageModal();
+        });
+      }
+
+      if (playAllSlideshowBtn) {
+        playAllSlideshowBtn.addEventListener('click', playAllRewards);
+      }
+      if (playTeacherSlideshowBtn) {
+        playTeacherSlideshowBtn.addEventListener('click', playSelectedTeacherRewards);
+      }
+      [galleryUploaderFilter, galleryMinPitis, galleryMaxPitis, gallerySort].forEach(function (control) {
+        if (!control) return;
+        control.addEventListener('input', applyGalleryFilters);
+        control.addEventListener('change', applyGalleryFilters);
+      });
+      if (galleryResetFilters) {
+        galleryResetFilters.addEventListener('click', function () {
+          if (galleryUploaderFilter) galleryUploaderFilter.value = '';
+          if (galleryMinPitis) galleryMinPitis.value = '';
+          if (galleryMaxPitis) galleryMaxPitis.value = '';
+          if (gallerySort) gallerySort.value = 'pitis_asc';
+          applyGalleryFilters();
+        });
+      }
+      if (slideshowCloseBtn) {
+        slideshowCloseBtn.addEventListener('click', stopSlideshow);
+      }
+      if (slideshowFullscreenBtn) {
+        slideshowFullscreenBtn.addEventListener('click', toggleSlideshowFullscreen);
+      }
+      if (slideshowModal) {
+        slideshowModal.addEventListener('click', function (e) {
+          if (e.target === slideshowModal) stopSlideshow();
+        });
+      }
+      document.addEventListener('fullscreenchange', syncFullscreenButton);
+
+      document.addEventListener('keydown', function (e) {
+        if (e.key !== 'Escape') return;
+        closeImageModal();
+        stopSlideshow();
+      });
+
+      syncFullscreenButton();
+      applyGalleryFilters();
+    })();
+  </script>
+  <% if (user) { %>
+    <script src="/js/inactivity.js"></script>
+  <% } %>
+</body>
+</html>

@@ -1,0 +1,2982 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Admin Dashboard</title>
+  <link rel="stylesheet" href="/css/theme-c.css" />
+</head>
+<body>
+  <%- include('partials/admin-nav') %>
+
+  <main class="container stack">
+    <% if (error) { %>
+      <section class="card"><div class="error"><%= error %></div></section>
+    <% } %>
+    <% if (success) { %>
+      <section class="card"><div><%= success %></div></section>
+    <% } %>
+    <section class="card" id="adminInlineStatusCard" style="display:none;">
+      <div id="adminInlineStatusMessage"></div>
+    </section>
+
+    <section class="card admin-command-centre" id="adminCommandCentre">
+      <div class="section-toggle-head">
+        <div>
+          <span class="home-metric-label">ADMINISTRATION</span>
+          <h1>School Command Centre</h1>
+          <p class="muted">Live operational overview · Updated <%= adminCommandCentre.generatedAt %></p>
+        </div>
+        <span class="device-status-badge status-<%= adminCommandCentre.alerts.length ? 'unavailable' : 'available' %>"><%= adminCommandCentre.alerts.length ? `${adminCommandCentre.alerts.length} item${adminCommandCentre.alerts.length === 1 ? '' : 's'} need attention` : 'All clear' %></span>
+      </div>
+
+      <div class="admin-command-metrics">
+        <article><span>Active students</span><strong><%= adminCommandCentre.metrics.activeStudents %></strong><small><%= adminCommandCentre.metrics.totalClasses %> active classes</small></article>
+        <article><span>Active teachers</span><strong><%= adminCommandCentre.metrics.activeTeachers %></strong><small>Teacher accounts enabled</small></article>
+        <article><span>Today’s attendance</span><strong><%= adminCommandCentre.metrics.attendancePercentage %>%</strong><small><%= adminCommandCentre.metrics.attendancePresent %> of <%= adminCommandCentre.metrics.attendanceRecorded %> recorded present</small></article>
+        <article class="<%= adminCommandCentre.backup.healthy ? 'command-good' : 'command-warning' %>"><span>Backup protection</span><strong><%= adminCommandCentre.backup.healthy ? 'Healthy' : 'Attention' %></strong><small><%= adminCommandCentre.backup.message %></small></article>
+      </div>
+
+      <div class="admin-command-grid">
+        <div class="admin-command-panel">
+          <h3>Attention queue</h3>
+          <% if (!adminCommandCentre.alerts.length) { %>
+            <div class="command-alert command-alert-good"><strong>No urgent actions</strong><span>Core operational checks are clear.</span></div>
+          <% } %>
+          <% adminCommandCentre.alerts.forEach(function (alert) { %>
+            <button type="button" class="command-alert command-alert-<%= alert.severity %>" data-command-action="<%= alert.action %>">
+              <strong><%= alert.title %></strong><span><%= alert.detail %></span>
+            </button>
+          <% }) %>
+        </div>
+
+        <div class="admin-command-panel">
+          <h3>Upcoming school events</h3>
+          <% if (!adminCommandCentre.upcomingEvents.length) { %><p class="muted">No upcoming events recorded.</p><% } %>
+          <% adminCommandCentre.upcomingEvents.forEach(function (event) { %>
+            <div class="command-event"><strong><%= event.title %></strong><span><%= event.event_date %><%= event.end_date !== event.event_date ? ` to ${event.end_date}` : '' %></span></div>
+          <% }) %>
+          <button type="button" class="btn secondary" data-command-action="events">Manage Calendar</button>
+        </div>
+      </div>
+
+      <div class="button-row admin-command-actions">
+        <button type="button" class="btn" data-command-action="students">Add Student</button>
+        <button type="button" class="btn secondary" data-command-action="users">Manage Users</button>
+        <button type="button" class="btn secondary" data-command-action="attendance">Attendance Controls</button>
+        <button type="button" class="btn secondary" data-command-action="backup">Backup and Restore</button>
+        <button type="button" class="btn secondary" data-command-action="audit">Audit Trail</button>
+        <button type="button" class="btn secondary" data-command-action="rollover">Year Rollover</button>
+      </div>
+    </section>
+
+    <section class="card" id="administratorAuditTrail">
+      <details <%= /audit/i.test(String(error || '') + ' ' + String(success || '')) ? 'open' : '' %>>
+        <summary class="section-toggle-head" style="cursor:pointer;">
+          <div>
+            <h2>Administrator Audit Trail</h2>
+            <p class="muted">Append-only record of administrator changes, results, and affected areas.</p>
+          </div>
+          <span class="device-status-badge status-available"><%= (adminAuditRows || []).length %> recent actions</span>
+        </summary>
+        <div class="notes-section stack">
+          <form method="get" action="/admin/dashboard" class="inline-filters">
+            <input type="search" name="audit_search" value="<%= adminAuditFilters.search || '' %>" placeholder="Administrator, action or target" />
+            <select name="audit_result">
+              <option value="">All results</option>
+              <option value="success" <%= adminAuditFilters.result === 'success' ? 'selected' : '' %>>Success</option>
+              <option value="failed" <%= adminAuditFilters.result === 'failed' ? 'selected' : '' %>>Failed</option>
+            </select>
+            <label>From <input type="date" name="audit_from" value="<%= adminAuditFilters.dateFrom || '' %>" /></label>
+            <label>To <input type="date" name="audit_to" value="<%= adminAuditFilters.dateTo || '' %>" /></label>
+            <button class="btn secondary" type="submit">Filter</button>
+            <a class="btn secondary" href="/admin/reports/admin-audit/export?<%= new URLSearchParams({ audit_search: adminAuditFilters.search || '', audit_result: adminAuditFilters.result || '', audit_from: adminAuditFilters.dateFrom || '', audit_to: adminAuditFilters.dateTo || '' }).toString() %>">Download CSV</a>
+          </form>
+
+          <% if (!(adminAuditRows || []).length) { %>
+            <p class="muted">No administrator changes have been recorded yet. New actions will appear here automatically.</p>
+          <% } else { %>
+            <div class="admin-report-wrap">
+              <table>
+                <thead><tr><th>Date and time</th><th>Administrator</th><th>Action</th><th>Target</th><th>Result</th><th>Details</th></tr></thead>
+                <tbody>
+                  <% adminAuditRows.forEach(function (row) { %>
+                    <tr>
+                      <td><%= row.created_at %></td>
+                      <td><strong><%= row.display_name %></strong><br /><span class="muted"><%= row.username %> · <%= row.ip_address || '-' %></span></td>
+                      <td><strong><%= row.action_label %></strong><br /><span class="muted"><%= row.request_method %> <%= row.request_path %></span></td>
+                      <td><%= row.target_label || row.target_type || '-' %></td>
+                      <td><span class="device-status-badge status-<%= row.result === 'success' ? 'available' : 'unavailable' %>"><%= row.result %></span></td>
+                      <td><details><summary>Safe details</summary><pre style="white-space:pre-wrap;max-width:360px;"><%= JSON.stringify(row.details, null, 2) %></pre></details></td>
+                    </tr>
+                  <% }) %>
+                </tbody>
+              </table>
+            </div>
+          <% } %>
+        </div>
+      </details>
+    </section>
+
+    <section class="card" id="academicYearRollover">
+      <details <%= /academic.year|rollover/i.test(String(error || '') + ' ' + String(success || '')) ? 'open' : '' %>>
+        <summary class="section-toggle-head" style="cursor:pointer;">
+          <div>
+            <h2>Academic-Year Rollover</h2>
+            <p class="muted">Preview promotions, archive YEAR 6 leavers, and open the next school year safely.</p>
+          </div>
+          <span class="device-status-badge status-<%= academicYearRollover.ready ? 'available' : 'inactive' %>"><%= academicYearRollover.ready ? 'Ready to preview' : (academicYearRollover.alreadyCompleted ? 'Already completed' : 'Needs attention') %></span>
+        </summary>
+        <div class="notes-section stack">
+          <form method="get" action="/admin/dashboard" class="inline-filters">
+            <label>Target academic year
+              <input type="number" name="rollover_year" min="2020" max="2100" value="<%= academicYearRollover.targetYear %>" required />
+            </label>
+            <button class="btn secondary" type="submit">Refresh Preview</button>
+          </form>
+
+          <div class="admin-report-wrap">
+            <table>
+              <thead><tr><th>Current class</th><th>Next placement</th><th>Students</th><th>Check</th></tr></thead>
+              <tbody>
+                <% academicYearRollover.movements.forEach(function (movement) { %>
+                  <tr>
+                    <td><strong><%= movement.sourceName %></strong></td>
+                    <td><%= movement.destinationName %></td>
+                    <td><%= movement.studentCount %></td>
+                    <td><%= movement.ready ? 'Ready' : 'Class missing' %></td>
+                  </tr>
+                <% }) %>
+                <tr><td><strong>YEAR 6</strong></td><td>ALUMNI <%= academicYearRollover.fromYear %> archive</td><td><%= academicYearRollover.graduatingCount %></td><td>Historical records retained</td></tr>
+              </tbody>
+            </table>
+          </div>
+
+          <div class="muted">
+            <strong>Preview:</strong> <%= academicYearRollover.totalPromoted %> students will be promoted and <%= academicYearRollover.graduatingCount %> will be archived. A complete portal backup is created before the database transaction starts.
+          </div>
+          <% if (academicYearRollover.previousRun) { %>
+            <div class="muted">Last rollover: <%= academicYearRollover.previousRun.from_year %> to <%= academicYearRollover.previousRun.to_year %> — <%= academicYearRollover.previousRun.status %>.</div>
+          <% } %>
+
+          <form method="post" action="/admin/academic-year/rollover" class="stack" onsubmit="return confirm('This will promote all current students and archive YEAR 6 after creating a safety backup. Continue?');">
+            <input type="hidden" name="target_year" value="<%= academicYearRollover.targetYear %>" />
+            <label class="tool-choice">
+              <input type="checkbox" name="reset_fees" value="1" checked />
+              Reset annual school, PIBG, and insurance payment ticks for promoted students
+            </label>
+            <label>Type <strong><%= academicYearRollover.confirmationText %></strong> to apply
+              <input type="text" name="confirmation" autocomplete="off" placeholder="<%= academicYearRollover.confirmationText %>" required />
+            </label>
+            <div class="button-row">
+              <button class="btn danger" type="submit" <%= academicYearRollover.ready ? '' : 'disabled' %>>Create Safety Backup and Roll Over</button>
+            </div>
+          </form>
+        </div>
+      </details>
+    </section>
+
+    <section class="card" id="adminDeviceManagement">
+      <% const dashboardCategoryOptions = dashboardDeviceCategoryOptions || []; %>
+      <% const dashboardAvailabilityOptions = dashboardDeviceAvailabilityOptions || []; %>
+      <details class="notes-collapsed-card" <%= /device|location|venue/i.test(String(error || '') + ' ' + String(success || '')) ? 'open' : '' %>>
+        <summary class="notes-card-summary device-admin-summary">
+          <span>
+            <strong>Device Management</strong>
+            <span class="muted">Device bookings now use items marked available for Device Booking in School Inventory.</span>
+          </span>
+          <span class="device-admin-summary-right">
+            <span class="device-status-badge status-available"><%= (dashboardDevices || []).length %> devices</span>
+            <a class="btn secondary" href="/devices/logs" onclick="event.stopPropagation();">Usage Logs</a>
+            <a class="btn secondary" href="/devices/qr" onclick="event.stopPropagation();">Device QR</a>
+          </span>
+        </summary>
+
+        <div class="notes-section stack">
+          <div class="admin-device-dashboard-grid">
+            <div class="admin-device-panel">
+              <h3>Inventory Controls</h3>
+              <p class="muted">Add inventory items and tick Available for Device Booking to show them to teachers.</p>
+              <div class="button-row">
+                <a class="btn secondary" href="/inventory">Manage School Inventory</a>
+              </div>
+              <div class="admin-device-options-list">
+                <% (dashboardAllDeviceLocationOptions || []).slice(0, 8).forEach(location => { %>
+                  <div class="inline-filters device-location-item">
+                    <span><strong><%= location.name %></strong> <span class="device-status-badge status-<%= Number(location.is_active) === 1 ? 'available' : 'inactive' %>"><%= Number(location.is_active) === 1 ? 'active' : 'hidden' %></span></span>
+                  </div>
+                <% }) %>
+              </div>
+            </div>
+          </div>
+
+          <div>
+            <h3>Existing Devices</h3>
+            <% if (!(dashboardDevices || []).length) { %>
+              <div class="muted">No devices found yet.</div>
+            <% } else { %>
+              <form id="dashboardBulkDeviceDeleteForm" method="post" action="/admin/devices/bulk-delete" class="inline-filters device-bulk-toolbar" data-async-form="1" onsubmit="return confirm('Permanently delete all selected devices, their booking history, and database links? This cannot be undone.');">
+                <input type="hidden" name="return_to" value="/admin/dashboard" />
+                <button class="btn danger" type="submit">Delete Selected Devices</button>
+              </form>
+              <div class="device-admin-list">
+                <% (dashboardDevices || []).forEach(device => { %>
+                  <details class="device-admin-item notes-collapsed-card">
+                    <summary class="notes-card-summary device-admin-summary">
+                      <span>
+                        <input type="checkbox" name="selected_device_ids" value="<%= device.id %>" form="dashboardBulkDeviceDeleteForm" aria-label="Select <%= device.name %> for deletion" onclick="event.stopPropagation();" />
+                        <strong><%= device.name %></strong>
+                        <span class="muted">(<%= device.code %>) | <%= device.category %> | <%= device.location %></span>
+                      </span>
+                      <span class="device-admin-summary-right">
+                        <span class="device-status-badge status-<%= Number(device.inventory_is_bookable) === 1 ? 'available' : 'inactive' %>"><%= Number(device.inventory_is_bookable) === 1 ? 'bookable' : 'not bookable' %></span>
+                        <span class="device-status-badge status-<%= String(device.derived_status || device.status).replace(/_/g, '-') %>"><%= String(device.derived_status || device.status).replace(/_/g, ' ') %></span>
+                      </span>
+                    </summary>
+                    <div class="notes-section">
+                      <div class="device-qr-admin-panel">
+                        <div>
+                          <strong>Device QR</strong>
+                          <p class="muted">Scan once to borrow, then scan again to return.</p>
+                          <a class="btn secondary" href="<%= device.qr_code_image %>" download="device-qr-<%= device.code %>.png">Download QR</a>
+                        </div>
+                        <img class="device-qr-image" src="<%= device.qr_code_image %>" alt="<%= device.name %> QR code" />
+                      </div>
+                      <div class="device-booking-remarks muted">
+                        Device details and booking availability are managed from the linked School Inventory record.
+                      </div>
+                      <div class="button-row">
+                        <a class="btn secondary" href="/inventory?search=<%= encodeURIComponent(device.code) %>">Manage in Inventory</a>
+                      </div>
+                      <form method="post" action="/admin/devices/<%= device.id %>/delete" class="inline-form" data-async-form="1">
+                        <input type="hidden" name="return_to" value="/admin/dashboard" />
+                        <button class="btn danger" type="submit" onclick="return confirm('Delete or archive this device? Historical logs will be preserved by archiving.');">Delete / Archive Device</button>
+                        <button class="btn danger" type="submit" name="delete_mode" value="permanent" onclick="return confirm('Permanently delete this device and all its booking history? This cannot be undone.');">Permanently Delete</button>
+                      </form>
+                    </div>
+                  </details>
+                <% }) %>
+              </div>
+            <% } %>
+          </div>
+        </div>
+      </details>
+    </section>
+
+    <section class="card">
+      <details>
+        <summary class="section-toggle-head" style="cursor:pointer;">
+          <div>
+            <h2>User Login Report</h2>
+            <p class="muted">Recent successful portal logins for user activity checking.</p>
+          </div>
+          <a class="btn secondary" href="/admin/reports/user-logins/export" onclick="event.stopPropagation();">Download CSV</a>
+        </summary>
+        <div class="admin-report-wrap">
+          <% if (!userLoginReportRows || !userLoginReportRows.length) { %>
+            <p class="muted">No user login records yet.</p>
+          <% } else { %>
+            <table>
+              <thead>
+                <tr>
+                  <th>Date and Time</th>
+                  <th>Name</th>
+                  <th>User ID</th>
+                  <th>Role</th>
+                  <th>Device</th>
+                </tr>
+              </thead>
+              <tbody>
+                <% userLoginReportRows.forEach((row) => { %>
+                  <tr>
+                    <td><%= row.logged_at_display || row.logged_at %></td>
+                    <td><%= row.display_name %></td>
+                    <td><%= row.username %></td>
+                    <td><%= row.role %></td>
+                    <td class="muted"><%= row.user_agent || '-' %></td>
+                  </tr>
+                <% }) %>
+              </tbody>
+            </table>
+          <% } %>
+        </div>
+      </details>
+    </section>
+
+    <section class="card">
+      <details>
+        <summary class="section-toggle-head" style="cursor:pointer;">
+          <div>
+            <h2>Student Edit Logs</h2>
+            <p class="muted">Comprehensive field-by-field record of student detail edits.</p>
+          </div>
+          <a class="btn secondary" href="/admin/reports/student-edits/export" onclick="event.stopPropagation();">Download CSV</a>
+        </summary>
+        <div class="admin-report-wrap">
+          <% if (!studentEditLogRows || !studentEditLogRows.length) { %>
+            <p class="muted">No student detail edits logged yet.</p>
+          <% } else { %>
+            <table>
+              <thead>
+                <tr>
+                  <th>Date and Time</th>
+                  <th>Student</th>
+                  <th>Field</th>
+                  <th>Changed From</th>
+                  <th>Changed To</th>
+                  <th>Edited By</th>
+                </tr>
+              </thead>
+              <tbody>
+                <% studentEditLogRows.forEach((row) => { %>
+                  <tr>
+                    <td><%= row.edited_at_display || row.edited_at %></td>
+                    <td><%= row.student_full_name %> <span class="muted">[<%= row.student_id %>]</span></td>
+                    <td><%= row.field_label %></td>
+                    <td><%= row.old_value || '-' %></td>
+                    <td><%= row.new_value || '-' %></td>
+                    <td><%= row.edited_by_label %></td>
+                  </tr>
+                <% }) %>
+              </tbody>
+            </table>
+          <% } %>
+        </div>
+      </details>
+    </section>
+
+    <section class="card">
+      <details>
+        <summary class="section-toggle-head" style="cursor:pointer;">
+          <div>
+            <h2>Photos Upload Activity</h2>
+            <p class="muted">Recent uploads, opens, downloads, and folder creation activity from the shared photo library.</p>
+          </div>
+          <a class="btn secondary" href="/admin/reports/photo-activity/export" onclick="event.stopPropagation();">Download CSV</a>
+        </summary>
+        <div class="admin-report-wrap">
+          <% if (!photoActivityReportRows || !photoActivityReportRows.length) { %>
+            <p class="muted">No photo activity records yet.</p>
+          <% } else { %>
+            <table>
+              <thead>
+                <tr>
+                  <th>Date and Time</th>
+                  <th>Name</th>
+                  <th>Action</th>
+                  <th>Target</th>
+                  <th>Details</th>
+                </tr>
+              </thead>
+              <tbody>
+                <% photoActivityReportRows.forEach((row) => { %>
+                  <tr>
+                    <td><%= row.created_at_display || row.created_at %></td>
+                    <td><%= row.display_name || row.username || '-' %></td>
+                    <td><%= row.activity_type %></td>
+                    <td><%= row.target_label || row.target_type %></td>
+                    <td><%= row.details || '-' %></td>
+                  </tr>
+                <% }) %>
+              </tbody>
+            </table>
+          <% } %>
+        </div>
+      </details>
+    </section>
+
+        
+    <section class="card" id="adminInfoUploadSection">
+      <div class="section-toggle-head">
+        <div>
+          <h2>Informations Upload</h2>
+          <p class="muted">Upload school information PDFs, create folders, and manage existing files here.</p>
+        </div>
+        <div class="inline-filters">
+          <button class="btn" type="button" id="showInfoUploadBtn">Show Informations Upload</button>
+          <button class="btn secondary" type="button" id="hideInfoUploadBtn" style="display:none;">Hide</button>
+        </div>
+      </div>
+      <div id="infoUploadWrap" style="display:none; margin-top:12px;">
+        <div class="stack">
+          <div class="card">
+            <h3>Create Folder</h3>
+            <form method="post" action="/admin/informations/folders/add" class="inline-filters">
+              <input type="text" name="folder_name" placeholder="Folder name" required />
+              <button class="btn" type="submit">Add Folder</button>
+            </form>
+          </div>
+
+          <% if (infoFolders && infoFolders.length) { %>
+            <div class="card">
+              <h3>Folders</h3>
+              <div class="info-folder-admin-list">
+                <% infoFolders.forEach(folder => { %>
+                  <form method="post" action="/admin/informations/folders/delete/<%= folder.id %>" class="inline-filters" onsubmit="return confirm('Delete this folder? It must be empty first.');">
+                    <span><strong><%= folder.name %></strong></span>
+                    <button class="btn danger" type="submit">Delete Folder</button>
+                  </form>
+                <% }) %>
+              </div>
+            </div>
+          <% } %>
+
+          <div class="card">
+            <h3>Upload PDF</h3>
+            <form method="post" action="/admin/informations/upload" enctype="multipart/form-data" class="stack">
+              <div class="inline-filters">
+                <label style="min-width:240px; flex:1 1 280px;">Title
+                  <input type="text" name="title" placeholder="Leave blank to use the PDF file name" />
+                </label>
+                <label style="min-width:240px; flex:1 1 260px;">Folder
+                  <select name="folder_id">
+                    <option value="">General</option>
+                    <% (infoFolders || []).forEach(folder => { %>
+                      <option value="<%= folder.id %>"><%= folder.name %></option>
+                    <% }) %>
+                  </select>
+                </label>
+                <label style="min-width:240px; flex:1 1 300px;">PDF File
+                  <input type="file" name="information_pdf" accept="application/pdf,.pdf" required />
+                </label>
+                <button class="btn" type="submit">Upload PDF</button>
+              </div>
+            </form>
+          </div>
+
+          <div class="card">
+            <div class="section-toggle-head">
+              <h3>Manage PDFs</h3>
+              <div class="inline-filters">
+                <button class="btn" type="button" id="showManagePdfsBtn">Show Manage PDFs</button>
+                <button class="btn secondary" type="button" id="hideManagePdfsBtn" style="display:none;">Hide</button>
+              </div>
+            </div>
+            <div id="managePdfsWrap" style="display:none; margin-top:12px;">
+              <% if (!informationFiles || !informationFiles.length) { %>
+                <div class="muted">No information PDFs uploaded yet.</div>
+              <% } else { %>
+                <form method="post" action="/admin/informations/bulk-manage" id="adminInformationBulkForm" class="stack">
+                  <div class="inline-filters">
+                    <button class="btn secondary" type="button" id="selectAllInfoFilesBtn">Select All</button>
+                    <button class="btn secondary" type="button" id="clearInfoFilesBtn">Clear</button>
+                    <label style="min-width:220px; flex:1 1 240px;">Existing Folder
+                      <select name="folder_id" id="bulkInfoFolderSelect">
+                        <option value="">Select folder for move</option>
+                        <% (infoFolders || []).forEach(folder => { %>
+                          <option value="<%= folder.id %>"><%= folder.name %></option>
+                        <% }) %>
+                      </select>
+                    </label>
+                    <label style="min-width:220px; flex:1 1 240px;">New Folder
+                      <input type="text" name="new_folder_name" id="bulkInfoNewFolder" placeholder="Create new folder for move" />
+                    </label>
+                    <button class="btn" type="submit" name="bulk_action" value="move">Move Selected</button>
+                    <button class="btn danger" type="submit" name="bulk_action" value="delete" onclick="return confirm('Delete selected information files? This cannot be undone.');">Delete Selected</button>
+                  </div>
+                  <table>
+                    <thead>
+                      <tr>
+                        <th><input type="checkbox" id="toggleAllInfoFiles" /></th>
+                        <th>Title</th>
+                        <th>Folder</th>
+                        <th>Uploaded</th>
+                        <th>Open</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      <% informationFiles.forEach(file => { %>
+                        <tr>
+                          <td><input type="checkbox" name="selected_files" value="<%= file.id %>" class="info-file-select" /></td>
+                          <td><%= file.title %></td>
+                          <td><%= file.folder_name || 'General' %></td>
+                          <td><%= file.uploaded_at %></td>
+                          <td><a class="btn secondary" href="<%= file.file_path %>" target="_blank" rel="noopener">Open PDF</a></td>
+                        </tr>
+                      <% }) %>
+                    </tbody>
+                  </table>
+                </form>
+              <% } %>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+<section class="card">
+      <div class="section-toggle-head">
+        <div>
+          <h2>User Management</h2>
+          <p class="muted">Use USER ID for all accounts (admin, teachers and support staff).</p>
+        </div>
+        <div class="inline-filters">
+          <button class="btn" type="button" id="showUserManagementBtn">Show User Management</button>
+          <button class="btn secondary" type="button" id="hideUserManagementBtn" style="display:none;">Hide</button>
+        </div>
+      </div>
+
+      <div id="userManagementWrap" style="display:none; margin-top:12px;">
+      <div class="card" style="margin-top:12px;">
+        <div class="section-toggle-head">
+          <div>
+            <h3>Add User Manually</h3>
+            <p class="muted">Create admin, teacher, or staff accounts directly without CSV import.</p>
+          </div>
+          <div class="inline-filters">
+            <button class="btn" type="button" id="showAddUserBtn">Show Add User Form</button>
+            <button class="btn secondary" type="button" id="hideAddUserBtn" style="display:none;">Hide</button>
+          </div>
+        </div>
+
+        <div id="addUserFormWrap" style="display:none; margin-top:12px;">
+          <form class="stack" method="post" action="/admin/users/add" id="adminAddUserForm">
+            <div class="inline-filters">
+              <label style="min-width:220px; flex:1 1 240px;">USER ID
+                <input type="text" name="username" placeholder="e.g. TCH001" required />
+              </label>
+              <label style="min-width:240px; flex:1 1 280px;">Full Name
+                <input type="text" name="display_name" placeholder="Full name" required />
+              </label>
+              <label style="min-width:240px; flex:1 1 280px;">Email
+                <input type="email" name="email" placeholder="Optional email" />
+              </label>
+            </div>
+
+            <div class="inline-filters">
+              <label style="min-width:220px; flex:1 1 220px;">Password
+                <input type="password" name="password" placeholder="Temporary password" minlength="4" required />
+              </label>
+              <label style="min-width:180px; flex:1 1 200px;">Role
+                <select name="role" id="adminAddUserRole">
+                  <option value="admin">admin</option>
+                  <option value="teacher" selected>teacher</option>
+                  <option value="staff">staff</option>
+                </select>
+              </label>
+              <label style="min-width:180px; flex:1 1 200px;">User Type
+                <select name="user_type" id="adminAddUserType">
+                  <option value="admin">admin</option>
+                  <option value="teacher" selected>teacher</option>
+                  <option value="staff">staff</option>
+                </select>
+              </label>
+              <label style="min-width:160px; flex:1 1 180px;">Status
+                <select name="is_active">
+                  <option value="1" selected>active</option>
+                  <option value="0">inactive</option>
+                </select>
+              </label>
+              <button class="btn" type="submit">Add User Account</button>
+            </div>
+          </form>
+          <div class="muted">Required: USER ID, full name, password. Duplicate USER ID or email will be rejected.</div>
+        </div>
+      </div>
+
+      <div class="stack" style="margin-top:12px;">
+        <div class="inline-filters">
+          <label style="min-width:280px; flex:1 1 360px;">Existing Users
+            <select id="adminUserPicker" <%= staffUsers.length ? '' : 'disabled' %>>
+              <% if (!staffUsers.length) { %>
+                <option value="">No users available</option>
+              <% } %>
+              <% staffUsers.forEach((t, idx) => { %>
+                <option value="<%= t.id %>" <%= idx === 0 ? 'selected' : '' %>><%= t.username %> - <%= t.display_name %></option>
+              <% }) %>
+            </select>
+          </label>
+          <button class="btn secondary" type="button" id="adminUserManageBtn" <%= staffUsers.length ? '' : 'disabled' %>>Manage User</button>
+          <button class="btn secondary" type="button" id="adminUserHideBtn" style="display:none;">Hide</button>
+        </div>
+
+        <% if (staffUsers.length) { const initialUser = staffUsers[0]; %>
+          <div class="card" id="adminUserEditorWrap" style="padding:14px; display:none;">
+            <div class="inline-filters" style="margin-bottom:10px;">
+              <strong id="adminUserMetaName"><%= initialUser.display_name %></strong>
+              <span class="muted" id="adminUserMetaCreated">Created: <%= initialUser.created_at %></span>
+            </div>
+
+            <div class="card" style="margin-bottom:12px; padding:16px; max-width:380px;">
+              <h4 style="margin-top:0;">User QR Code</h4>
+              <img id="adminUserQrImage" src="<%= initialUser.qr_code_image %>" alt="QR code for <%= initialUser.display_name %>" style="width:220px; max-width:100%; display:block; margin:0 auto 12px;" />
+              <div class="button-row" style="justify-content:center;">
+                <a class="btn secondary" id="adminUserQrDownload" href="<%= initialUser.qr_code_image %>" download="user-qr-<%= encodeURIComponent(initialUser.username || initialUser.id) %>.png">Download QR Code</a>
+              </div>
+              <div class="muted" id="adminUserQrPayload" style="word-break:break-word; font-size:12px; margin-top:10px;"><%= initialUser.qr_code_payload %></div>
+            </div>
+
+            <form class="form inline-filters" method="post" action="/admin/users/update" id="adminUserEditForm" data-async-dashboard-form="1">
+              <input type="hidden" name="user_id" value="<%= initialUser.id %>" />
+              <input type="text" name="username" value="<%= initialUser.username %>" placeholder="USER ID" required />
+              <input type="text" name="display_name" value="<%= initialUser.display_name %>" placeholder="Full name" required />
+              <input type="email" name="email" value="<%= initialUser.email || '' %>" placeholder="Email (optional)" />
+              <select name="role">
+                <option value="admin" <%= initialUser.role === 'admin' ? 'selected' : '' %>>admin</option>
+                <option value="teacher" <%= initialUser.role === 'teacher' ? 'selected' : '' %>>teacher</option>
+                <option value="staff" <%= initialUser.role === 'staff' ? 'selected' : '' %>>staff</option>
+              </select>
+              <select name="user_type">
+                <option value="admin" <%= initialUser.user_type === 'admin' ? 'selected' : '' %>>admin</option>
+                <option value="teacher" <%= initialUser.user_type === 'teacher' ? 'selected' : '' %>>teacher</option>
+                <option value="staff" <%= initialUser.user_type === 'staff' ? 'selected' : '' %>>staff</option>
+              </select>
+              <select name="is_active">
+                <option value="1" <%= Number(initialUser.is_active) === 1 ? 'selected' : '' %>>active</option>
+                <option value="0" <%= Number(initialUser.is_active) === 0 ? 'selected' : '' %>>inactive</option>
+              </select>
+              <button class="btn secondary" type="submit">Save User Changes</button>
+            </form>
+
+            <form class="inline-filters" method="post" action="/admin/teachers/reset-password" id="adminUserResetForm" style="margin-top:12px;" data-async-dashboard-form="1">
+              <input type="hidden" name="user_id" value="<%= initialUser.id %>" />
+              <input type="password" name="new_password" placeholder="New password" required />
+              <button class="btn" type="submit">Reset Password</button>
+            </form>
+          </div>
+        <% } else { %>
+          <div class="muted">No users available.</div>
+        <% } %>
+      </div>
+      <h3>Import Staff by CSV</h3>
+      <p class="muted">Required fields: user_id, full_name, password. Optional: role, user_type, is_active, email. Duplicate USER ID rows are skipped for safety.</p>
+      <div class="inline-filters" style="margin-bottom:8px;">
+        <a class="btn secondary" href="/admin/staff/template">Download CSV Template</a>
+      </div>
+      <form method="post" action="/admin/staff/import" enctype="multipart/form-data" class="inline-filters" id="staffImportForm">
+        <input type="file" name="staff_csv" id="staffCsvInput" accept=".csv" required />
+        <button class="btn" type="submit">Import Staff CSV</button>
+      </form>
+      <div id="staffImportPreviewWrap" style="display:none; margin-top:10px;">
+        <h4>CSV Preview (first 10 rows)</h4>
+        <table>
+          <thead>
+            <tr><th>USER ID</th><th>Full Name</th><th>Email</th><th>Role</th><th>Active</th></tr>
+          </thead>
+          <tbody id="staffImportPreviewBody"></tbody>
+        </table>
+      </div>
+      </div>
+      </div>
+    </section>
+
+    <section class="card">
+      <div class="section-toggle-head">
+        <h2>Edit Student Details</h2>
+        <div class="inline-filters">
+          <button class="btn" type="button" id="showEditStudentDetailsBtn">Show Edit Student Details</button>
+          <button class="btn secondary" type="button" id="hideEditStudentDetailsBtn" style="display:none;">Hide</button>
+        </div>
+      </div>
+      <div id="editStudentDetailsWrap" style="display:none; margin-top:12px;">
+      <form class="inline-filters" method="get" action="/admin/dashboard" id="adminClassPickerForm">
+        <label>Class
+          <select name="class_id" id="adminClassPicker">
+            <% classes.forEach(c => { %>
+              <option value="<%= c.id %>" <%= Number(selectedClassId) === Number(c.id) ? 'selected' : '' %>><%= c.name %></option>
+            <% }) %>
+          </select>
+        </label>
+        <noscript><button class="btn" type="submit">Load Students</button></noscript>
+      </form>
+
+      <form class="inline-filters" method="get" action="/admin/dashboard" style="margin-top:10px;" id="adminStudentPickerForm">
+        <input type="hidden" name="class_id" value="<%= selectedClassId || '' %>" />
+        <label style="min-width:280px; flex:1 1 360px;">Student Name
+          <select name="student_pk" id="adminStudentPicker" <%= studentsInClass.length ? '' : 'disabled' %>>
+            <% if (!studentsInClass.length) { %>
+              <option value="">No students in class</option>
+            <% } %>
+            <% studentsInClass.forEach(s => { %>
+              <option value="<%= s.id %>" <%= Number(selectedStudentId) === Number(s.id) ? 'selected' : '' %>><%= s.nickname %> - <%= s.full_name %></option>
+            <% }) %>
+          </select>
+        </label>
+        <button class="btn secondary" type="button" id="adminStudentManageBtn" <%= selectedStudent ? '' : 'disabled' %>>Manage Student</button>
+        <button class="btn secondary" type="button" id="adminStudentHideBtn" style="display:none;">Hide</button>
+        <noscript><button class="btn" type="submit">Load Student</button></noscript>
+      </form>
+
+      <% if (selectedStudent) { %>
+        <div id="adminStudentEditorWrap" style="display:none;">
+        <form class="form grid-form" id="adminStudentEditForm" method="post" action="/admin/students/update/<%= selectedStudent.id %>" style="margin-top:12px;" enctype="multipart/form-data" data-async-dashboard-form="1">
+          <label>Class
+            <select name="class_id" required>
+              <% classes.forEach(c => { %>
+                <option value="<%= c.id %>" <%= Number(selectedStudent.class_id) === Number(c.id) ? 'selected' : '' %>><%= c.name %></option>
+              <% }) %>
+            </select>
+          </label>
+          <% studentFormGroups.forEach(group => { %>
+            <div style="grid-column:1 / -1; margin-top:6px;"><strong><%= group.title %></strong></div>
+            <% group.fields.forEach(field => { %>
+              <% if (field.type === 'checkbox-status') { return; } %>
+              <% const fieldValue = selectedStudent[field.key] || ''; %>
+              <% if (field.type === 'select') { %>
+                <label><%= field.label %>
+                  <select name="<%= field.key %>">
+                    <% (field.options || []).forEach(option => { %>
+                      <option value="<%= option %>" <%= String(fieldValue) === String(option) ? 'selected' : '' %>><%= option || 'Select' %></option>
+                    <% }) %>
+                  </select>
+                </label>
+              <% } else { %>
+                <label><%= field.label %><input type="<%= field.type === 'date' ? 'date' : (field.type === 'email' ? 'email' : 'text') %>" name="<%= field.key %>" value="<%= fieldValue %>" <%= field.required ? 'required' : '' %> /></label>
+              <% } %>
+            <% }) %>
+          <% }) %>
+          <div style="grid-column:1 / -1; margin-top:6px;"><strong>Fee Updates</strong></div>
+          <label style="display:flex; align-items:flex-start; gap:10px;">
+            <input type="checkbox" name="yiuran_sekolah_paid" value="1" <%= Number(selectedStudent.yiuran_sekolah_paid) === 1 ? 'checked' : '' %> />
+            <span>
+              <strong>Yiuran Sekolah</strong>
+              <span class="muted" style="display:block;">Tick to mark school fee as updated for this student.</span>
+            </span>
+          </label>
+          <label style="display:flex; align-items:flex-start; gap:10px;">
+            <input type="checkbox" name="yuran_pibg_paid" value="1" <%= Number(selectedStudent.yuran_pibg_paid) === 1 ? 'checked' : '' %> />
+            <span>
+              <strong>Yuran PIBG</strong>
+              <span class="muted" style="display:block;">Ticking this also marks all siblings with the same Family ID.</span>
+            </span>
+          </label>
+          <label style="display:flex; align-items:flex-start; gap:10px;">
+            <input type="checkbox" name="insuran_paid" value="1" <%= Number(selectedStudent.insuran_paid) === 1 ? 'checked' : '' %> />
+            <span>
+              <strong>Insuran</strong>
+              <span class="muted" style="display:block;">Tick to mark insurance as updated for this student.</span>
+            </span>
+          </label>
+          <div style="grid-column:1 / -1;">
+            <strong style="display:block;margin-bottom:10px;">Student Photos</strong>
+            <div id="adminStudentPhotoSlots" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(120px,1fr));gap:12px;">
+              <% for (let slot = 1; slot <= 6; slot += 1) { %>
+                <% const slotSrc = selectedStudent[slot === 1 ? 'photo_path' : ('photo_' + slot + '_path')] || ''; %>
+                <% const slotUploadedAt = slot === 1 ? (selectedStudent.photo_uploaded_at || '') : (selectedStudent['photo_' + slot + '_uploaded_at'] || ''); %>
+                <label style="display:flex;flex-direction:column;gap:8px;">
+                  <span>Photo <%= slot %></span>
+                  <span class="admin-student-photo-slot" data-photo-slot="<%= slot %>" style="aspect-ratio:1/1;border:1px dashed #c7ced6;border-radius:12px;display:flex;align-items:center;justify-content:center;overflow:hidden;background:#f6f8fb;">
+                    <% if (slotSrc) { %>
+                      <img src="<%= slotSrc %>" alt="Student photo <%= slot %>" style="width:100%;height:100%;object-fit:cover;" />
+                    <% } else { %>
+                      <span class="muted" style="font-size:12px;text-align:center;padding:8px;">No photo</span>
+                    <% } %>
+                  </span>
+                  <span class="muted" data-photo-uploaded-at="<%= slot %>" style="font-size:12px;">
+                    <%= slotUploadedAt ? 'Uploaded: ' + String(slotUploadedAt).slice(0, 10) : 'No upload yet' %>
+                  </span>
+                  <input type="file" name="<%= slot === 1 ? 'photo_file' : 'photo_' + slot + '_file' %>" accept="image/*" capture="environment" />
+                </label>
+              <% } %>
+            </div>
+          </div>
+          <button class="btn" type="submit">Save Student Changes</button>
+        </form>
+        </div>
+      <% } %>
+      </div>
+    </section>
+
+    <section class="card">
+      <div class="section-toggle-head">
+        <div>
+          <h2>Attendance Controls</h2>
+          <p class="muted">Admin can export attendance records and reset saved attendance by class and date. Teachers only have export on the attendance page.</p>
+        </div>
+        <div class="inline-filters">
+          <button class="btn" type="button" id="showAttendanceControlsBtn">Show Attendance Controls</button>
+          <button class="btn secondary" type="button" id="hideAttendanceControlsBtn" style="display:none;">Hide</button>
+        </div>
+      </div>
+      <div id="attendanceControlsWrap" style="display:none; margin-top:12px;">
+        <div class="stack">
+          <form method="get" action="/admin/attendance/export" class="inline-filters">
+            <label>Class
+              <select name="class_id" required>
+                <% classes.forEach(c => { %>
+                  <option value="<%= c.id %>" <%= Number(selectedClassId) === Number(c.id) ? 'selected' : '' %>><%= c.name %></option>
+                <% }) %>
+              </select>
+            </label>
+            <label>Attendance Date
+              <input type="date" name="attendance_date" value="<%= new Date().toISOString().slice(0,10) %>" required />
+            </label>
+            <button class="btn secondary" type="submit">Export Attendance CSV</button>
+          </form>
+
+          <form method="post" action="/admin/attendance/reset" class="inline-filters" onsubmit="return confirm('Reset attendance for this class and date? This cannot be undone.');">
+            <label>Class
+              <select name="class_id" required>
+                <% classes.forEach(c => { %>
+                  <option value="<%= c.id %>" <%= Number(selectedClassId) === Number(c.id) ? 'selected' : '' %>><%= c.name %></option>
+                <% }) %>
+              </select>
+            </label>
+            <label>Attendance Date
+              <input type="date" name="attendance_date" value="<%= new Date().toISOString().slice(0,10) %>" required />
+            </label>
+            <button class="btn danger" type="submit">Reset Attendance</button>
+          </form>
+        </div>
+      </div>
+    </section>
+
+    <section class="card">
+      <div class="section-toggle-head">
+        <div>
+          <h2>Student QR Codes</h2>
+          <p class="muted">Bulk download the new styled student QR codes by whole school or by class.</p>
+        </div>
+        <div class="inline-filters">
+          <button class="btn" type="button" id="showStudentQrDownloadBtn">Show Student QR Codes</button>
+          <button class="btn secondary" type="button" id="hideStudentQrDownloadBtn" style="display:none;">Hide</button>
+        </div>
+      </div>
+      <div id="studentQrDownloadWrap" style="display:none; margin-top:12px;">
+        <form method="get" action="/admin/students/qr-codes/download" class="inline-filters" id="studentQrDownloadForm">
+          <label>Scope
+            <select name="scope" id="studentQrDownloadScope">
+              <option value="school">Whole School</option>
+              <option value="class">By Class</option>
+            </select>
+          </label>
+          <label id="studentQrDownloadClassWrap" style="display:none;">Class
+            <select name="class_id" id="studentQrDownloadClass">
+              <% classes.forEach(c => { %>
+                <option value="<%= c.id %>" <%= Number(selectedClassId) === Number(c.id) ? 'selected' : '' %>><%= c.name %></option>
+              <% }) %>
+            </select>
+          </label>
+          <button class="btn secondary" type="submit">Download Student QR ZIP</button>
+        </form>
+        <p class="muted" style="margin-top:10px;">Every QR in the ZIP uses the same current styled format. Newly added students are included automatically because their QR is generated from their saved student record.</p>
+      </div>
+    </section>
+
+    <section class="card">
+      <div class="section-toggle-head">
+        <div>
+          <h2>P.I.T.I.S Reasons</h2>
+          <p class="muted">Manage the reasons teachers can use when awarding or deducting pitis.</p>
+        </div>
+        <div class="inline-filters">
+          <button class="btn" type="button" id="showPointReasonsBtn">Show P.I.T.I.S Reasons</button>
+          <button class="btn secondary" type="button" id="hidePointReasonsBtn" style="display:none;">Hide</button>
+        </div>
+      </div>
+      <div id="pointReasonsWrap" class="stack" style="display:none; margin-top:12px;">
+        <div class="card">
+          <h3 style="margin-top:0;">Add Reason</h3>
+          <form method="post" action="/admin/points/reasons/add" class="inline-filters">
+            <label style="min-width:280px; flex:1 1 320px;">Reason
+              <input type="text" name="reason" placeholder="Enter P.I.T.I.S reason" required />
+            </label>
+            <label style="min-width:180px; flex:0 1 200px;">Type
+              <select name="reason_type">
+                <option value="positive">Positive</option>
+                <option value="negative">Negative</option>
+              </select>
+            </label>
+            <button class="btn" type="submit">Add Reason</button>
+          </form>
+        </div>
+
+        <div class="card">
+          <h3 style="margin-top:0;">Current Reasons</h3>
+          <% if (!pointReasons || !pointReasons.length) { %>
+            <div class="muted">No P.I.T.I.S reasons available yet.</div>
+          <% } else { %>
+            <div class="stack">
+              <% pointReasons.forEach(reason => { %>
+                <form method="post" action="/admin/points/reasons/<%= reason.id %>/update" class="inline-filters" data-async-dashboard-form="1">
+                  <input type="text" name="reason" value="<%= reason.reason %>" required style="min-width:240px; flex:1 1 320px;" />
+                  <select name="reason_type" style="min-width:160px; flex:0 1 180px;">
+                    <option value="positive" <%= reason.reason_type === 'positive' ? 'selected' : '' %>>Positive</option>
+                    <option value="negative" <%= reason.reason_type === 'negative' ? 'selected' : '' %>>Negative</option>
+                  </select>
+                  <span class="muted" style="min-width:120px; flex:0 1 140px;">Used: <%= reason.total_usage %></span>
+                  <span class="muted" style="min-width:180px; flex:1 1 220px;">Added by: <%= reason.created_by_name || 'System' %></span>
+                  <button class="btn secondary" type="submit" data-async-dashboard-submit="1">Save</button>
+                  <button
+                    class="btn danger"
+                    type="submit"
+                    formaction="/admin/points/reasons/<%= reason.id %>/delete"
+                    formmethod="post"
+                    data-async-dashboard-submit="1"
+                    onclick="return confirm('Delete this P.I.T.I.S reason?');"
+                    <%= Number(reason.total_usage) > 0 ? 'disabled title="Used in pitis history"' : '' %>>
+                    Delete
+                  </button>
+                </form>
+              <% }) %>
+            </div>
+          <% } %>
+        </div>
+      </div>
+    </section>
+
+    <section class="card">
+      <div class="section-toggle-head">
+        <div>
+          <h2>PITIS Leaders Slideshow</h2>
+          <p class="muted">Adjust how long each P.I.T.I.S. Leaders slide remains on screen.</p>
+        </div>
+        <div class="inline-filters">
+          <button class="btn" type="button" id="showLeaderboardSlideshowSettingsBtn">Show Slideshow Settings</button>
+          <button class="btn secondary" type="button" id="hideLeaderboardSlideshowSettingsBtn" style="display:none;">Hide</button>
+        </div>
+      </div>
+      <div id="leaderboardSlideshowSettingsWrap" style="display:none; margin-top:12px;">
+        <form method="post" action="/admin/leaderboard/slideshow-duration" class="form inline-filters" data-async-dashboard-form="1">
+          <label>Slide Duration (seconds)
+            <input type="number" name="duration_seconds" min="1.5" max="30" step="0.5" value="<%= leaderboardSlideshowDurationSeconds || 4 %>" required />
+          </label>
+          <button class="btn secondary" type="submit" data-async-dashboard-submit="1">Save Duration</button>
+        </form>
+      </div>
+    </section>
+
+            <section class="card">
+      <div class="section-toggle-head">
+        <div>
+          <h2>Pitis Management</h2>
+          <p class="muted">Reset pitis using checkbox filters: target scope (all students, by class, selected students) and time filter (all time, specific date, date range).</p>
+        </div>
+        <div class="inline-filters">
+          <button class="btn" type="button" id="showPointsManagementBtn">Show Pitis Management</button>
+          <button class="btn secondary" type="button" id="hidePointsManagementBtn" style="display:none;">Hide</button>
+        </div>
+      </div>
+      <div id="pointsManagementWrap" style="display:none; margin-top:12px;">
+      <form method="post" action="/admin/points/reset" class="stack" onsubmit="return confirm('Reset selected pitis now? This cannot be undone.');">
+        <div class="inline-filters">
+          <label style="display:flex;align-items:center;gap:8px;">
+            <input type="checkbox" name="scope_all_students" id="scopeAllStudents" value="1" />
+            All students
+          </label>
+          <label style="display:flex;align-items:center;gap:8px;">
+            <input type="checkbox" name="scope_whole_class" id="scopeWholeClass" value="1" checked />
+            By class
+          </label>
+          <label style="display:flex;align-items:center;gap:8px;">
+            <input type="checkbox" name="scope_selected_students" id="scopeSelectedStudents" value="1" />
+            Selected students
+          </label>
+        </div>
+
+        <div id="classFilterWrap" class="inline-filters">
+          <label>Class
+            <select name="class_id" id="pointsResetClass">
+              <% classes.forEach(c => { %>
+                <option value="<%= c.id %>" <%= Number(selectedClassId) === Number(c.id) ? 'selected' : '' %>><%= c.name %></option>
+              <% }) %>
+            </select>
+          </label>
+        </div>
+
+        <div id="selectedStudentsWrap" style="display:none; border:1px solid rgba(255,255,255,0.14); border-radius:10px; padding:10px; max-height:200px; overflow:auto;">
+          <% if (!studentsInClass.length) { %>
+            <div class="muted">No students in selected class.</div>
+          <% } else { %>
+            <div class="muted" style="margin-bottom:8px;">Tick one or more students:</div>
+            <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:8px;">
+              <% studentsInClass.forEach(s => { %>
+                <label style="display:flex;align-items:center;gap:8px;">
+                  <input type="checkbox" name="selected_students" value="<%= s.id %>" />
+                  <span><%= s.nickname %> - <%= s.full_name %></span>
+                </label>
+              <% }) %>
+            </div>
+          <% } %>
+        </div>
+
+        <div class="inline-filters">
+          <label style="display:flex;align-items:center;gap:8px;">
+            <input type="checkbox" name="filter_all_time" id="filterAllTime" value="1" checked />
+            All time
+          </label>
+          <label style="display:flex;align-items:center;gap:8px;">
+            <input type="checkbox" name="filter_specific_date" id="filterSpecificDate" value="1" />
+            Specific date
+          </label>
+          <label style="display:flex;align-items:center;gap:8px;">
+            <input type="checkbox" name="filter_date_range" id="filterDateRange" value="1" />
+            Date range
+          </label>
+        </div>
+
+        <div id="selectedDateWrap" class="inline-filters" style="display:none;">
+          <label>Date
+            <input type="date" name="selected_date" value="<%= new Date().toISOString().slice(0,10) %>" />
+          </label>
+        </div>
+
+        <div id="dateRangeWrap" class="inline-filters" style="display:none;">
+          <label>From
+            <input type="date" name="range_start" />
+          </label>
+          <label>To
+            <input type="date" name="range_end" />
+          </label>
+        </div>
+
+        <div class="inline-filters">
+          <button class="btn danger" type="submit">Reset Pitis</button>
+        </div>
+      </form>
+      </div>
+    </section>
+<section class="card">
+      <div class="section-toggle-head">
+        <h2>Active Calendar Events</h2>
+        <div class="inline-filters">
+          <button class="btn" type="button" id="showActiveEventsBtn">Show Active Events</button>
+          <button class="btn secondary" type="button" id="hideActiveEventsBtn" style="display:none;">Hide</button>
+        </div>
+      </div>
+      <div id="activeEventsWrap" style="display:none; margin-top:12px;">
+        <div class="admin-calendar-filter-panel">
+          <label>Search Events
+            <input type="search" id="activeEventSearch" placeholder="Search title, details, creator, source" />
+          </label>
+          <label>Event Date
+            <input type="date" id="activeEventDateFilter" />
+          </label>
+          <div class="admin-calendar-label-filter">
+            <div class="muted">Filter by label</div>
+            <div class="calendar-label-list">
+              <% (calendarLabels || []).forEach(lb => { %>
+                <label class="calendar-label-option">
+                  <input type="checkbox" class="active-event-label-filter" value="<%= lb.id %>" />
+                  <span class="calendar-label-chip" style="--label-color:<%= lb.color %>"><%= lb.name %></span>
+                </label>
+              <% }) %>
+            </div>
+          </div>
+          <div class="admin-calendar-filter-actions">
+            <span class="muted" id="activeEventFilterCount"><%= activeEvents.length %> active event(s)</span>
+            <button class="btn secondary" type="button" id="clearActiveEventFiltersBtn">Clear Filters</button>
+          </div>
+        </div>
+
+        <table class="admin-calendar-events-table">
+          <thead>
+            <tr>
+              <th>Start</th>
+              <th>End</th>
+              <th>Title</th>
+              <th>Labels</th>
+              <th>Source</th>
+              <th>Created By</th>
+              <th>Created At</th>
+              <th>Action</th>
+            </tr>
+          </thead>
+          <tbody id="activeEventsTableBody">
+            <% if (!activeEvents.length) { %>
+              <tr><td colspan="8" class="muted">No active events.</td></tr>
+            <% } %>
+            <% activeEvents.forEach(ev => { %>
+              <% const evLabels = ev.labels || []; %>
+              <% const evLabelIds = evLabels.map(lb => Number(lb.id)).filter(Boolean); %>
+              <% const evSearch = [ev.title, ev.details, ev.event_source || 'manual', ev.creator_name || '', ev.created_at || '', evLabels.map(lb => lb.name).join(' ')].join(' ').toLowerCase(); %>
+              <tr class="active-event-row"
+                  data-event-id="<%= ev.id %>"
+                  data-start-date="<%= ev.event_date %>"
+                  data-end-date="<%= ev.end_date %>"
+                  data-label-ids="<%= evLabelIds.join(',') %>"
+                  data-search="<%= evSearch %>">
+                <td><%= ev.event_date %></td>
+                <td><%= ev.end_date %></td>
+                <td>
+                  <strong><%= ev.title %></strong>
+                  <% if (ev.details) { %>
+                    <div class="muted admin-calendar-event-detail"><%= ev.details %></div>
+                  <% } %>
+                </td>
+                <td>
+                  <% if (evLabels.length) { %>
+                    <div class="calendar-inline-labels">
+                      <% evLabels.forEach(lb => { %>
+                        <span class="calendar-label-chip" style="--label-color:<%= lb.color %>" title="<%= lb.description || '' %>"><%= lb.name %></span>
+                      <% }) %>
+                    </div>
+                  <% } else { %>
+                    <span class="muted">No labels</span>
+                  <% } %>
+                </td>
+                <td><%= ev.event_source || 'manual' %></td>
+                <td><%= ev.creator_name || '-' %></td>
+                <td><%= ev.created_at %></td>
+                <td>
+                  <% if ((ev.event_source || 'manual') === 'manual') { %>
+                    <form method="post" action="/admin/calendar/delete/<%= ev.id %>" onsubmit="return confirm('Delete this event?');">
+                      <button class="btn danger" type="submit">Delete Event</button>
+                    </form>
+                  <% } else { %>
+                    <span class="muted">Protected</span>
+                  <% } %>
+                </td>
+              </tr>
+              <% if ((ev.event_source || 'manual') === 'manual') { %>
+                <tr class="active-event-edit-row" data-edit-for="<%= ev.id %>">
+                  <td colspan="8">
+                    <details class="admin-calendar-edit-details">
+                      <summary class="btn subtle">Edit Event Information</summary>
+                      <div class="admin-calendar-edit-panel">
+                        <form method="post" action="/admin/calendar/update/<%= ev.id %>" class="form admin-calendar-edit-form" data-async-dashboard-form="1">
+                          <div class="admin-calendar-edit-grid">
+                            <label>Title
+                              <input type="text" name="title" value="<%= ev.title %>" required />
+                            </label>
+                            <label>Start Date
+                              <input type="date" name="event_date" value="<%= ev.event_date %>" required />
+                            </label>
+                            <label>End Date
+                              <input type="date" name="end_date" value="<%= ev.end_date %>" />
+                            </label>
+                          </div>
+                          <label>Details
+                            <textarea name="details" rows="4" placeholder="Event information, notes, venue, or reminders"><%= ev.details || '' %></textarea>
+                          </label>
+                          <div class="calendar-label-picker">
+                            <div class="muted">Labels</div>
+                            <div class="calendar-label-list">
+                              <% (calendarLabels || []).forEach(lb => { %>
+                                <label class="calendar-label-option">
+                                  <input type="checkbox" name="label_ids" value="<%= lb.id %>" <%= evLabelIds.includes(Number(lb.id)) ? 'checked' : '' %> />
+                                  <span class="calendar-label-chip" style="--label-color:<%= lb.color %>"><%= lb.name %></span>
+                                </label>
+                              <% }) %>
+                            </div>
+                          </div>
+                          <button class="btn secondary" type="submit" data-async-dashboard-submit="1">Save Event</button>
+                        </form>
+                      </div>
+                    </details>
+                  </td>
+                </tr>
+              <% } %>
+            <% }) %>
+            <tr id="activeEventsNoMatchesRow" style="display:none;"><td colspan="8" class="muted">No active events match the selected filters.</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <section class="card">
+      <div class="section-toggle-head">
+        <h2>SIP School Calendar</h2>
+        <div class="inline-filters">
+          <span class="muted"><%= schoolCalendar.summary.availableDays %> available school day(s)</span>
+        </div>
+      </div>
+
+      <form method="get" action="/admin/dashboard" class="admin-calendar-filter-panel">
+        <label>Month
+          <input type="month" name="sip_month" value="<%= schoolCalendar.filters.month %>" />
+        </label>
+        <label>Term
+          <select name="sip_term">
+            <option value="">All Terms</option>
+            <% schoolCalendar.terms.forEach(term => { %>
+              <option value="<%= term.term %>" <%= Number(schoolCalendar.filters.term) === Number(term.term) ? 'selected' : '' %>>Term <%= term.term %></option>
+            <% }) %>
+          </select>
+        </label>
+        <label>View
+          <select name="sip_type">
+            <option value="all" <%= schoolCalendar.filters.type === 'all' ? 'selected' : '' %>>Complete Calendar</option>
+            <option value="school_day" <%= schoolCalendar.filters.type === 'school_day' ? 'selected' : '' %>>Normal School Days</option>
+            <option value="available" <%= schoolCalendar.filters.type === 'available' ? 'selected' : '' %>>Available for PITIS</option>
+            <option value="excluded" <%= schoolCalendar.filters.type === 'excluded' ? 'selected' : '' %>>Excluded from PITIS</option>
+            <option value="public_holiday" <%= schoolCalendar.filters.type === 'public_holiday' ? 'selected' : '' %>>Public Holidays</option>
+            <option value="term_holiday" <%= schoolCalendar.filters.type === 'term_holiday' ? 'selected' : '' %>>Term Holidays</option>
+          </select>
+        </label>
+        <div class="admin-calendar-filter-actions">
+          <button class="btn" type="submit">Apply</button>
+          <a class="btn secondary" href="/admin/dashboard">Reset</a>
+        </div>
+      </form>
+
+      <div class="sip-calendar-summary-grid">
+        <div><span class="muted">Rows shown</span><strong><%= schoolCalendar.summary.totalDays %></strong></div>
+        <div><span class="muted">School days</span><strong><%= schoolCalendar.summary.schoolDays %></strong></div>
+        <div><span class="muted">Public holidays</span><strong><%= schoolCalendar.summary.publicHolidays %></strong></div>
+        <div><span class="muted">Term holidays</span><strong><%= schoolCalendar.summary.termHolidays %></strong></div>
+        <div><span class="muted">Excluded</span><strong><%= schoolCalendar.summary.excludedDays %></strong></div>
+      </div>
+
+      <details class="calendar-filtered-events-details">
+        <summary class="calendar-filtered-events-summary">
+          <div class="calendar-header-row">
+            <h3>Add School Event</h3>
+            <span class="muted">Adds to the existing calendar</span>
+          </div>
+        </summary>
+        <div class="calendar-filtered-events-body">
+          <form method="post" action="/admin/calendar/add" class="form">
+            <div class="admin-calendar-edit-grid">
+              <label>Title
+                <input type="text" name="title" required />
+              </label>
+              <label>Start Date
+                <input type="date" name="event_date" required />
+              </label>
+              <label>End Date
+                <input type="date" name="end_date" />
+              </label>
+            </div>
+            <label>Details
+              <textarea name="details" rows="3" placeholder="Event information, venue, or notes"></textarea>
+            </label>
+            <div class="calendar-label-picker">
+              <div class="muted">Labels</div>
+              <div class="calendar-label-list">
+                <% (calendarLabels || []).forEach(lb => { %>
+                  <label class="calendar-label-option">
+                    <input type="checkbox" name="label_ids" value="<%= lb.id %>" />
+                    <span class="calendar-label-chip" style="--label-color:<%= lb.color %>"><%= lb.name %></span>
+                  </label>
+                <% }) %>
+              </div>
+            </div>
+            <button class="btn" type="submit">Add School Event</button>
+          </form>
+        </div>
+      </details>
+
+      <details class="calendar-filtered-events-details" open>
+        <summary class="calendar-filtered-events-summary">
+          <div class="calendar-header-row">
+            <h3>School Weeks</h3>
+            <span class="muted"><%= schoolCalendar.weeks.length %> week(s)</span>
+          </div>
+        </summary>
+        <div class="calendar-filtered-events-body">
+          <div class="calendar-filtered-events-table-wrap">
+            <table class="calendar-filtered-events-table">
+              <thead>
+                <tr>
+                  <th>Week Number</th>
+                  <th>Start Date</th>
+                  <th>End Date</th>
+                  <th>Available School Days</th>
+                </tr>
+              </thead>
+              <tbody>
+                <% schoolCalendar.weeks.forEach(week => { %>
+                  <tr>
+                    <td><%= week.week_number %></td>
+                    <td><%= week.start_date %></td>
+                    <td><%= week.end_date %></td>
+                    <td><%= week.available_school_days %></td>
+                  </tr>
+                <% }) %>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </details>
+
+      <details class="calendar-filtered-events-details">
+        <summary class="calendar-filtered-events-summary">
+          <div class="calendar-header-row">
+            <h3>2026 Calendar Dates</h3>
+            <span class="muted"><%= schoolCalendar.days.length %> date(s)</span>
+          </div>
+        </summary>
+        <div class="calendar-filtered-events-body">
+          <div class="sip-calendar-legend">
+            <span class="sip-calendar-chip normal">Normal school day</span>
+            <span class="sip-calendar-chip public">Public holiday</span>
+            <span class="sip-calendar-chip term">Term holiday</span>
+            <span class="sip-calendar-chip excluded">Excluded from PITIS</span>
+            <span class="sip-calendar-chip today">Today</span>
+          </div>
+          <div class="calendar-filtered-events-table-wrap">
+            <table class="calendar-filtered-events-table sip-calendar-table">
+              <thead>
+                <tr>
+                  <th>Date</th>
+                  <th>Day</th>
+                  <th>Term</th>
+                  <th>Week</th>
+                  <th>Type</th>
+                  <th>PITIS</th>
+                  <th>Reason / Notes</th>
+                  <th>Edit</th>
+                </tr>
+              </thead>
+              <tbody>
+                <% schoolCalendar.days.forEach(day => {
+                  const rowClass = Number(day.is_public_holiday) === 1 ? 'public' : (Number(day.is_term_holiday) === 1 ? 'term' : (Number(day.is_school_day) === 1 && Number(day.is_available_for_pitis) === 1 ? 'normal' : (Number(day.is_school_day) === 1 ? 'excluded' : '')));
+                  const isToday = day.calendar_date === now.format('YYYY-MM-DD');
+                %>
+                  <tr class="sip-calendar-row <%= rowClass %> <%= isToday ? 'today' : '' %>">
+                    <td><%= day.calendar_date %></td>
+                    <td><%= day.day_name %></td>
+                    <td><%= day.term_number || '-' %></td>
+                    <td><%= day.school_week_number || '-' %></td>
+                    <td><%= day.holiday_name || String(day.event_type || '').replace(/_/g, ' ') %></td>
+                    <td><%= Number(day.is_available_for_pitis) === 1 ? 'Available' : 'Not available' %></td>
+                    <td>
+                      <%= day.exclusion_reason || '-' %>
+                      <% if (day.notes) { %><div class="muted"><%= day.notes %></div><% } %>
+                    </td>
+                    <td>
+                      <details class="admin-calendar-edit-details">
+                        <summary class="btn subtle">Edit</summary>
+                        <form method="post" action="/admin/school-calendar/day/update" class="form admin-calendar-edit-form">
+                          <input type="hidden" name="calendar_date" value="<%= day.calendar_date %>" />
+                          <input type="hidden" name="sip_month" value="<%= schoolCalendar.filters.month %>" />
+                          <input type="hidden" name="sip_term" value="<%= schoolCalendar.filters.term || '' %>" />
+                          <input type="hidden" name="sip_type" value="<%= schoolCalendar.filters.type %>" />
+                          <% if (Number(day.is_public_holiday) === 1) { %>
+                            <label>Observed Date
+                              <input type="date" name="observed_date" value="<%= day.calendar_date %>" <%= Number(day.editable_flag) === 1 ? '' : 'readonly' %> />
+                            </label>
+                            <label>Holiday Name
+                              <input type="text" name="holiday_name" value="<%= day.holiday_name || '' %>" <%= Number(day.editable_flag) === 1 ? '' : 'readonly' %> />
+                            </label>
+                          <% } %>
+                          <label class="tag-check-item">
+                            <input type="checkbox" name="is_available_for_pitis" value="1" <%= Number(day.is_available_for_pitis) === 1 ? 'checked' : '' %> />
+                            <span>Available for PITIS</span>
+                          </label>
+                          <label>Exclusion Reason
+                            <select name="exclusion_reason">
+                              <% ['', 'Sports Day', 'Teacher Professional Development', 'School Closure', 'Examination', 'Special Assembly', 'Emergency Closure'].forEach(reason => { %>
+                                <option value="<%= reason %>" <%= String(day.exclusion_reason || '') === reason ? 'selected' : '' %>><%= reason || 'None' %></option>
+                              <% }) %>
+                            </select>
+                          </label>
+                          <label>Notes
+                            <input type="text" name="notes" value="<%= day.notes || '' %>" />
+                          </label>
+                          <button class="btn secondary" type="submit">Save Date</button>
+                        </form>
+                      </details>
+                    </td>
+                  </tr>
+                <% }) %>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </details>
+    </section>
+    <section class="card">
+      <div class="section-toggle-head">
+        <h2>Calendar Import</h2>
+        <div class="inline-filters">
+          <button type="button" id="showCalendarImportBtn" class="btn">Show Calendar Import</button>
+          <button type="button" id="hideCalendarImportBtn" class="btn secondary" style="display:none;">Hide</button>
+        </div>
+      </div>
+
+      <div id="calendarImportWrap" style="display:none; margin-top:12px;">
+      <div class="calendar-import-head">
+        <p class="muted">Import calendar events from JSON.</p>
+      </div>
+
+      <div id="jsonImportPanel" class="stack">
+        <div class="inline-filters">
+          <label>Upload JSON File
+            <input type="file" id="eventsJsonFile" accept="application/json,.json" />
+          </label>
+        </div>
+
+        <label>Paste JSON Array
+          <textarea id="eventsJsonText" rows="10" placeholder='[
+  {"title":"Awal Tahun Masihi","start":"2026-01-01","end":"2026-01-01","allDay":true,"category":"hari_kelepasan_awam"},
+  {"title":"Cuti Penggal 1","start":"2026-03-13","end":"2026-03-29","allDay":true,"category":"cuti_penggal"}
+]'></textarea>
+        </label>
+
+        <div class="inline-filters">
+          <button type="button" class="btn secondary" id="previewImportBtn">Preview</button>
+          <button type="button" class="btn" id="submitImportBtn">Import to Calendar</button>
+        </div>
+
+        <div id="importSummary" class="muted"></div>
+
+        <div id="importPreviewWrap" style="display:none;">
+          <h3>Preview</h3>
+          <table>
+            <thead>
+              <tr>
+                <th>Title</th>
+                <th>Start</th>
+                <th>End</th>
+                <th>Category</th>
+                <th>Description</th>
+              </tr>
+            </thead>
+            <tbody id="importPreviewBody"></tbody>
+          </table>
+        </div>
+      </div>
+      </div>
+    </section>
+
+    <section class="card">
+      <div class="section-toggle-head">
+        <h2>Deleted Events (Staff Deleted)</h2>
+        <div class="inline-filters">
+          <button class="btn" type="button" id="showDeletedEventsBtn">Show Deleted Events</button>
+          <button class="btn secondary" type="button" id="hideDeletedEventsBtn" style="display:none;">Hide</button>
+        </div>
+      </div>
+      <div id="deletedEventsWrap" style="display:none; margin-top:12px;">
+      <table>
+        <thead>
+          <tr>
+            <th>Start</th>
+            <th>End</th>
+            <th>Title</th>
+            <th>Deleted By</th>
+            <th>Deleted At</th>
+            <th>Action</th>
+          </tr>
+        </thead>
+        <tbody>
+          <% if (!deletedEvents.length) { %>
+            <tr><td colspan="6" class="muted">No deleted events.</td></tr>
+          <% } %>
+          <% deletedEvents.forEach(ev => { %>
+            <tr>
+              <td><%= ev.event_date %></td>
+              <td><%= ev.end_date %></td>
+              <td><%= ev.title %></td>
+              <td><%= ev.deleted_by_name || 'Unknown' %></td>
+              <td><%= ev.deleted_at || '-' %></td>
+              <td>
+                <form method="post" action="/admin/events/purge/<%= ev.id %>" onsubmit="return confirm('Permanently delete this event record?');">
+                  <button class="btn danger" type="submit">Delete Permanently</button>
+                </form>
+              </td>
+            </tr>
+          <% }) %>
+        </tbody>
+      </table>
+      </div>
+    </section>
+
+    <section class="card">
+      <div class="section-toggle-head">
+        <h2>Add Student Manually</h2>
+        <div class="inline-filters">
+          <button class="btn" type="button" id="showAddStudentBtn">Add Student</button>
+          <button class="btn secondary" type="button" id="hideAddStudentBtn" style="display:none;">Hide</button>
+        </div>
+      </div>
+      <div id="addStudentFormWrap" style="display:none; margin-top:12px;">
+      <form class="form grid-form" method="post" action="/admin/students/add" enctype="multipart/form-data">
+        <label>Class
+          <select name="class_id" required>
+            <% classes.forEach(c => { %>
+              <option value="<%= c.id %>"><%= c.name %></option>
+            <% }) %>
+          </select>
+        </label>
+        <% studentFormGroups.forEach(group => { %>
+          <div style="grid-column:1 / -1; margin-top:6px;"><strong><%= group.title %></strong></div>
+          <% group.fields.forEach(field => { %>
+            <% if (field.type === 'checkbox-status') { return; } %>
+            <% if (field.type === 'select') { %>
+              <label><%= field.label %>
+                <select name="<%= field.key %>">
+                  <% (field.options || []).forEach(option => { %>
+                    <option value="<%= option %>"><%= option || 'Select' %></option>
+                  <% }) %>
+                </select>
+              </label>
+            <% } else { %>
+              <label><%= field.label %><input type="<%= field.type === 'date' ? 'date' : (field.type === 'email' ? 'email' : 'text') %>" name="<%= field.key %>" <%= field.required ? 'required' : '' %> /></label>
+            <% } %>
+          <% }) %>
+        <% }) %>
+        <div style="grid-column:1 / -1;">
+          <strong style="display:block;margin-bottom:10px;">Student Photos</strong>
+          <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(120px,1fr));gap:12px;">
+            <% for (let slot = 1; slot <= 6; slot += 1) { %>
+              <label style="display:flex;flex-direction:column;gap:8px;">
+                <span>Photo <%= slot %></span>
+                <span style="aspect-ratio:1/1;border:1px dashed #c7ced6;border-radius:12px;display:flex;align-items:center;justify-content:center;background:#f6f8fb;">
+                  <span class="muted" style="font-size:12px;text-align:center;padding:8px;">No photo</span>
+                </span>
+                <span class="muted" style="font-size:12px;">No upload yet</span>
+                <input type="file" name="<%= slot === 1 ? 'photo_file' : 'photo_' + slot + '_file' %>" accept="image/*" capture="environment" />
+              </label>
+            <% } %>
+          </div>
+        </div>
+        <button class="btn" type="submit">Add Student</button>
+      </form>
+      </div>
+    </section>
+
+    <section class="card">
+      <div class="section-toggle-head">
+        <div>
+          <h2>Import Students by CSV</h2>
+          <p class="muted">Use the exact enhanced student template. The download matches your new header row and replace mode clears current student-linked records after backup.</p>
+        </div>
+        <div class="inline-filters">
+          <button class="btn" type="button" id="showImportStudentsBtn">Import Students</button>
+          <button class="btn secondary" type="button" id="hideImportStudentsBtn" style="display:none;">Hide</button>
+        </div>
+      </div>
+      <div id="importStudentsWrap" style="display:none; margin-top:12px;">
+        <div class="inline-filters" style="margin-bottom:8px;">
+          <a class="btn secondary" href="/admin/students/template" download>Download Student CSV Template</a>
+        </div>
+        <form method="post" action="/admin/students/import" enctype="multipart/form-data" class="stack">
+          <div class="inline-filters">
+            <label style="min-width:280px; flex:1 1 360px;">CSV File
+              <input type="file" name="students_csv" accept=".csv,text/csv" required />
+            </label>
+            <label style="display:flex; align-items:center; gap:8px; min-height:44px; padding-top:20px;">
+              <input type="checkbox" name="replace_all_students" value="1" />
+              <span>Replace all existing student data</span>
+            </label>
+            <button class="btn" type="submit" onclick="return confirm('Import this CSV? If replace mode is checked, the current student-linked data will be backed up first and then replaced.');">Import CSV</button>
+          </div>
+          <div class="muted">Result summary will show imported students, updated students, and the backup file path when replace mode is used.</div>
+        </form>
+      </div>
+    </section>
+
+    <section class="card">
+      <div class="section-toggle-head">
+        <h2>Backup and Restore</h2>
+        <div class="inline-filters">
+          <button class="btn" type="button" id="showBackupRestoreBtn">Show Backup and Restore</button>
+          <button class="btn secondary" type="button" id="hideBackupRestoreBtn" style="display:none;">Hide</button>
+        </div>
+      </div>
+      <div id="backupRestoreWrap" class="stack" style="display:none; margin-top:12px;">
+        <div class="card">
+          <h3 style="margin-top:0;">Automatic Backup Settings</h3>
+          <p class="muted">Automatic backup runs every 2 days at 3:00 PM. Choose a folder that exists on this server or an attached backup drive.</p>
+          <form class="stack" method="post" action="/admin/backup/settings" id="adminBackupSettingsForm" data-async-dashboard-form="1">
+            <div class="inline-filters">
+              <div style="min-width:220px; flex:0 1 220px;">
+                <strong>Automatic backup</strong>
+                <div class="muted">Always ON</div>
+              </div>
+              <div style="min-width:180px; flex:0 1 220px;">
+                <strong>Backup Time</strong>
+                <div class="muted">Every 2 days at 3:00 PM</div>
+              </div>
+              <div style="min-width:320px; flex:1 1 420px;">
+                <label><strong>Backup Folder</strong>
+                  <input type="text" name="destination_path" value="<%= (backupSettings && backupSettings.destination_path) || '' %>" required autocomplete="off" style="width:100%;" />
+                </label>
+                <div class="muted">Example: <code>G:\\SchoolPortalBackups</code>. The folder will be created and tested when saved.</div>
+              </div>
+            </div>
+            <div class="inline-filters">
+              <button class="btn" type="submit" data-async-dashboard-submit="1">Save and Test Folder</button>
+              <button class="btn secondary" type="submit" formaction="/admin/backup/run-now" formmethod="post" <%= backupRunning ? 'disabled' : '' %>><%= backupRunning ? 'Backup Running...' : 'Backup Now to Designated Folder' %></button>
+              <a class="btn secondary" href="/admin/backup/download">Download Portable Backup ZIP</a>
+              <a class="btn secondary" href="/admin/backup/download-json">Download JSON Backup</a>
+            </div>
+            <div class="muted">The portable ZIP downloads through the browser and includes the database, managed uploads, a readable snapshot, manifest, and restore instructions for moving to a replacement server.</div>
+          </form>
+        </div>
+
+        <div class="card">
+          <h3 style="margin-top:0;">Backup Status</h3>
+          <div class="stack" style="gap:10px;">
+            <div><strong>Automatic backup:</strong> <%= Number((backupSettings && backupSettings.auto_enabled) || 0) === 1 ? 'ON' : 'OFF' %></div>
+            <div><strong>Backup schedule:</strong> Every <%= (backupSettings && backupSettings.backup_interval_days) || 2 %> days at <%= (backupSettings && backupSettings.backup_time) || '15:00' %></div>
+            <div><strong>Destination folder:</strong> <%= (backupSettings && backupSettings.destination_path) || '-' %></div>
+            <div><strong>Status:</strong> <%= (backupStatus && backupStatus.message) || 'No backup status available.' %></div>
+            <% if (backupStatus && backupStatus.warning) { %>
+              <div class="error"><%= backupStatus.warning %></div>
+            <% } %>
+            <div><strong>Last backup:</strong> <%= backupLatest && backupLatest.started_at ? backupLatest.started_at : ((backupSettings && backupSettings.last_run_at) || 'Never') %></div>
+            <div><strong>Last result:</strong> <%= backupLatest && backupLatest.status ? backupLatest.status : ((backupSettings && backupSettings.last_status) || 'never') %></div>
+            <div><strong>Last backup path:</strong> <%= backupLatest && backupLatest.backup_path ? backupLatest.backup_path : ((backupSettings && backupSettings.last_backup_path) || '-') %></div>
+            <% if ((backupLatest && backupLatest.error_message) || (backupSettings && backupSettings.last_error)) { %>
+              <div class="error"><strong>Last error:</strong> <%= (backupLatest && backupLatest.error_message) || backupSettings.last_error %></div>
+            <% } %>
+          </div>
+        </div>
+
+        <div class="card">
+          <h3 style="margin-top:0;">Recent Backup History</h3>
+          <% if (!(backupHistory && backupHistory.length)) { %>
+            <div class="muted">No backup history yet.</div>
+          <% } else { %>
+            <table>
+              <thead>
+                <tr>
+                  <th>Started</th>
+                  <th>Type</th>
+                  <th>Status</th>
+                  <th>Backup Path</th>
+                  <th>Error</th>
+                </tr>
+              </thead>
+              <tbody>
+                <% backupHistory.forEach(function (item) { %>
+                  <tr>
+                    <td><%= item.started_at || '-' %></td>
+                    <td><%= item.trigger_type || '-' %></td>
+                    <td><%= item.status || '-' %></td>
+                    <td><%= item.backup_path || '-' %></td>
+                    <td><%= item.error_message || '-' %></td>
+                  </tr>
+                <% }) %>
+              </tbody>
+            </table>
+          <% } %>
+        </div>
+
+        <div class="card">
+          <h3 style="margin-top:0;">Manage Saved Backups</h3>
+          <% if (!(backupSavedBackups && backupSavedBackups.length)) { %>
+            <div class="muted">No saved backup folders found in the current backup location.</div>
+          <% } else { %>
+            <table>
+              <thead>
+                <tr>
+                  <th>Backup Name</th>
+                  <th>Created</th>
+                  <th>Type</th>
+                  <th>Folder Path</th>
+                  <th>Action</th>
+                </tr>
+              </thead>
+              <tbody>
+                <% backupSavedBackups.forEach(function (item) { %>
+                  <tr>
+                    <td><%= item.name %></td>
+                    <td><%= item.created_at || '-' %></td>
+                    <td><%= item.trigger_type || '-' %></td>
+                    <td><%= item.path || '-' %></td>
+                    <td>
+                      <div class="inline-filters">
+                        <a class="btn secondary" href="/admin/backup/saved/<%= encodeURIComponent(item.name) %>/download">Download ZIP</a>
+                        <form method="post" action="/admin/backup/saved/<%= encodeURIComponent(item.name) %>/delete" class="inline-form" onsubmit="return confirm('Delete this saved backup folder?');">
+                          <button class="btn danger" type="submit">Delete</button>
+                        </form>
+                      </div>
+                    </td>
+                  </tr>
+                <% }) %>
+              </tbody>
+            </table>
+          <% } %>
+        </div>
+
+        <div class="card">
+          <h3 style="margin-top:0;">Restore Portable Backup</h3>
+          <p class="muted">Upload a portal backup ZIP on this or a replacement server. The portal validates the archive, creates a safety backup, restores all database records and managed uploads, then signs the administrator out. Legacy <code>snapshot.json</code> files remain supported.</p>
+          <form class="inline-filters" method="post" action="/admin/backup/restore" enctype="multipart/form-data">
+            <input type="file" name="backup_file" accept=".zip,.json,application/zip,application/json" required />
+            <button class="btn danger" type="submit" onclick="return confirm('Restore will replace the current portal data and managed uploads after creating a safety backup. Continue?');">Validate and Restore Backup</button>
+          </form>
+        </div>
+      </div>
+    </section>
+
+    <section class="card">
+      <div class="section-toggle-head">
+        <div>
+          <h2>Export Student Details</h2>
+          <p class="muted">Download student details for the whole school, one class, or one gender in CSV format.</p>
+        </div>
+      </div>
+      <div class="stack" style="margin-top:12px;">
+        <form method="get" action="/admin/students/export" class="inline-filters" id="studentDetailsExportForm">
+          <label>Scope
+            <select name="scope" id="studentExportScope">
+              <option value="school">Whole School</option>
+              <option value="class">By Class</option>
+              <option value="gender">By Gender</option>
+            </select>
+          </label>
+          <label id="studentExportClassWrap" style="display:none;">Class
+            <select name="class_id" id="studentExportClass">
+              <% classes.forEach(c => { %>
+                <option value="<%= c.id %>"><%= c.name %></option>
+              <% }) %>
+            </select>
+          </label>
+          <label id="studentExportGenderWrap" style="display:none;">Gender
+            <select name="gender" id="studentExportGender">
+              <option value="Male">Male</option>
+              <option value="Female">Female</option>
+            </select>
+          </label>
+          <button class="btn secondary" type="submit">Export Student Details CSV</button>
+        </form>
+      </div>
+    </section>
+
+    <section class="card">
+      <div class="section-toggle-head">
+        <div>
+          <h2>Kiosk P.I.T.I.S Rules</h2>
+          <p class="muted">Set how many pitis a student receives based on the QR log time.</p>
+        </div>
+        <div class="inline-filters">
+          <button class="btn" type="button" id="showKioskRewardRulesBtn">Show Kiosk P.I.T.I.S Rules</button>
+          <button class="btn secondary" type="button" id="hideKioskRewardRulesBtn" style="display:none;">Hide</button>
+        </div>
+      </div>
+      <div id="kioskRewardRulesWrap" class="stack" style="display:none; margin-top:12px;">
+        <% if (kioskRewardRules && kioskRewardRules.length) { %>
+          <% kioskRewardRules.forEach(rule => { %>
+            <form method="post" action="/admin/kiosk/reward-rules/<%= rule.id %>/update" class="inline-filters" data-async-dashboard-form="1">
+              <input type="text" name="label" value="<%= rule.label %>" placeholder="Rule label" required />
+              <label>Start
+                <input type="time" name="start_time" value="<%= rule.start_time %>" required />
+              </label>
+              <label>End
+                <input type="time" name="end_time" value="<%= rule.end_time %>" required />
+              </label>
+              <label>Pitis
+                <input type="number" name="points" value="<%= rule.points %>" required />
+              </label>
+              <label class="inline-filters">
+                <input type="checkbox" name="is_active" value="1" <%= Number(rule.is_active) === 1 ? 'checked' : '' %> />
+                <span>Active</span>
+              </label>
+              <button class="btn secondary" type="submit" data-async-dashboard-submit="1">Save Rule</button>
+              <button class="btn danger" type="submit" formaction="/admin/kiosk/reward-rules/<%= rule.id %>/delete" formmethod="post" onclick="return confirm('Delete this kiosk P.I.T.I.S rule?');">Delete</button>
+            </form>
+          <% }) %>
+        <% } %>
+        <form method="post" action="/admin/kiosk/reward-rules/add" class="inline-filters">
+          <input type="text" name="label" placeholder="New rule label" required />
+          <label>Start
+            <input type="time" name="start_time" required />
+          </label>
+          <label>End
+            <input type="time" name="end_time" required />
+          </label>
+          <label>Pitis
+            <input type="number" name="points" value="1" required />
+          </label>
+          <label class="inline-filters">
+            <input type="checkbox" name="is_active" value="1" checked />
+            <span>Active</span>
+          </label>
+          <button class="btn" type="submit">Add Rule</button>
+        </form>
+      </div>
+    </section>
+
+  </main>
+
+    <script>
+    (function () {
+      var panel = document.getElementById('jsonImportPanel');
+      var fileInput = document.getElementById('eventsJsonFile');
+      var textInput = document.getElementById('eventsJsonText');
+      var previewBtn = document.getElementById('previewImportBtn');
+      var importBtn = document.getElementById('submitImportBtn');
+      var previewWrap = document.getElementById('importPreviewWrap');
+      var previewBody = document.getElementById('importPreviewBody');
+      var summary = document.getElementById('importSummary');
+
+      var showInfoUploadBtn = document.getElementById('showInfoUploadBtn');
+      var hideInfoUploadBtn = document.getElementById('hideInfoUploadBtn');
+      var infoUploadWrap = document.getElementById('infoUploadWrap');
+      var showUserManagementBtn = document.getElementById('showUserManagementBtn');
+      var hideUserManagementBtn = document.getElementById('hideUserManagementBtn');
+      var userManagementWrap = document.getElementById('userManagementWrap');
+      var showAddUserBtn = document.getElementById('showAddUserBtn');
+      var hideAddUserBtn = document.getElementById('hideAddUserBtn');
+      var addUserFormWrap = document.getElementById('addUserFormWrap');
+      var showActiveEventsBtn = document.getElementById('showActiveEventsBtn');
+      var hideActiveEventsBtn = document.getElementById('hideActiveEventsBtn');
+      var activeEventsWrap = document.getElementById('activeEventsWrap');
+      var activeEventSearch = document.getElementById('activeEventSearch');
+      var activeEventDateFilter = document.getElementById('activeEventDateFilter');
+      var activeEventLabelFilters = Array.from(document.querySelectorAll('.active-event-label-filter'));
+      var activeEventFilterCount = document.getElementById('activeEventFilterCount');
+      var clearActiveEventFiltersBtn = document.getElementById('clearActiveEventFiltersBtn');
+      var activeEventsNoMatchesRow = document.getElementById('activeEventsNoMatchesRow');
+      var showEditStudentDetailsBtn = document.getElementById('showEditStudentDetailsBtn');
+      var hideEditStudentDetailsBtn = document.getElementById('hideEditStudentDetailsBtn');
+      var editStudentDetailsWrap = document.getElementById('editStudentDetailsWrap');
+      var showKioskRewardRulesBtn = document.getElementById('showKioskRewardRulesBtn');
+      var hideKioskRewardRulesBtn = document.getElementById('hideKioskRewardRulesBtn');
+      var kioskRewardRulesWrap = document.getElementById('kioskRewardRulesWrap');
+      var showPointReasonsBtn = document.getElementById('showPointReasonsBtn');
+      var hidePointReasonsBtn = document.getElementById('hidePointReasonsBtn');
+      var pointReasonsWrap = document.getElementById('pointReasonsWrap');
+      var showPointsManagementBtn = document.getElementById('showPointsManagementBtn');
+      var hidePointsManagementBtn = document.getElementById('hidePointsManagementBtn');
+      var pointsManagementWrap = document.getElementById('pointsManagementWrap');
+      var showLeaderboardSlideshowSettingsBtn = document.getElementById('showLeaderboardSlideshowSettingsBtn');
+      var hideLeaderboardSlideshowSettingsBtn = document.getElementById('hideLeaderboardSlideshowSettingsBtn');
+      var leaderboardSlideshowSettingsWrap = document.getElementById('leaderboardSlideshowSettingsWrap');
+      var showAttendanceControlsBtn = document.getElementById('showAttendanceControlsBtn');
+      var hideAttendanceControlsBtn = document.getElementById('hideAttendanceControlsBtn');
+      var attendanceControlsWrap = document.getElementById('attendanceControlsWrap');
+      var showCalendarImportBtn = document.getElementById('showCalendarImportBtn');
+      var hideCalendarImportBtn = document.getElementById('hideCalendarImportBtn');
+      var calendarImportWrap = document.getElementById('calendarImportWrap');
+      var showAddStudentBtn = document.getElementById('showAddStudentBtn');
+      var hideAddStudentBtn = document.getElementById('hideAddStudentBtn');
+      var addStudentFormWrap = document.getElementById('addStudentFormWrap');
+      var showDeletedEventsBtn = document.getElementById('showDeletedEventsBtn');
+      var hideDeletedEventsBtn = document.getElementById('hideDeletedEventsBtn');
+      var deletedEventsWrap = document.getElementById('deletedEventsWrap');
+      var showImportStudentsBtn = document.getElementById('showImportStudentsBtn');
+      var hideImportStudentsBtn = document.getElementById('hideImportStudentsBtn');
+      var importStudentsWrap = document.getElementById('importStudentsWrap');
+      var showBackupRestoreBtn = document.getElementById('showBackupRestoreBtn');
+      var hideBackupRestoreBtn = document.getElementById('hideBackupRestoreBtn');
+      var backupRestoreWrap = document.getElementById('backupRestoreWrap');
+      var showManagePdfsBtn = document.getElementById('showManagePdfsBtn');
+      var hideManagePdfsBtn = document.getElementById('hideManagePdfsBtn');
+      var managePdfsWrap = document.getElementById('managePdfsWrap');
+      var staffCsvInput = document.getElementById('staffCsvInput');
+      var staffPreviewWrap = document.getElementById('staffImportPreviewWrap');
+      var staffPreviewBody = document.getElementById('staffImportPreviewBody');
+      var studentExportScope = document.getElementById('studentExportScope');
+      var studentExportClassWrap = document.getElementById('studentExportClassWrap');
+      var studentExportGenderWrap = document.getElementById('studentExportGenderWrap');
+      var studentExportClass = document.getElementById('studentExportClass');
+      var studentExportGender = document.getElementById('studentExportGender');
+      var adminInlineStatusCard = document.getElementById('adminInlineStatusCard');
+      var adminInlineStatusMessage = document.getElementById('adminInlineStatusMessage');
+      var studentQrDownloadScope = document.getElementById('studentQrDownloadScope');
+      var studentQrDownloadClassWrap = document.getElementById('studentQrDownloadClassWrap');
+      var studentQrDownloadClass = document.getElementById('studentQrDownloadClass');
+
+      function setSummary(msg, isError) {
+        if (!summary) return;
+        summary.textContent = msg;
+        summary.className = isError ? 'error' : 'muted';
+      }
+
+      function toggleSimpleSection(wrap, showBtn, hideBtn, show) {
+        if (wrap) wrap.style.display = show ? 'block' : 'none';
+        if (showBtn) showBtn.style.display = show ? 'none' : 'inline-flex';
+        if (hideBtn) hideBtn.style.display = show ? 'inline-flex' : 'none';
+      }
+
+      var commandTargets = {
+        students: { wrap: addStudentFormWrap, show: showAddStudentBtn, hide: hideAddStudentBtn },
+        users: { wrap: userManagementWrap, show: showUserManagementBtn, hide: hideUserManagementBtn },
+        attendance: { wrap: attendanceControlsWrap, show: showAttendanceControlsBtn, hide: hideAttendanceControlsBtn },
+        backup: { wrap: backupRestoreWrap, show: showBackupRestoreBtn, hide: hideBackupRestoreBtn },
+        devices: { element: document.getElementById('adminDeviceManagement') },
+        audit: { element: document.getElementById('administratorAuditTrail') },
+        rollover: { element: document.getElementById('academicYearRollover') },
+        events: { wrap: activeEventsWrap, show: showActiveEventsBtn, hide: hideActiveEventsBtn }
+      };
+      document.querySelectorAll('[data-command-action]').forEach(function (button) {
+        button.addEventListener('click', function () {
+          var target = commandTargets[button.getAttribute('data-command-action')];
+          if (!target) return;
+          if (target.wrap) toggleSimpleSection(target.wrap, target.show, target.hide, true);
+          var element = target.element || target.wrap;
+          if (element && element.tagName === 'DETAILS') element.open = true;
+          if (element) element.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        });
+      });
+
+      function setAdminInlineStatus(message, isError) {
+        if (!adminInlineStatusCard || !adminInlineStatusMessage) return;
+        adminInlineStatusCard.style.display = message ? 'block' : 'none';
+        adminInlineStatusMessage.textContent = message || '';
+        adminInlineStatusMessage.className = isError ? 'error' : 'muted';
+      }
+
+      function getDashboardRedirectMessage(urlValue) {
+        try {
+          var url = new URL(urlValue, window.location.origin);
+          var successMessage = url.searchParams.get('success');
+          var errorMessage = url.searchParams.get('error');
+          if (errorMessage) return { message: errorMessage, isError: true };
+          if (successMessage) return { message: successMessage, isError: false };
+        } catch (_err) {}
+        return null;
+      }
+
+      function syncAdminUserPickerOption(user) {
+        if (!adminUserPicker || !user) return;
+        var targetOption = Array.from(adminUserPicker.options || []).find(function (option) {
+          return Number(option.value || 0) === Number(user.id || 0);
+        });
+        if (targetOption) {
+          targetOption.textContent = String(user.username || '') + ' - ' + String(user.display_name || '');
+        }
+      }
+
+      function bindAsyncDashboardForm(form, onSuccess) {
+        if (!form) return;
+        form.addEventListener('submit', function (event) {
+          var submitter = event.submitter || null;
+          if (submitter && submitter.hasAttribute('data-async-dashboard-skip')) {
+            return;
+          }
+
+          event.preventDefault();
+          setAdminInlineStatus('', false);
+
+          var method = String(
+            (submitter && submitter.hasAttribute('formmethod') ? submitter.getAttribute('formmethod') : '') ||
+            form.getAttribute('method') ||
+            form.method ||
+            'post'
+          ).toUpperCase();
+          var action =
+            (submitter && submitter.hasAttribute('formaction') ? submitter.getAttribute('formaction') : '') ||
+            form.getAttribute('action') ||
+            form.action;
+          var formData = new FormData(form);
+          if (submitter && submitter.name && !formData.has(submitter.name)) {
+            formData.append(submitter.name, submitter.value || '');
+          }
+          var encoding = String(
+            (submitter && submitter.hasAttribute('formenctype') ? submitter.getAttribute('formenctype') : '') ||
+            form.getAttribute('enctype') ||
+            form.enctype ||
+            'application/x-www-form-urlencoded'
+          ).toLowerCase();
+          var payload = formData;
+          if (encoding !== 'multipart/form-data') {
+            payload = new URLSearchParams();
+            formData.forEach(function (value, key) {
+              if (typeof value === 'string') payload.append(key, value);
+            });
+          }
+
+          var buttons = Array.from(form.querySelectorAll('button, input[type="submit"]'));
+          buttons.forEach(function (button) { button.disabled = true; });
+
+          fetch(action, {
+            method: method,
+            body: payload,
+            headers: { Accept: 'application/json' },
+            credentials: 'same-origin'
+          })
+            .then(function (response) {
+              var redirectMessage = getDashboardRedirectMessage(response.url);
+              var contentType = String(response.headers.get('content-type') || '');
+              if (contentType.indexOf('application/json') >= 0) {
+                return response.json().then(function (data) {
+                  var jsonMessage = data && (data.message || data.error);
+                  if (!response.ok) {
+                    throw new Error(jsonMessage || 'Save failed');
+                  }
+                  return {
+                    ok: response.ok,
+                    redirectMessage: jsonMessage ? { message: jsonMessage, isError: !data.success } : redirectMessage,
+                    data: data
+                  };
+                });
+              }
+              if (!response.ok && !redirectMessage) {
+                throw new Error('Save failed');
+              }
+              return {
+                ok: response.ok,
+                redirectMessage: redirectMessage
+              };
+            })
+            .then(function (result) {
+              var feedback = result.redirectMessage || {
+                message: result.ok ? 'Saved successfully' : 'Save failed',
+                isError: !result.ok
+              };
+              setAdminInlineStatus(feedback.message, feedback.isError);
+              if (!feedback.isError && typeof onSuccess === 'function') {
+                onSuccess(form);
+              }
+            })
+            .catch(function (error) {
+              setAdminInlineStatus(error.message || 'Save failed', true);
+            })
+            .finally(function () {
+              buttons.forEach(function (button) { button.disabled = false; });
+            });
+        });
+      }
+
+      function bindSimpleSectionToggle(showBtnId, hideBtnId, wrapId) {
+        var showBtn = document.getElementById(showBtnId);
+        var hideBtn = document.getElementById(hideBtnId);
+        var wrap = document.getElementById(wrapId);
+        if (showBtn) {
+          showBtn.addEventListener('click', function () {
+            toggleSimpleSection(wrap, showBtn, hideBtn, true);
+          });
+        }
+        if (hideBtn) {
+          hideBtn.addEventListener('click', function () {
+            toggleSimpleSection(wrap, showBtn, hideBtn, false);
+          });
+        }
+      }
+
+      function syncStudentExportUi() {
+        var scope = studentExportScope ? String(studentExportScope.value || 'school') : 'school';
+        var showClass = scope === 'class';
+        var showGender = scope === 'gender';
+        if (studentExportClassWrap) studentExportClassWrap.style.display = showClass ? 'grid' : 'none';
+        if (studentExportGenderWrap) studentExportGenderWrap.style.display = showGender ? 'grid' : 'none';
+        if (studentExportClass) studentExportClass.required = showClass;
+        if (studentExportGender) studentExportGender.required = showGender;
+      }
+
+      function syncStudentQrDownloadUi() {
+        var scope = studentQrDownloadScope ? String(studentQrDownloadScope.value || 'school') : 'school';
+        var showClass = scope === 'class';
+        if (studentQrDownloadClassWrap) studentQrDownloadClassWrap.style.display = showClass ? 'grid' : 'none';
+        if (studentQrDownloadClass) studentQrDownloadClass.required = showClass;
+      }
+
+      function applyActiveEventFilters() {
+        var search = activeEventSearch ? String(activeEventSearch.value || '').trim().toLowerCase() : '';
+        var dateFilter = activeEventDateFilter ? String(activeEventDateFilter.value || '').trim() : '';
+        var selectedLabels = activeEventLabelFilters
+          .filter(function (checkbox) { return checkbox.checked; })
+          .map(function (checkbox) { return String(checkbox.value || '').trim(); })
+          .filter(Boolean);
+        var visibleCount = 0;
+        var eventRows = Array.from(document.querySelectorAll('.active-event-row'));
+
+        eventRows.forEach(function (row) {
+          var rowSearch = String(row.getAttribute('data-search') || '');
+          var startDate = String(row.getAttribute('data-start-date') || '');
+          var endDate = String(row.getAttribute('data-end-date') || startDate);
+          var rowLabels = String(row.getAttribute('data-label-ids') || '').split(',').filter(Boolean);
+          var matchesSearch = !search || rowSearch.indexOf(search) >= 0;
+          var matchesDate = !dateFilter || (startDate <= dateFilter && endDate >= dateFilter);
+          var matchesLabels = !selectedLabels.length || selectedLabels.some(function (labelId) {
+            return rowLabels.indexOf(labelId) >= 0;
+          });
+          var show = matchesSearch && matchesDate && matchesLabels;
+          var eventId = row.getAttribute('data-event-id');
+          var editRow = eventId ? document.querySelector('.active-event-edit-row[data-edit-for="' + eventId + '"]') : null;
+
+          row.style.display = show ? '' : 'none';
+          if (editRow) editRow.style.display = show ? '' : 'none';
+          if (show) visibleCount += 1;
+        });
+
+        if (activeEventFilterCount) {
+          activeEventFilterCount.textContent = visibleCount + ' active event(s) shown';
+        }
+        if (activeEventsNoMatchesRow) {
+          activeEventsNoMatchesRow.style.display = eventRows.length && visibleCount === 0 ? '' : 'none';
+        }
+      }
+
+      function escapeDashboardHtml(value) {
+        return String(value == null ? '' : value)
+          .replace(/&/g, '&amp;')
+          .replace(/</g, '&lt;')
+          .replace(/>/g, '&gt;')
+          .replace(/"/g, '&quot;')
+          .replace(/'/g, '&#39;');
+      }
+
+      function updateActiveEventRowFromForm(form) {
+        if (!form) return;
+        var match = String(form.getAttribute('action') || '').match(/\/admin\/calendar\/update\/(\d+)/);
+        var eventId = match ? match[1] : '';
+        if (!eventId) return;
+        var row = document.querySelector('.active-event-row[data-event-id="' + eventId + '"]');
+        if (!row) return;
+
+        var title = String((form.querySelector('[name="title"]') || {}).value || '').trim();
+        var details = String((form.querySelector('[name="details"]') || {}).value || '').trim();
+        var startDate = String((form.querySelector('[name="event_date"]') || {}).value || '').trim();
+        var endDate = String((form.querySelector('[name="end_date"]') || {}).value || startDate).trim();
+        var checkedLabels = Array.from(form.querySelectorAll('[name="label_ids"]:checked')).map(function (input) {
+          var chip = input.parentElement ? input.parentElement.querySelector('.calendar-label-chip') : null;
+          return {
+            id: String(input.value || '').trim(),
+            name: chip ? String(chip.textContent || '').trim() : '',
+            color: chip ? (chip.style.getPropertyValue('--label-color') || '#3f6fae') : '#3f6fae'
+          };
+        }).filter(function (label) { return label.id; });
+        var cells = row.children;
+
+        if (cells[0]) cells[0].textContent = startDate;
+        if (cells[1]) cells[1].textContent = endDate;
+        if (cells[2]) {
+          cells[2].innerHTML = '<strong>' + escapeDashboardHtml(title) + '</strong>' +
+            (details ? '<div class="muted admin-calendar-event-detail">' + escapeDashboardHtml(details) + '</div>' : '');
+        }
+        if (cells[3]) {
+          cells[3].innerHTML = checkedLabels.length
+            ? '<div class="calendar-inline-labels">' + checkedLabels.map(function (label) {
+                return '<span class="calendar-label-chip" style="--label-color:' + escapeDashboardHtml(label.color) + '">' + escapeDashboardHtml(label.name) + '</span>';
+              }).join('') + '</div>'
+            : '<span class="muted">No labels</span>';
+        }
+
+        row.setAttribute('data-start-date', startDate);
+        row.setAttribute('data-end-date', endDate);
+        row.setAttribute('data-label-ids', checkedLabels.map(function (label) { return label.id; }).join(','));
+        row.setAttribute('data-search', [title, details, cells[4] ? cells[4].textContent : '', cells[5] ? cells[5].textContent : '', cells[6] ? cells[6].textContent : '', checkedLabels.map(function (label) { return label.name; }).join(' ')].join(' ').toLowerCase());
+        applyActiveEventFilters();
+      }
+
+      if (showInfoUploadBtn) {
+        showInfoUploadBtn.addEventListener('click', function () {
+          toggleSimpleSection(infoUploadWrap, showInfoUploadBtn, hideInfoUploadBtn, true);
+        });
+      }
+      if (hideInfoUploadBtn) {
+        hideInfoUploadBtn.addEventListener('click', function () {
+          toggleSimpleSection(infoUploadWrap, showInfoUploadBtn, hideInfoUploadBtn, false);
+        });
+      }
+      if (showUserManagementBtn) {
+        showUserManagementBtn.addEventListener('click', function () {
+          toggleSimpleSection(userManagementWrap, showUserManagementBtn, hideUserManagementBtn, true);
+        });
+      }
+      if (hideUserManagementBtn) {
+        hideUserManagementBtn.addEventListener('click', function () {
+          toggleSimpleSection(userManagementWrap, showUserManagementBtn, hideUserManagementBtn, false);
+        });
+      }
+      if (showAddUserBtn) {
+        showAddUserBtn.addEventListener('click', function () {
+          toggleSimpleSection(addUserFormWrap, showAddUserBtn, hideAddUserBtn, true);
+        });
+      }
+      if (hideAddUserBtn) {
+        hideAddUserBtn.addEventListener('click', function () {
+          toggleSimpleSection(addUserFormWrap, showAddUserBtn, hideAddUserBtn, false);
+        });
+      }
+      if (showActiveEventsBtn) {
+        showActiveEventsBtn.addEventListener('click', function () {
+          toggleSimpleSection(activeEventsWrap, showActiveEventsBtn, hideActiveEventsBtn, true);
+        });
+      }
+      if (hideActiveEventsBtn) {
+        hideActiveEventsBtn.addEventListener('click', function () {
+          toggleSimpleSection(activeEventsWrap, showActiveEventsBtn, hideActiveEventsBtn, false);
+        });
+      }
+      if (activeEventSearch) activeEventSearch.addEventListener('input', applyActiveEventFilters);
+      if (activeEventDateFilter) activeEventDateFilter.addEventListener('change', applyActiveEventFilters);
+      activeEventLabelFilters.forEach(function (checkbox) {
+        checkbox.addEventListener('change', applyActiveEventFilters);
+      });
+      if (clearActiveEventFiltersBtn) {
+        clearActiveEventFiltersBtn.addEventListener('click', function () {
+          if (activeEventSearch) activeEventSearch.value = '';
+          if (activeEventDateFilter) activeEventDateFilter.value = '';
+          activeEventLabelFilters.forEach(function (checkbox) { checkbox.checked = false; });
+          applyActiveEventFilters();
+        });
+      }
+      applyActiveEventFilters();
+      if (showEditStudentDetailsBtn) {
+        showEditStudentDetailsBtn.addEventListener('click', function () {
+          toggleSimpleSection(editStudentDetailsWrap, showEditStudentDetailsBtn, hideEditStudentDetailsBtn, true);
+        });
+      }
+      if (hideEditStudentDetailsBtn) {
+        hideEditStudentDetailsBtn.addEventListener('click', function () {
+          toggleSimpleSection(editStudentDetailsWrap, showEditStudentDetailsBtn, hideEditStudentDetailsBtn, false);
+        });
+      }
+      if (showKioskRewardRulesBtn) {
+        showKioskRewardRulesBtn.addEventListener('click', function () {
+          toggleSimpleSection(kioskRewardRulesWrap, showKioskRewardRulesBtn, hideKioskRewardRulesBtn, true);
+        });
+      }
+      if (hideKioskRewardRulesBtn) {
+        hideKioskRewardRulesBtn.addEventListener('click', function () {
+          toggleSimpleSection(kioskRewardRulesWrap, showKioskRewardRulesBtn, hideKioskRewardRulesBtn, false);
+        });
+      }
+      if (showPointReasonsBtn) {
+        showPointReasonsBtn.addEventListener('click', function () {
+          toggleSimpleSection(pointReasonsWrap, showPointReasonsBtn, hidePointReasonsBtn, true);
+        });
+      }
+      if (hidePointReasonsBtn) {
+        hidePointReasonsBtn.addEventListener('click', function () {
+          toggleSimpleSection(pointReasonsWrap, showPointReasonsBtn, hidePointReasonsBtn, false);
+        });
+      }
+      if (showPointsManagementBtn) {
+        showPointsManagementBtn.addEventListener('click', function () {
+          toggleSimpleSection(pointsManagementWrap, showPointsManagementBtn, hidePointsManagementBtn, true);
+        });
+      }
+      if (hidePointsManagementBtn) {
+        hidePointsManagementBtn.addEventListener('click', function () {
+          toggleSimpleSection(pointsManagementWrap, showPointsManagementBtn, hidePointsManagementBtn, false);
+        });
+      }
+      if (showLeaderboardSlideshowSettingsBtn) {
+        showLeaderboardSlideshowSettingsBtn.addEventListener('click', function () {
+          toggleSimpleSection(leaderboardSlideshowSettingsWrap, showLeaderboardSlideshowSettingsBtn, hideLeaderboardSlideshowSettingsBtn, true);
+        });
+      }
+      if (hideLeaderboardSlideshowSettingsBtn) {
+        hideLeaderboardSlideshowSettingsBtn.addEventListener('click', function () {
+          toggleSimpleSection(leaderboardSlideshowSettingsWrap, showLeaderboardSlideshowSettingsBtn, hideLeaderboardSlideshowSettingsBtn, false);
+        });
+      }
+      if (showAttendanceControlsBtn) {
+        showAttendanceControlsBtn.addEventListener('click', function () {
+          toggleSimpleSection(attendanceControlsWrap, showAttendanceControlsBtn, hideAttendanceControlsBtn, true);
+        });
+      }
+      if (hideAttendanceControlsBtn) {
+        hideAttendanceControlsBtn.addEventListener('click', function () {
+          toggleSimpleSection(attendanceControlsWrap, showAttendanceControlsBtn, hideAttendanceControlsBtn, false);
+        });
+      }
+      if (showCalendarImportBtn) {
+        showCalendarImportBtn.addEventListener('click', function () {
+          toggleSimpleSection(calendarImportWrap, showCalendarImportBtn, hideCalendarImportBtn, true);
+        });
+      }
+      if (hideCalendarImportBtn) {
+        hideCalendarImportBtn.addEventListener('click', function () {
+          toggleSimpleSection(calendarImportWrap, showCalendarImportBtn, hideCalendarImportBtn, false);
+        });
+      }
+      if (showAddStudentBtn) {
+        showAddStudentBtn.addEventListener('click', function () {
+          toggleSimpleSection(addStudentFormWrap, showAddStudentBtn, hideAddStudentBtn, true);
+        });
+      }
+      if (hideAddStudentBtn) {
+        hideAddStudentBtn.addEventListener('click', function () {
+          toggleSimpleSection(addStudentFormWrap, showAddStudentBtn, hideAddStudentBtn, false);
+        });
+      }
+      if (showDeletedEventsBtn) {
+        showDeletedEventsBtn.addEventListener('click', function () {
+          toggleSimpleSection(deletedEventsWrap, showDeletedEventsBtn, hideDeletedEventsBtn, true);
+        });
+      }
+      if (hideDeletedEventsBtn) {
+        hideDeletedEventsBtn.addEventListener('click', function () {
+          toggleSimpleSection(deletedEventsWrap, showDeletedEventsBtn, hideDeletedEventsBtn, false);
+        });
+      }
+      if (showImportStudentsBtn) {
+        showImportStudentsBtn.addEventListener('click', function () {
+          toggleSimpleSection(importStudentsWrap, showImportStudentsBtn, hideImportStudentsBtn, true);
+        });
+      }
+      if (hideImportStudentsBtn) {
+        hideImportStudentsBtn.addEventListener('click', function () {
+          toggleSimpleSection(importStudentsWrap, showImportStudentsBtn, hideImportStudentsBtn, false);
+        });
+      }
+      if (showBackupRestoreBtn) {
+        showBackupRestoreBtn.addEventListener('click', function () {
+          toggleSimpleSection(backupRestoreWrap, showBackupRestoreBtn, hideBackupRestoreBtn, true);
+        });
+      }
+      if (hideBackupRestoreBtn) {
+        hideBackupRestoreBtn.addEventListener('click', function () {
+          toggleSimpleSection(backupRestoreWrap, showBackupRestoreBtn, hideBackupRestoreBtn, false);
+        });
+      }
+      if (showManagePdfsBtn) {
+        showManagePdfsBtn.addEventListener('click', function () {
+          toggleSimpleSection(managePdfsWrap, showManagePdfsBtn, hideManagePdfsBtn, true);
+        });
+      }
+      if (hideManagePdfsBtn) {
+        hideManagePdfsBtn.addEventListener('click', function () {
+          toggleSimpleSection(managePdfsWrap, showManagePdfsBtn, hideManagePdfsBtn, false);
+        });
+      }
+
+      if (panel && fileInput && textInput && previewBtn && importBtn && previewWrap && previewBody) {
+        function parseImportJson() {
+          var raw = (textInput.value || '').trim();
+          if (!raw) throw new Error('Please paste JSON text or choose a file first.');
+          var parsed = JSON.parse(raw);
+          if (!Array.isArray(parsed)) throw new Error('JSON root must be an array.');
+          return parsed;
+        }
+
+        function renderPreview(rows) {
+          previewBody.innerHTML = '';
+          rows.slice(0, 100).forEach(function (ev) {
+            var tr = document.createElement('tr');
+            var category = ev.category || '';
+            tr.innerHTML =
+              '<td>' + (ev.title || '') + '</td>' +
+              '<td>' + (ev.start || ev.start_date || '') + '</td>' +
+              '<td>' + (ev.end || ev.end_date || ev.start || ev.start_date || '') + '</td>' +
+              '<td>' + category + '</td>' +
+              '<td>' + (ev.description || ev.details || '') + '</td>';
+            previewBody.appendChild(tr);
+          });
+          previewWrap.style.display = rows.length ? 'block' : 'none';
+        }
+
+        fileInput.addEventListener('change', function () {
+          var file = fileInput.files && fileInput.files[0];
+          if (!file) return;
+          var reader = new FileReader();
+          reader.onload = function () {
+            textInput.value = String(reader.result || '').trim();
+            setSummary('JSON file loaded. Click Preview to verify.', false);
+          };
+          reader.onerror = function () {
+            setSummary('Failed to read file.', true);
+          };
+          reader.readAsText(file);
+        });
+
+        previewBtn.addEventListener('click', function () {
+          try {
+            var rows = parseImportJson();
+            renderPreview(rows);
+            setSummary('Preview ready: ' + rows.length + ' event(s).', false);
+          } catch (err) {
+            setSummary(err.message || String(err), true);
+            previewWrap.style.display = 'none';
+          }
+        });
+
+        importBtn.addEventListener('click', function () {
+          try {
+            parseImportJson();
+          } catch (err) {
+            setSummary(err.message || String(err), true);
+            return;
+          }
+
+          var payload = new FormData();
+          var file = fileInput.files && fileInput.files[0];
+          var raw = (textInput.value || '').trim();
+          if (file) {
+            payload.append('events_file', file);
+          }
+          if (raw) {
+            payload.append('json_text', raw);
+          }
+
+          fetch('/api/calendar/import', {
+            method: 'POST',
+            body: payload
+          })
+            .then(function (res) {
+              return res.json().then(function (data) {
+                return { ok: res.ok, data: data };
+              });
+            })
+            .then(function (result) {
+              var data = result.data || {};
+              var errorMsg = Array.isArray(data.errors) && data.errors.length
+                ? (' Errors: ' + data.errors.slice(0, 5).join(' | '))
+                : '';
+              var inserted = data.inserted || 0;
+              var skipped = data.skipped || 0;
+              var total = data.total || (inserted + skipped);
+              var hasImportedRows = inserted > 0;
+              var msg = hasImportedRows
+                ? ('Imported ' + inserted + ' of ' + total + ' event(s). Skipped: ' + skipped + '.' + errorMsg)
+                : ('No new events were imported. Skipped: ' + skipped + ' of ' + total + '.' + errorMsg);
+              setSummary(msg, !result.ok || !hasImportedRows);
+              if (result.ok && hasImportedRows) {
+                setTimeout(function () { window.location.reload(); }, 1200);
+              }
+            })
+            .catch(function (err) {
+              setSummary('Import request failed: ' + (err.message || String(err)), true);
+            });
+        });
+      }
+
+      var scopeAllStudents = document.getElementById('scopeAllStudents');
+      var scopeWholeClass = document.getElementById('scopeWholeClass');
+      var scopeSelectedStudents = document.getElementById('scopeSelectedStudents');
+      var classFilterWrap = document.getElementById('classFilterWrap');
+      var selectedStudentsWrap = document.getElementById('selectedStudentsWrap');
+      var filterAllTime = document.getElementById('filterAllTime');
+      var filterSpecificDate = document.getElementById('filterSpecificDate');
+      var filterDateRange = document.getElementById('filterDateRange');
+      var selectedDateWrap = document.getElementById('selectedDateWrap');
+      var dateRangeWrap = document.getElementById('dateRangeWrap');
+
+      function syncPointsResetUi() {
+        var allStudentsOn = !!(scopeAllStudents && scopeAllStudents.checked);
+
+        if (scopeWholeClass) {
+          scopeWholeClass.disabled = allStudentsOn;
+          if (allStudentsOn) scopeWholeClass.checked = false;
+        }
+        if (scopeSelectedStudents) {
+          scopeSelectedStudents.disabled = allStudentsOn;
+          if (allStudentsOn) scopeSelectedStudents.checked = false;
+        }
+
+        if (classFilterWrap) {
+          var showClassControls = !allStudentsOn && ((scopeWholeClass && scopeWholeClass.checked) || (scopeSelectedStudents && scopeSelectedStudents.checked));
+          classFilterWrap.style.display = showClassControls ? 'flex' : 'none';
+        }
+        if (selectedStudentsWrap && scopeSelectedStudents) {
+          selectedStudentsWrap.style.display = (!allStudentsOn && scopeSelectedStudents.checked) ? 'block' : 'none';
+        }
+        if (selectedDateWrap && filterSpecificDate) {
+          selectedDateWrap.style.display = filterSpecificDate.checked ? 'flex' : 'none';
+        }
+        if (dateRangeWrap && filterDateRange) {
+          dateRangeWrap.style.display = filterDateRange.checked ? 'flex' : 'none';
+        }
+      }
+
+      [scopeAllStudents, scopeWholeClass, scopeSelectedStudents, filterAllTime, filterSpecificDate, filterDateRange].forEach(function (el) {
+        if (el) el.addEventListener('change', syncPointsResetUi);
+      });
+      syncPointsResetUi();
+      if (studentExportScope) {
+        studentExportScope.addEventListener('change', syncStudentExportUi);
+      }
+      syncStudentExportUi();
+      if (studentQrDownloadScope) {
+        studentQrDownloadScope.addEventListener('change', syncStudentQrDownloadUi);
+      }
+      syncStudentQrDownloadUi();
+
+      bindSimpleSectionToggle('showStudentQrDownloadBtn', 'hideStudentQrDownloadBtn', 'studentQrDownloadWrap');
+
+      var adminUserPicker = document.getElementById('adminUserPicker');
+      var adminUserManageBtn = document.getElementById('adminUserManageBtn');
+      var adminUserHideBtn = document.getElementById('adminUserHideBtn');
+      var adminUserEditorWrap = document.getElementById('adminUserEditorWrap');
+      var adminUserEditForm = document.getElementById('adminUserEditForm');
+      var adminUserResetForm = document.getElementById('adminUserResetForm');
+      var adminAddUserForm = document.getElementById('adminAddUserForm');
+      var adminAddUserRole = document.getElementById('adminAddUserRole');
+      var adminAddUserType = document.getElementById('adminAddUserType');
+      var adminUserMetaName = document.getElementById('adminUserMetaName');
+      var adminUserMetaCreated = document.getElementById('adminUserMetaCreated');
+      var adminUserQrImage = document.getElementById('adminUserQrImage');
+      var adminUserQrDownload = document.getElementById('adminUserQrDownload');
+      var adminUserQrPayload = document.getElementById('adminUserQrPayload');
+      var adminUsersData = <%- JSON.stringify(staffUsers).replace(/</g, '\u003c') %>;
+      var adminStudentFieldKeys = <%- JSON.stringify(studentFormFieldKeys || []).replace(/</g, '\u003c') %>;
+      var adminClassPicker = document.getElementById('adminClassPicker');
+      var adminClassPickerForm = document.getElementById('adminClassPickerForm');
+      var pointsResetClass = document.getElementById('pointsResetClass');
+      var adminStudentPicker = document.getElementById('adminStudentPicker');
+      var adminStudentPickerForm = document.getElementById('adminStudentPickerForm');
+      var adminStudentManageBtn = document.getElementById('adminStudentManageBtn');
+      var adminStudentHideBtn = document.getElementById('adminStudentHideBtn');
+      var adminStudentEditorWrap = document.getElementById('adminStudentEditorWrap');
+      var adminStudentEditForm = document.getElementById('adminStudentEditForm');
+      var adminStudentPhotoSlotsWrap = document.getElementById('adminStudentPhotoSlots');
+      var adminStudentFeeFields = ['yiuran_sekolah_paid', 'yuran_pibg_paid', 'insuran_paid'];
+      var adminInformationBulkForm = document.getElementById('adminInformationBulkForm');
+      var toggleAllInfoFiles = document.getElementById('toggleAllInfoFiles');
+      var selectAllInfoFilesBtn = document.getElementById('selectAllInfoFilesBtn');
+      var clearInfoFilesBtn = document.getElementById('clearInfoFilesBtn');
+      var bulkInfoFolderSelect = document.getElementById('bulkInfoFolderSelect');
+      var bulkInfoNewFolder = document.getElementById('bulkInfoNewFolder');
+
+      function applyAdminUserData(user) {
+        if (!user || !adminUserEditForm || !adminUserResetForm) return;
+        var editUserId = adminUserEditForm.querySelector('[name="user_id"]');
+        var resetUserId = adminUserResetForm.querySelector('[name="user_id"]');
+        if (editUserId) editUserId.value = user.id;
+        if (resetUserId) resetUserId.value = user.id;
+        var usernameField = adminUserEditForm.querySelector('[name="username"]');
+        var displayNameField = adminUserEditForm.querySelector('[name="display_name"]');
+        var emailField = adminUserEditForm.querySelector('[name="email"]');
+        var roleField = adminUserEditForm.querySelector('[name="role"]');
+        var userTypeField = adminUserEditForm.querySelector('[name="user_type"]');
+        var activeField = adminUserEditForm.querySelector('[name="is_active"]');
+        if (usernameField) usernameField.value = user.username || '';
+        if (displayNameField) displayNameField.value = user.display_name || '';
+        if (emailField) emailField.value = user.email || '';
+        if (roleField) roleField.value = user.role || 'teacher';
+        if (userTypeField) userTypeField.value = user.user_type || 'teacher';
+        if (activeField) activeField.value = String(Number(user.is_active) === 1 ? 1 : 0);
+        if (adminUserMetaName) adminUserMetaName.textContent = user.display_name || user.username || 'Selected User';
+        if (adminUserMetaCreated) adminUserMetaCreated.textContent = 'Created: ' + (user.created_at || '-');
+        if (adminUserQrImage) {
+          adminUserQrImage.src = user.qr_code_image || '';
+          adminUserQrImage.alt = 'QR code for ' + (user.display_name || user.username || 'selected user');
+        }
+        if (adminUserQrDownload) {
+          adminUserQrDownload.href = user.qr_code_image || '#';
+          adminUserQrDownload.download = 'user-qr-' + String(user.username || user.id || 'user') + '.png';
+        }
+        if (adminUserQrPayload) adminUserQrPayload.textContent = user.qr_code_payload || '';
+      }
+      function setFormValue(name, value) {
+        if (!adminStudentEditForm) return;
+        var field = adminStudentEditForm.querySelector('[name="' + name + '"]');
+        if (!field) return;
+        if (field.type === 'checkbox') {
+          field.checked = Number(value) === 1 || value === true || value === '1';
+          return;
+        }
+        field.value = value == null ? '' : String(value);
+      }
+
+      function setSelectValue(name, value) {
+        if (!adminStudentEditForm) return;
+        var field = adminStudentEditForm.querySelector('[name="' + name + '"]');
+        if (!field) return;
+        field.value = value == null ? '' : String(value);
+      }
+
+
+      function renderStudentPickerOptions(students, selectedStudentId) {
+        if (!adminStudentPicker) return;
+        adminStudentPicker.innerHTML = '';
+        if (!students || !students.length) {
+          var emptyOpt = document.createElement('option');
+          emptyOpt.value = '';
+          emptyOpt.textContent = 'No students in class';
+          adminStudentPicker.appendChild(emptyOpt);
+          adminStudentPicker.disabled = true;
+          syncStudentManageButton();
+          return;
+        }
+
+        students.forEach(function (student) {
+          var opt = document.createElement('option');
+          opt.value = String(student.id);
+          opt.textContent = String(student.nickname || '') + ' - ' + String(student.full_name || '');
+          opt.selected = Number(student.id) === Number(selectedStudentId);
+          adminStudentPicker.appendChild(opt);
+        });
+        adminStudentPicker.disabled = false;
+        syncStudentManageButton();
+      }
+
+
+      function renderPointsStudentOptions(students) {
+        if (!selectedStudentsWrap) return;
+        if (!students || !students.length) {
+          selectedStudentsWrap.innerHTML = '<div class="muted">No students in selected class.</div>';
+          return;
+        }
+
+        var html = '<div class="muted" style="margin-bottom:8px;">Tick one or more students:</div>' +
+          '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:8px;">';
+        students.forEach(function (student) {
+          html += '<label style="display:flex;align-items:center;gap:8px;">' +
+            '<input type="checkbox" name="selected_students" value="' + String(student.id).replace(/"/g, '&quot;') + '" />' +
+            '<span>' + String(student.nickname || '') + ' - ' + String(student.full_name || '') + '</span>' +
+            '</label>';
+        });
+        html += '</div>';
+        selectedStudentsWrap.innerHTML = html;
+      }
+
+      function loadAdminClassData(classId, onError) {
+        if (!classId) return;
+
+        var hiddenClassField = adminStudentPickerForm ? adminStudentPickerForm.querySelector('[name="class_id"]') : null;
+        if (hiddenClassField) hiddenClassField.value = classId;
+        if (adminClassPicker) adminClassPicker.value = classId;
+        if (pointsResetClass) pointsResetClass.value = classId;
+
+        fetch('/admin/classes/' + encodeURIComponent(classId) + '/edit-data', {
+          headers: { Accept: 'application/json' },
+          credentials: 'same-origin'
+        })
+          .then(function (res) {
+            if (!res.ok) throw new Error('Failed to load class data');
+            return res.json();
+          })
+          .then(function (payload) {
+            var students = payload && payload.students ? payload.students : [];
+            var selectedStudent = payload ? payload.selectedStudent : null;
+            renderStudentPickerOptions(students, selectedStudent ? selectedStudent.id : null);
+            renderPointsStudentOptions(students);
+            if (selectedStudent) {
+              applyStudentEditData(selectedStudent);
+            } else {
+              clearStudentEditData(classId);
+            }
+          })
+          .catch(function () {
+            if (typeof onError === 'function') onError();
+          });
+      }
+
+      function buildAdminStudentPhotoSlots(student) {
+        if (!student) return [];
+        return Array.from({ length: 6 }, function (_, index) {
+          var slot = index + 1;
+          var pathField = slot === 1 ? 'photo_path' : ('photo_' + slot + '_path');
+          var uploadedAtField = slot === 1 ? 'photo_uploaded_at' : ('photo_' + slot + '_uploaded_at');
+          var src = String(student[pathField] || '').trim();
+          var uploadedAtRaw = String(student[uploadedAtField] || '').trim();
+          return {
+            slot: slot,
+            src: src,
+            uploadedAt: uploadedAtRaw ? uploadedAtRaw.slice(0, 10) : ''
+          };
+        });
+      }
+
+      function renderStudentPhotoSlots(slots) {
+        if (!adminStudentPhotoSlotsWrap) return;
+        var slotMap = {};
+        (slots || []).forEach(function (slot) {
+          slotMap[String(slot.slot)] = slot;
+        });
+        adminStudentPhotoSlotsWrap.querySelectorAll('[data-photo-slot]').forEach(function (node) {
+          var slotId = String(node.getAttribute('data-photo-slot') || '');
+          var slot = slotMap[slotId] || null;
+          if (slot && slot.src) {
+            node.innerHTML = '<img src="' + String(slot.src).replace(/"/g, '&quot;') + '" alt="Student photo ' + slotId + '" style="width:100%;height:100%;object-fit:cover;" />';
+          } else {
+            node.innerHTML = '<span class="muted" style="font-size:12px;text-align:center;padding:8px;">No photo</span>';
+          }
+        });
+        adminStudentPhotoSlotsWrap.querySelectorAll('[data-photo-uploaded-at]').forEach(function (node) {
+          var slotId = String(node.getAttribute('data-photo-uploaded-at') || '');
+          var slot = slotMap[slotId] || null;
+          node.textContent = slot && slot.uploadedAt ? ('Uploaded: ' + slot.uploadedAt) : 'No upload yet';
+        });
+      }
+
+
+      function toggleAdminStudentEditor(show) {
+        if (!adminStudentEditorWrap) return;
+        adminStudentEditorWrap.style.display = show ? 'block' : 'none';
+        if (adminStudentHideBtn) adminStudentHideBtn.style.display = show ? 'inline-flex' : 'none';
+      }
+
+      function syncStudentManageButton() {
+        if (!adminStudentManageBtn || !adminStudentPicker) return;
+        adminStudentManageBtn.disabled = adminStudentPicker.disabled || !String(adminStudentPicker.value || '').trim();
+      }
+
+      function clearStudentEditData(classId) {
+        if (!adminStudentEditForm) return;
+        adminStudentEditForm.action = '#';
+        setSelectValue('class_id', classId || '');
+        (adminStudentFieldKeys || []).forEach(function (fieldName) {
+          setFormValue(fieldName, '');
+        });
+        adminStudentFeeFields.forEach(function (fieldName) {
+          setFormValue(fieldName, 0);
+        });
+        adminStudentEditForm.querySelectorAll('input[type="file"]').forEach(function (fileInput) { fileInput.value = ''; });
+        renderStudentPhotoSlots([]);
+        toggleAdminStudentEditor(false);
+        syncStudentManageButton();
+      }
+
+      function applyStudentEditData(student) {
+        if (!student || !adminStudentEditForm) return;
+        adminStudentEditForm.action = '/admin/students/update/' + encodeURIComponent(student.id);
+        setSelectValue('class_id', student.class_id);
+        (adminStudentFieldKeys || []).forEach(function (fieldName) {
+          setFormValue(fieldName, student[fieldName]);
+        });
+        adminStudentFeeFields.forEach(function (fieldName) {
+          setFormValue(fieldName, student[fieldName]);
+        });
+        adminStudentEditForm.querySelectorAll('input[type="file"]').forEach(function (fileInput) {
+          fileInput.value = '';
+        });
+        renderStudentPhotoSlots(buildAdminStudentPhotoSlots(student));
+        syncStudentManageButton();
+      }
+
+      function toggleAdminUserEditor(show) {
+        if (!adminUserEditorWrap) return;
+        adminUserEditorWrap.style.display = show ? 'block' : 'none';
+        if (adminUserHideBtn) adminUserHideBtn.style.display = show ? 'inline-flex' : 'none';
+      }
+
+      bindAsyncDashboardForm(adminUserEditForm, function () {
+        if (!adminUserEditForm) return;
+        var selectedUser = {
+          id: Number((adminUserEditForm.querySelector('[name="user_id"]') || {}).value || 0),
+          username: ((adminUserEditForm.querySelector('[name="username"]') || {}).value || '').trim(),
+          display_name: ((adminUserEditForm.querySelector('[name="display_name"]') || {}).value || '').trim(),
+          email: ((adminUserEditForm.querySelector('[name="email"]') || {}).value || '').trim(),
+          role: ((adminUserEditForm.querySelector('[name="role"]') || {}).value || 'teacher').trim(),
+          user_type: ((adminUserEditForm.querySelector('[name="user_type"]') || {}).value || 'teacher').trim(),
+          is_active: Number(((adminUserEditForm.querySelector('[name="is_active"]') || {}).value || 1)),
+          created_at: adminUserMetaCreated ? String(adminUserMetaCreated.textContent || '').replace(/^Created:\s*/, '') : '',
+          qr_code_image: adminUserQrImage ? adminUserQrImage.src : '',
+          qr_code_payload: adminUserQrPayload ? adminUserQrPayload.textContent : ''
+        };
+
+        adminUsersData = (adminUsersData || []).map(function (user) {
+          return Number(user.id) === Number(selectedUser.id) ? Object.assign({}, user, selectedUser) : user;
+        });
+        syncAdminUserPickerOption(selectedUser);
+        applyAdminUserData(selectedUser);
+      });
+
+      bindAsyncDashboardForm(adminUserResetForm, function () {
+        if (!adminUserResetForm) return;
+        var passwordField = adminUserResetForm.querySelector('[name="new_password"]');
+        if (passwordField) passwordField.value = '';
+      });
+
+      bindAsyncDashboardForm(adminStudentEditForm, function () {
+        if (!adminStudentEditForm) return;
+        var classField = adminStudentEditForm.querySelector('[name="class_id"]');
+        var nextClassId = Number((classField && classField.value) || 0);
+        if (nextClassId) {
+          loadAdminClassData(nextClassId);
+        }
+      });
+
+      Array.from(document.querySelectorAll('form[action^="/admin/points/reasons/"][data-async-dashboard-form]')).forEach(function (form) {
+        bindAsyncDashboardForm(form);
+      });
+
+      Array.from(document.querySelectorAll('form[action^="/admin/calendar/update/"][data-async-dashboard-form]')).forEach(function (form) {
+        bindAsyncDashboardForm(form, updateActiveEventRowFromForm);
+      });
+
+      bindAsyncDashboardForm(document.getElementById('adminBackupSettingsForm'));
+
+      Array.from(document.querySelectorAll('form[action^="/admin/kiosk/reward-rules/"][data-async-dashboard-form]')).forEach(function (form) {
+        bindAsyncDashboardForm(form);
+      });
+
+      if (adminUserManageBtn && adminUserPicker && adminUserEditForm && adminUserResetForm) {
+        adminUserManageBtn.addEventListener('click', function () {
+          var pickedId = Number(adminUserPicker.value || 0);
+          var pickedUser = (adminUsersData || []).find(function (user) {
+            return Number(user.id) === pickedId;
+          });
+          if (!pickedUser) return;
+          applyAdminUserData(pickedUser);
+          toggleAdminUserEditor(true);
+        });
+      }
+
+      if (adminUserHideBtn) {
+        adminUserHideBtn.addEventListener('click', function () {
+          toggleAdminUserEditor(false);
+        });
+      }
+
+      if (adminAddUserRole && adminAddUserType) {
+        adminAddUserRole.addEventListener('change', function () {
+          adminAddUserType.value = adminAddUserRole.value || 'teacher';
+        });
+      }
+
+      if (adminAddUserForm) {
+        adminAddUserForm.addEventListener('submit', function () {
+          if (adminAddUserRole && adminAddUserType && !adminAddUserType.value) {
+            adminAddUserType.value = adminAddUserRole.value || 'teacher';
+          }
+        });
+      }
+
+      if (adminInformationBulkForm) {
+        function getInfoFileCheckboxes() {
+          return Array.from(adminInformationBulkForm.querySelectorAll('.info-file-select'));
+        }
+
+        function setAllInfoFileCheckboxes(checked) {
+          getInfoFileCheckboxes().forEach(function (checkbox) {
+            checkbox.checked = !!checked;
+          });
+          if (toggleAllInfoFiles) toggleAllInfoFiles.checked = !!checked;
+        }
+
+        function syncBulkInfoFolderInputs() {
+          if (!bulkInfoFolderSelect || !bulkInfoNewFolder) return;
+          var hasFolder = String(bulkInfoFolderSelect.value || '').trim().length > 0;
+          var hasNewFolder = String(bulkInfoNewFolder.value || '').trim().length > 0;
+          bulkInfoFolderSelect.disabled = hasNewFolder;
+          bulkInfoNewFolder.disabled = hasFolder;
+        }
+
+        if (toggleAllInfoFiles) {
+          toggleAllInfoFiles.addEventListener('change', function () {
+            setAllInfoFileCheckboxes(toggleAllInfoFiles.checked);
+          });
+        }
+
+        if (selectAllInfoFilesBtn) {
+          selectAllInfoFilesBtn.addEventListener('click', function () {
+            setAllInfoFileCheckboxes(true);
+          });
+        }
+
+        if (clearInfoFilesBtn) {
+          clearInfoFilesBtn.addEventListener('click', function () {
+            setAllInfoFileCheckboxes(false);
+          });
+        }
+
+        if (bulkInfoFolderSelect && bulkInfoNewFolder) {
+          bulkInfoFolderSelect.addEventListener('change', syncBulkInfoFolderInputs);
+          bulkInfoNewFolder.addEventListener('input', syncBulkInfoFolderInputs);
+          syncBulkInfoFolderInputs();
+        }
+
+        adminInformationBulkForm.addEventListener('submit', function (event) {
+          var submitter = event.submitter;
+          var action = submitter ? String(submitter.value || '') : '';
+          var selectedCount = getInfoFileCheckboxes().filter(function (checkbox) { return checkbox.checked; }).length;
+
+          if (!selectedCount) {
+            event.preventDefault();
+            alert('Please select at least one information file.');
+            return;
+          }
+
+          if (action === 'move') {
+            var hasFolder = bulkInfoFolderSelect && String(bulkInfoFolderSelect.value || '').trim().length > 0;
+            var hasNewFolder = bulkInfoNewFolder && String(bulkInfoNewFolder.value || '').trim().length > 0;
+            if (!hasFolder && !hasNewFolder) {
+              event.preventDefault();
+              alert('Please choose an existing folder or enter a new folder name.');
+            }
+          }
+        });
+      }
+
+      var dashboardError = <%- JSON.stringify(error || '').replace(/</g, '\u003c') %>;
+      var dashboardSuccess = <%- JSON.stringify(success || '').replace(/</g, '\u003c') %>;
+      var shouldOpenUserManagement = /user account|user id|email|password/i.test(dashboardError) || /user account/i.test(dashboardSuccess);
+      var shouldOpenBackupRestore = /backup|restore/i.test(dashboardError) || /backup|restore/i.test(dashboardSuccess);
+      if (shouldOpenUserManagement) {
+        toggleSimpleSection(userManagementWrap, showUserManagementBtn, hideUserManagementBtn, true);
+        toggleSimpleSection(addUserFormWrap, showAddUserBtn, hideAddUserBtn, true);
+      }
+      if (shouldOpenBackupRestore) {
+        toggleSimpleSection(backupRestoreWrap, showBackupRestoreBtn, hideBackupRestoreBtn, true);
+      }
+      if (adminClassPicker && adminStudentPickerForm && adminStudentEditForm) {
+        adminClassPicker.addEventListener('change', function () {
+          var classId = String(adminClassPicker.value || '').trim();
+          toggleAdminStudentEditor(false);
+          loadAdminClassData(classId, function () {
+            if (adminClassPickerForm) adminClassPickerForm.submit();
+          });
+        });
+      }
+
+      if (pointsResetClass && adminStudentPickerForm && adminStudentEditForm) {
+        pointsResetClass.addEventListener('change', function () {
+          var classId = String(pointsResetClass.value || '').trim();
+          loadAdminClassData(classId, function () {
+            window.location = '/admin/dashboard?class_id=' + encodeURIComponent(classId);
+          });
+        });
+      }
+
+      if (adminStudentPicker && adminStudentPickerForm && adminStudentEditForm) {
+        adminStudentPicker.addEventListener('change', function () {
+          var studentPk = String(adminStudentPicker.value || '').trim();
+          var classIdField = adminStudentPickerForm.querySelector('[name="class_id"]');
+          var classId = classIdField ? String(classIdField.value || '').trim() : '';
+          toggleAdminStudentEditor(false);
+          syncStudentManageButton();
+          if (!studentPk || !classId) return;
+
+          fetch('/admin/students/' + encodeURIComponent(studentPk) + '/edit-data?class_id=' + encodeURIComponent(classId), {
+            headers: { Accept: 'application/json' },
+            credentials: 'same-origin'
+          })
+            .then(function (res) {
+              if (!res.ok) throw new Error('Failed to load student details');
+              return res.json();
+            })
+            .then(function (payload) {
+              if (!payload || !payload.student) throw new Error('Student data missing');
+              applyStudentEditData(payload.student);
+            })
+            .catch(function () {
+              adminStudentPickerForm.submit();
+            });
+        });
+      }
+
+      if (adminStudentManageBtn && adminStudentPicker && adminStudentEditForm) {
+        adminStudentManageBtn.addEventListener('click', function () {
+          if (adminStudentManageBtn.disabled) return;
+          toggleAdminStudentEditor(true);
+        });
+      }
+
+      if (adminStudentHideBtn) {
+        adminStudentHideBtn.addEventListener('click', function () {
+          toggleAdminStudentEditor(false);
+        });
+      }
+
+      syncStudentManageButton();
+
+      if (staffCsvInput && staffPreviewWrap && staffPreviewBody) {
+        staffCsvInput.addEventListener('change', function () {
+          var file = staffCsvInput.files && staffCsvInput.files[0];
+          if (!file) {
+            staffPreviewWrap.style.display = 'none';
+            return;
+          }
+
+          var reader = new FileReader();
+          reader.onload = function () {
+            var text = String(reader.result || '').trim();
+            var lines = text.split(/\r?\n/).filter(Boolean);
+            if (lines.length <= 1) {
+              staffPreviewWrap.style.display = 'none';
+              return;
+            }
+
+            var headers = lines[0].split(',').map(function (h) { return h.trim().toLowerCase(); });
+            var idxUserId = headers.indexOf('user_id');
+            var idxName = headers.indexOf('full_name');
+            var idxEmail = headers.indexOf('email');
+            var idxRole = headers.indexOf('role');
+            var idxActive = headers.indexOf('is_active');
+
+            staffPreviewBody.innerHTML = '';
+            lines.slice(1, 11).forEach(function (line) {
+              var cols = line.split(',').map(function (x) { return x.trim(); });
+              var tr = document.createElement('tr');
+              tr.innerHTML =
+                '<td>' + (idxUserId >= 0 ? (cols[idxUserId] || '') : '') + '</td>' +
+                '<td>' + (idxName >= 0 ? (cols[idxName] || '') : '') + '</td>' +
+                '<td>' + (idxEmail >= 0 ? (cols[idxEmail] || '') : '') + '</td>' +
+                '<td>' + (idxRole >= 0 ? (cols[idxRole] || '') : 'teacher') + '</td>' +
+                '<td>' + (idxActive >= 0 ? (cols[idxActive] || '') : 'true') + '</td>';
+              staffPreviewBody.appendChild(tr);
+            });
+            staffPreviewWrap.style.display = 'block';
+          };
+          reader.readAsText(file);
+        });
+      }
+    })();
+  </script>
+
+  <script src="/js/inactivity.js"></script>
+</body>
+</html>
+
+
+
+
+
+
+
+

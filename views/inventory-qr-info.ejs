@@ -1,0 +1,62 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Inventory QR</title>
+  <link rel="stylesheet" href="/css/theme-c.css" />
+</head>
+<body>
+  <% if (currentUser && currentUser.role === 'admin') { %>
+    <%- include('partials/admin-nav') %>
+  <% } else { %>
+    <%- include('partials/teacher-nav') %>
+  <% } %>
+
+  <main class="container stack">
+    <section class="card device-page-head">
+      <div>
+        <h2><%= item.name %></h2>
+        <p class="muted">School inventory QR information.</p>
+      </div>
+      <div class="button-row">
+        <a class="btn secondary" href="/inventory">School Inventory</a>
+        <% if (Number(item.is_bookable) === 1 && item.linked_device_id) { %>
+          <a class="btn secondary" href="/devices?device_id=<%= item.linked_device_id %>">Book Linked Device</a>
+        <% } %>
+      </div>
+    </section>
+
+    <section class="card inventory-card">
+      <div class="inventory-card-head">
+        <div>
+          <h3><%= item.name %></h3>
+          <div class="muted"><%= item.code %> | <%= item.category %></div>
+        </div>
+        <span class="device-status-badge status-<%= String(item.status).replace(/_/g, '-') %>"><%= String(item.status).replace(/_/g, ' ') %></span>
+      </div>
+
+      <div class="device-booking-meta">
+        <div><span class="muted">Location</span><br /><strong><%= item.location %></strong></div>
+        <div><span class="muted">Condition</span><br /><strong><%= item.item_condition %></strong></div>
+        <div><span class="muted">Token ID</span><br /><code class="inventory-token"><%= item.token %></code></div>
+        <div>
+          <span class="muted">Device Booking</span><br />
+          <% if (Number(item.is_bookable) === 1 && item.linked_device_id) { %>
+            <a href="/devices?device_id=<%= item.linked_device_id %>"><%= item.linked_device_name %> (<%= item.linked_device_code %>)</a>
+          <% } else if (Number(item.is_bookable) === 1) { %>
+            <strong>Enabled</strong>
+          <% } else { %>
+            <strong>Not available for booking</strong>
+          <% } %>
+        </div>
+      </div>
+
+      <% if (item.notes) { %>
+        <div class="muted"><%= item.notes %></div>
+      <% } %>
+    </section>
+  </main>
+  <script src="/js/inactivity.js"></script>
+</body>
+</html>

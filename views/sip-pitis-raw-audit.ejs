@@ -1,0 +1,72 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>SIP PITIS Raw Audit</title>
+  <link rel="stylesheet" href="/css/theme-c.css" />
+</head>
+<body>
+  <%- include('partials/teacher-nav') %>
+  <main class="container stack sip-pitis-page">
+    <div class="calendar-header-row report-header-row">
+      <div>
+        <h2>Raw Audit</h2>
+        <p class="muted">Every PITIS activity date used to verify weekly SIP calculations.</p>
+      </div>
+      <div class="report-actions">
+        <a class="btn secondary" href="/teacher/reporting-tool/sip-pitis">Dashboard</a>
+        <a class="btn secondary" href="/teacher/reporting-tool/sip-pitis/raw-audit/export.csv?from=<%= audit.filters.from %>&to=<%= audit.filters.to %>">Excel CSV</a>
+        <button class="btn" type="button" onclick="window.print()">PDF / Print</button>
+      </div>
+    </div>
+
+    <form class="card form sip-pitis-filter print-hide" method="get" action="/teacher/reporting-tool/sip-pitis/raw-audit">
+      <label>From <input type="date" name="from" value="<%= audit.filters.from %>" /></label>
+      <label>To <input type="date" name="to" value="<%= audit.filters.to %>" /></label>
+      <button class="btn" type="submit">Apply</button>
+    </form>
+
+    <section class="card sip-matrix-wrap">
+      <div class="table-scroll">
+        <table class="sip-matrix">
+          <thead>
+            <tr>
+              <th>Teacher</th>
+              <th>Date</th>
+              <th>Day</th>
+              <th>Week</th>
+              <th>Term</th>
+              <th>Transactions</th>
+              <th>Students</th>
+              <th>Points</th>
+              <th>Counted?</th>
+              <th>Reason if excluded</th>
+            </tr>
+          </thead>
+          <tbody>
+            <% audit.rows.forEach(function(row) { %>
+              <tr>
+                <td><%= row.teacher %><br><span class="muted"><%= row.username %></span></td>
+                <td><%= row.date %></td>
+                <td><%= row.day %></td>
+                <td><%= row.weekNumber || '-' %></td>
+                <td><%= row.term || '-' %></td>
+                <td><%= row.transactionCount %></td>
+                <td><%= row.studentsRewarded %></td>
+                <td><%= row.pointsAwarded %></td>
+                <td><span class="sip-status <%= row.counted ? 'met' : 'excluded' %>"><%= row.counted ? 'Yes' : 'No' %></span></td>
+                <td><%= row.exclusionReason || '-' %></td>
+              </tr>
+            <% }) %>
+            <% if (!audit.rows.length) { %>
+              <tr><td colspan="10" class="muted">No PITIS transactions found for this date range.</td></tr>
+            <% } %>
+          </tbody>
+        </table>
+      </div>
+    </section>
+  </main>
+  <script src="/js/inactivity.js"></script>
+</body>
+</html>

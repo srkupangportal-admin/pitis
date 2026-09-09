@@ -1,0 +1,170 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Notes</title>
+  <link rel="stylesheet" href="/css/theme-c.css" />
+</head>
+<body>
+  <%- include(currentUser && currentUser.role === 'admin' ? 'partials/admin-nav' : 'partials/teacher-nav') %>
+  <main class="container stack">
+    <% if (error) { %>
+      <section class="card"><div class="error"><%= error %></div></section>
+    <% } %>
+    <% if (success) { %>
+      <section class="card"><div><%= success %></div></section>
+    <% } %>
+
+    <section class="card notes-head-card">
+      <details class="notes-collapsed-card">
+        <summary class="notes-card-summary">
+          <div>
+            <h2>Shared Notes</h2>
+            <p class="muted">Create meeting notes, reminders, and shared internal records. Updates and comments are logged for reference.</p>
+          </div>
+          <span class="btn subtle">Open Shared Notes</span>
+        </summary>
+
+        <div class="notes-section">
+          <div class="inline-filters">
+            <button class="btn" type="button" id="showNewNoteBtn">New Note</button>
+            <button class="btn secondary hidden" type="button" id="hideNewNoteBtn">Hide</button>
+          </div>
+
+          <div id="newNoteWrap" class="hidden">
+            <form method="post" action="/notes/add" class="form notes-new-form">
+              <label>Title
+                <input type="text" name="title" required placeholder="Meeting notes, follow-up items, reminders..." />
+              </label>
+              <label>Note
+                <textarea name="body" rows="6" required placeholder="Type your note here..."></textarea>
+              </label>
+              <div class="button-row">
+                <button class="btn" type="submit">Save Note</button>
+              </div>
+            </form>
+          </div>
+
+          <% if (!notes.length) { %>
+            <div class="muted">No notes yet. Click `New Note` to create the first shared note.</div>
+          <% } %>
+
+          <% notes.forEach(note => { %>
+            <details class="notes-card notes-collapsed-card">
+              <summary class="notes-card-summary">
+                <div>
+                  <h3><%= note.title %></h3>
+                  <div class="muted">
+                    Created by <%= note.created_by_name %> on <%= note.created_at %>
+                    <% if (note.updated_at) { %>
+                      | Updated by <%= note.updated_by_name || note.created_by_name %> on <%= note.updated_at %>
+                    <% } %>
+                  </div>
+                </div>
+                <span class="btn subtle">Open Note</span>
+              </summary>
+
+              <div class="notes-body-text"><%= note.body %></div>
+
+              <div class="button-row notes-action-row">
+                <a class="btn secondary" href="/notes/export/<%= note.id %>">Export to Word</a>
+                <a class="btn secondary" href="/notes/email/<%= note.id %>">Email Note</a>
+              </div>
+
+              <details class="notes-section">
+                <summary class="btn subtle">Edit Note</summary>
+                <form method="post" action="/notes/update/<%= note.id %>" class="form notes-edit-form">
+                  <label>Title
+                    <input type="text" name="title" value="<%= note.title %>" required />
+                  </label>
+                  <label>Note
+                    <textarea name="body" rows="6" required><%= note.body %></textarea>
+                  </label>
+                  <div class="button-row">
+                    <button class="btn" type="submit">Save Changes</button>
+                  </div>
+                </form>
+              </details>
+
+              <section class="notes-section">
+                <h4>Comments</h4>
+                <% if (!note.comments.length) { %>
+                  <div class="muted">No comments yet.</div>
+                <% } else { %>
+                  <div class="notes-comment-list">
+                    <% note.comments.forEach(comment => { %>
+                      <div class="notes-comment-item">
+                        <div class="notes-comment-meta"><strong><%= comment.created_by_name %></strong> <span class="muted"><%= comment.created_at %></span></div>
+                        <div><%= comment.comment_text %></div>
+                      </div>
+                    <% }) %>
+                  </div>
+                <% } %>
+
+                <form method="post" action="/notes/comment/<%= note.id %>" class="form notes-comment-form">
+                  <label>Add Comment
+                    <textarea name="comment_text" rows="3" required placeholder="Add follow-up, clarification, or extra note..."></textarea>
+                  </label>
+                  <div class="button-row">
+                    <button class="btn secondary" type="submit">Post Comment</button>
+                  </div>
+                </form>
+              </section>
+
+              <details class="notes-section">
+                <summary class="btn subtle">View Activity Log</summary>
+                <% if (!note.logs.length) { %>
+                  <div class="muted">No activity logged yet.</div>
+                <% } else { %>
+                  <div class="notes-log-list">
+                    <% note.logs.forEach(log => { %>
+                      <div class="notes-log-item">
+                        <strong><%= log.action_type %></strong>
+                        <span><%= log.log_details %></span>
+                        <span class="muted"><%= log.actor_name %> | <%= log.created_at %></span>
+                      </div>
+                    <% }) %>
+                  </div>
+                <% } %>
+              </details>
+            </details>
+          <% }) %>
+        </div>
+      </details>
+    </section>
+
+    <section class="card notes-head-card">
+      <div class="section-toggle-head">
+        <div>
+          <h2>Catatan Harian</h2>
+          <p class="muted">Rekod laporan harian pemakanan, aktiviti, dan catatan bertulis.</p>
+        </div>
+        <div class="inline-filters">
+          <a class="btn" href="/notes/catatan-harian">Buka Catatan Harian</a>
+        </div>
+      </div>
+    </section>
+
+  </main>
+
+  <script>
+    (function () {
+      var showBtn = document.getElementById('showNewNoteBtn');
+      var hideBtn = document.getElementById('hideNewNoteBtn');
+      var wrap = document.getElementById('newNoteWrap');
+
+      function sync(show) {
+        if (!wrap) return;
+        wrap.classList.toggle('hidden', !show);
+        if (showBtn) showBtn.classList.toggle('hidden', show);
+        if (hideBtn) hideBtn.classList.toggle('hidden', !show);
+      }
+
+      if (showBtn) showBtn.addEventListener('click', function () { sync(true); });
+      if (hideBtn) hideBtn.addEventListener('click', function () { sync(false); });
+    })();
+  </script>
+  <script src="/js/inactivity.js"></script>
+</body>
+</html>

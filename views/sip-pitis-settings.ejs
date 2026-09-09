@@ -1,0 +1,70 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>SIP PITIS Settings</title>
+  <link rel="stylesheet" href="/css/theme-c.css" />
+</head>
+<body>
+  <%- include('partials/teacher-nav') %>
+  <main class="container stack sip-pitis-page">
+    <div class="calendar-header-row report-header-row">
+      <div>
+        <h2>SIP PITIS Settings</h2>
+        <p class="muted">Admin controls for term targets and teacher account selection.</p>
+      </div>
+      <div class="report-actions">
+        <a class="btn secondary" href="/teacher/reporting-tool/sip-pitis">Dashboard</a>
+        <a class="btn secondary" href="/teacher/reporting-tool/sip-pitis/export.csv">Excel CSV</a>
+        <button class="btn" type="button" onclick="window.print()">PDF / Print</button>
+      </div>
+    </div>
+
+    <% if (saved) { %><div class="success-message">SIP PITIS settings saved.</div><% } %>
+
+    <form class="card form stack" method="post" action="/teacher/reporting-tool/sip-pitis/settings">
+      <section>
+        <h3>Term Targets</h3>
+        <div class="sip-settings-grid">
+          <% [1,2,3,4].forEach(function(term) { %>
+            <label>Term <%= term %>
+              <input type="number" min="0" name="target_term_<%= term %>" value="<%= settings.termTargets[term] %>" />
+            </label>
+          <% }) %>
+          <label>Target denominator
+            <input type="number" min="1" name="teacher_target_total" value="<%= settings.teacherTargetTotal %>" />
+          </label>
+        </div>
+      </section>
+
+      <section>
+        <h3>Excluded Accounts</h3>
+        <label>Excluded usernames
+          <input type="text" name="excluded_usernames" value="<%= settings.excludedUsernames.join(', ') %>" />
+        </label>
+      </section>
+
+      <section>
+        <h3>Teacher Accounts</h3>
+        <p class="muted">Select portal accounts that count as teachers in the SIP PITIS dashboard.</p>
+        <div class="sip-teacher-select-grid">
+          <% var selected = new Set(settings.selectedTeacherIds || candidates.map(function(candidate) { return candidate.id; })); %>
+          <% candidates.forEach(function(candidate) { %>
+            <label class="reward-tile pitis-usage-user-card <%= selected.has(candidate.id) ? 'selected' : '' %>">
+              <input type="checkbox" name="teacher_user_ids" value="<%= candidate.id %>" <%= selected.has(candidate.id) ? 'checked' : '' %> />
+              <strong><%= candidate.display_name %></strong>
+              <span class="muted"><%= candidate.username %> · <%= candidate.user_type %></span>
+            </label>
+          <% }) %>
+        </div>
+      </section>
+
+      <div class="reward-bulk-actions">
+        <button class="btn" type="submit">Save Settings</button>
+      </div>
+    </form>
+  </main>
+  <script src="/js/inactivity.js"></script>
+</body>
+</html>

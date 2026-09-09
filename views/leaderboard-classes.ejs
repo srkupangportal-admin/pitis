@@ -1,0 +1,615 @@
+﻿<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>P.I.T.I.S Leaders</title>
+  <link rel="stylesheet" href="/css/theme-c.css?v=20260901-tier-card-fit-2" />
+</head>
+<body class="leaderboard-bg">
+  <%- include('partials/main-header-card') %>
+  <main class="container leaderboard-class-shell">
+    <section class="leaderboard-list-shell leaderboard-scope-shell">
+      <div class="leaderboard-scope-actions">
+        <label class="leaderboard-scope-label">Slideshow Scope
+          <select id="leaderboardScopeSelect">
+            <option value="school">Whole School</option>
+            <% classes.forEach(cls => { %>
+              <option value="<%= cls.id %>"><%= cls.name %></option>
+            <% }) %>
+          </select>
+        </label>
+        <div class="leaderboard-scope-buttons">
+          <button type="button" class="btn subtle secondary" id="leaderboardExportOpenBtn">Export Leaderboard</button>
+          <button type="button" class="btn" id="leaderboardScopeSlideshowBtn">Play as Slideshow</button>
+        </div>
+      </div>
+    </section>
+
+    <section class="card leaderboard-main-class-shortcuts">
+      <div class="attendance-class-shortcuts">
+        <% classes.forEach(cls => { %>
+          <a class="card action-card attendance-class-shortcut-card" href="/leaderboard/<%= cls.id %>"><%= cls.name %></a>
+        <% }) %>
+      </div>
+    </section>
+
+    <section class="leaderboard-ref" style="margin-top:14px;">
+      <div class="leaderboard-list-shell">
+        <h3 style="margin:0 0 10px;">Whole School Top 10</h3>
+        <% 
+          function ordinal(rank) {
+            const n = Number(rank || 0);
+            const mod100 = n % 100;
+            if (mod100 >= 11 && mod100 <= 13) return n + 'th';
+            const mod10 = n % 10;
+            if (mod10 === 1) return n + 'st';
+            if (mod10 === 2) return n + 'nd';
+            if (mod10 === 3) return n + 'rd';
+            return n + 'th';
+          }
+          function shortDate(iso) {
+            if (!iso) return '-';
+            const d = new Date(iso);
+            if (Number.isNaN(d.getTime())) return '-';
+            return d.toLocaleDateString();
+          }
+          function pitisText(total) {
+            return Number(total || 0).toLocaleString() + ' pitis';
+          }
+        %>
+        <% if (!schoolTop10 || !schoolTop10.length) { %>
+          <div class="muted">No pitis data yet.</div>
+        <% } %>
+        <% if (schoolTop10 && schoolTop10.length) { %>
+          <% const podiumEntries = [
+            schoolTop10[1] ? { student: schoolTop10[1], place: 2, slot: 'second', medal: 'Silver Star' } : null,
+            schoolTop10[0] ? { student: schoolTop10[0], place: 1, slot: 'first', medal: 'Gold Champion' } : null,
+            schoolTop10[2] ? { student: schoolTop10[2], place: 3, slot: 'third', medal: 'Bronze Star' } : null
+          ].filter(Boolean); %>
+          <section class="leaderboard-podium animated-podium whole-school-podium" aria-label="Whole school top three P.I.T.I.S leaders">
+            <% podiumEntries.forEach(function (entry) { const st = entry.student; const photo = String(st.photo_url || '').trim() || ('https://api.dicebear.com/7.x/adventurer/svg?seed=' + encodeURIComponent(st.nickname || 'student')); %>
+              <article class="podium-card animated-podium-card <%= entry.slot %>" style="--podium-place:<%= entry.place %>">
+                <% if (entry.place === 1) { %><div class="podium-crown" aria-hidden="true">♛</div><% } %>
+                <div class="podium-medal"><%= entry.place %></div>
+                <div class="podium-student">
+                  <button type="button" class="leaderboard-photo-button" data-photo-src="<%= photo %>" data-photo-name="<%= st.nickname %>" aria-label="Open larger photo of <%= st.nickname %>">
+                    <img class="podium-photo" src="<%= photo %>" alt="<%= st.nickname %>" />
+                  </button>
+                  <a href="/teacher/students/<%= st.id %>" class="podium-name student-detail-link"><%= st.nickname %></a>
+                  <div class="podium-class-chip"><%= st.class_name %></div>
+                  <span class="pitis-tier pitis-tier-<%= st.tier.key %>" title="<%= st.tier.range %> P.I.T.I.S."><%= st.tier.label %> tier</span>
+                  <div class="podium-points"><%= pitisText(st.total_points) %></div>
+                </div>
+                <div class="podium-step"><strong><%= entry.place %></strong><span><%= entry.medal %></span></div>
+              </article>
+            <% }) %>
+          </section>
+          <div class="leaderboard-divider fancy"></div>
+        <% } %>
+        <div class="leaderboard-list">
+          <% (schoolTop10 || []).slice(3).forEach((st, idx) => {
+               const photo = String(st.photo_url || '').trim() || ('https://api.dicebear.com/7.x/adventurer/svg?seed=' + encodeURIComponent(st.nickname || 'student'));
+               const rank = idx + 4;
+          %>
+            <article class="leaderboard-row layout-ref rank-<%= rank <= 3 ? rank : 0 %>">
+              <div class="row-left">
+                <button type="button" class="leaderboard-photo-button" data-photo-src="<%= photo %>" data-photo-name="<%= st.nickname %>" aria-label="Open larger photo of <%= st.nickname %>">
+                  <img class="avatar-photo" src="<%= photo %>" alt="<%= st.nickname %>" />
+                </button>
+                <a href="/teacher/students/<%= st.id %>" class="name-block student-detail-link">
+                  <div class="name-text"><%= st.nickname %></div>
+                </a>
+              </div>
+              <div class="row-mid">
+                <div class="mid-line">Last awarded: <%= shortDate(st.last_awarded_at) %></div>
+                <div class="mid-line">Reason: <%= st.last_reason || '-' %></div>
+              </div>
+              <div class="row-right">
+                <span class="pitis-tier pitis-tier-<%= st.tier.key %>" title="<%= st.tier.range %> P.I.T.I.S."><%= st.tier.label %> tier</span>
+                <span class="pitis-total-badge"><%= pitisText(st.total_points) %></span>
+              </div>
+            </article>
+          <% }) %>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <div id="leaderboardScopeSlideshowModal" class="reward-modal hidden leaderboard-slideshow-modal" aria-hidden="true">
+    <div class="reward-modal-card leaderboard-slideshow-card">
+      <div class="reward-photo-modal-head">
+        <h3>P.I.T.I.S Leaders Slideshow</h3>
+        <div class="inline-filters">
+          <button type="button" class="btn subtle secondary" id="leaderboardScopeFullscreenBtn">Fullscreen</button>
+          <button type="button" class="btn subtle secondary" id="leaderboardScopeCloseBtn">Exit</button>
+        </div>
+      </div>
+      <div class="leaderboard-slideshow-stage">
+        <div class="leaderboard-celebration-layer" id="leaderboardScopeCelebrationLayer" aria-hidden="true"></div>
+        <div class="leaderboard-slideshow-class" id="leaderboardScopeTitle">Whole School</div>
+        <div class="leaderboard-slideshow-grid" id="leaderboardScopeGrid"></div>
+      </div>
+    </div>
+  </div>
+
+  <div id="leaderboardExportModal" class="reward-modal hidden leaderboard-export-modal" aria-hidden="true">
+    <div class="reward-modal-card leaderboard-export-card" role="dialog" aria-modal="true" aria-labelledby="leaderboardExportTitle">
+      <div class="reward-photo-modal-head">
+        <div>
+          <h3 id="leaderboardExportTitle">Export Leaderboard</h3>
+          <p class="leaderboard-export-help">Choose Whole School or select one or more classes. The current rankings will be downloaded as a CSV file.</p>
+        </div>
+        <button type="button" class="btn subtle secondary" id="leaderboardExportCloseBtn">Close</button>
+      </div>
+      <div class="leaderboard-export-options" id="leaderboardExportOptions">
+        <label class="leaderboard-export-option leaderboard-export-school-option">
+          <input type="checkbox" value="school" data-export-scope checked />
+          <span><strong>Whole School</strong><small>Export every student using the school-wide ranking.</small></span>
+        </label>
+        <div class="leaderboard-export-divider"><span>or select class</span></div>
+        <div class="leaderboard-export-class-grid">
+          <% classes.forEach(cls => { %>
+            <label class="leaderboard-export-option">
+              <input type="checkbox" value="<%= cls.id %>" data-export-scope />
+              <span><strong><%= cls.name %></strong></span>
+            </label>
+          <% }) %>
+        </div>
+      </div>
+      <div class="leaderboard-export-footer">
+        <div class="leaderboard-export-status" id="leaderboardExportStatus" role="status" aria-live="polite"></div>
+        <button type="button" class="btn" id="leaderboardExportDownloadBtn">Download CSV</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="leaderboardPhotoModal" class="reward-modal hidden leaderboard-photo-modal" aria-hidden="true">
+    <div class="reward-modal-card leaderboard-photo-modal-card">
+      <div class="reward-photo-modal-head">
+        <h3 id="leaderboardPhotoModalName">Student photo</h3>
+        <button type="button" class="btn subtle secondary" id="leaderboardPhotoModalCloseBtn">Close</button>
+      </div>
+      <img id="leaderboardPhotoModalImg" class="leaderboard-photo-large" alt="Student photo" />
+    </div>
+  </div>
+
+  <script id="leaderboardSchoolRows" type="application/json"><%- JSON.stringify(schoolRows || []) %></script>
+  <script id="leaderboardSchoolSpotlightRows" type="application/json"><%- JSON.stringify(schoolSpotlightRows || []) %></script>
+  <script>
+    (function () {
+      var scopeSelect = document.getElementById('leaderboardScopeSelect');
+      var slideshowBtn = document.getElementById('leaderboardScopeSlideshowBtn');
+      var modal = document.getElementById('leaderboardScopeSlideshowModal');
+      var closeBtn = document.getElementById('leaderboardScopeCloseBtn');
+      var fullscreenBtn = document.getElementById('leaderboardScopeFullscreenBtn');
+      var titleEl = document.getElementById('leaderboardScopeTitle');
+      var gridEl = document.getElementById('leaderboardScopeGrid');
+      var celebrationLayer = document.getElementById('leaderboardScopeCelebrationLayer');
+      var schoolRowsEl = document.getElementById('leaderboardSchoolRows');
+      var schoolSpotlightRowsEl = document.getElementById('leaderboardSchoolSpotlightRows');
+      var exportModal = document.getElementById('leaderboardExportModal');
+      var exportOpenBtn = document.getElementById('leaderboardExportOpenBtn');
+      var exportCloseBtn = document.getElementById('leaderboardExportCloseBtn');
+      var exportDownloadBtn = document.getElementById('leaderboardExportDownloadBtn');
+      var exportOptions = document.getElementById('leaderboardExportOptions');
+      var exportStatus = document.getElementById('leaderboardExportStatus');
+      var photoModal = document.getElementById('leaderboardPhotoModal');
+      var photoModalImg = document.getElementById('leaderboardPhotoModalImg');
+      var photoModalName = document.getElementById('leaderboardPhotoModalName');
+      var photoModalCloseBtn = document.getElementById('leaderboardPhotoModalCloseBtn');
+      var classes = <%- JSON.stringify(classes || []).replace(/</g, '\\u003c') %>;
+      var slideshowDurationMs = Math.max(1500, Math.min(30000, Number(<%- JSON.stringify(slideshowDurationMs || 4000) %>)));
+      var slideshowMode = <%- JSON.stringify(slideshowMode || 'points') %>;
+      var configuredSlideshowStudentCount = Math.max(1, Math.min(12, Number(<%- JSON.stringify(slideshowStudentCount || 8) %>)));
+      var slideshowTimer = null;
+      var slideshowGroups = [];
+      var slideshowIndex = 0;
+
+      function parseRows() {
+        if (!schoolRowsEl) return [];
+        try {
+          return JSON.parse(schoolRowsEl.textContent || '[]');
+        } catch (_) {
+          return [];
+        }
+      }
+
+      function avatarFromRow(row) {
+        var photo = String(row.photo_url || '').trim();
+        if (photo) return photo;
+        var seed = encodeURIComponent(String(row.nickname || 'student'));
+        return 'https://api.dicebear.com/7.x/adventurer/svg?seed=' + seed;
+      }
+
+      function withRanks(rows) {
+        var prevPts = null;
+        var prevRank = 0;
+        return rows.map(function (row, index) {
+          var pts = Number(row.total_points || 0);
+          var rank = (prevPts !== null && pts === prevPts) ? prevRank : (index + 1);
+          prevPts = pts;
+          prevRank = rank;
+          return {
+            id: row.id,
+            nickname: String(row.nickname || '?'),
+            photo_url: avatarFromRow(row),
+            total_points: pts,
+            weekly_points: Number(row.weekly_points || 0),
+            rank: rank,
+            tier: row.tier || tierFor(pts),
+            class_name: row.class_name || '',
+            last_awarded_at: row.last_awarded_at || '',
+            last_reason: row.last_reason || ''
+          };
+        });
+      }
+
+      function orderRowsForSlideshow(rows) {
+        var ordered = rows.slice();
+        if (slideshowMode === 'class') {
+          ordered.sort(function (a, b) {
+            var ca = String(a.class_name || '').toLowerCase();
+            var cb = String(b.class_name || '').toLowerCase();
+            if (ca < cb) return -1;
+            if (ca > cb) return 1;
+            return Number(b.total_points || 0) - Number(a.total_points || 0);
+          });
+        }
+        return ordered;
+      }
+
+      function ordinal(rank) {
+        var n = Number(rank);
+        var mod100 = n % 100;
+        if (mod100 >= 11 && mod100 <= 13) return n + 'th';
+        var mod10 = n % 10;
+        if (mod10 === 1) return n + 'st';
+        if (mod10 === 2) return n + 'nd';
+        if (mod10 === 3) return n + 'rd';
+        return n + 'th';
+      }
+
+      function escapeHtml(value) {
+        return String(value == null ? '' : value)
+          .replace(/&/g, '&amp;')
+          .replace(/</g, '&lt;')
+          .replace(/>/g, '&gt;')
+          .replace(/"/g, '&quot;')
+          .replace(/'/g, '&#39;');
+      }
+
+      function tierFor(total) {
+        var points = Number(total || 0);
+        if (points >= 320) return { key: 'gold', label: 'Gold', range: '320+' };
+        if (points >= 240) return { key: 'silver', label: 'Silver', range: '240–319' };
+        if (points >= 160) return { key: 'bronze', label: 'Bronze', range: '160–239' };
+        if (points >= 80) return { key: 'rising', label: 'Rising', range: '80–159' };
+        return { key: 'starter', label: 'Starter', range: '0–79' };
+      }
+
+      function tierBadge(row) {
+        var tier = row.tier || tierFor(row.total_points);
+        return '<span class="pitis-tier pitis-tier-' + escapeHtml(tier.key) + '" title="' + escapeHtml(tier.range) + ' P.I.T.I.S.">' + escapeHtml(tier.label) + ' tier</span>';
+      }
+
+      function chunkRows(rows, size) {
+        var groups = [];
+        for (var i = 0; i < rows.length; i += size) {
+          groups.push(rows.slice(i, i + size));
+        }
+        return groups;
+      }
+
+      function slideshowPageSize(scopeTitle) {
+        if (scopeTitle === 'Whole School') return 10;
+        var viewportMax = 4;
+        if (window.innerWidth >= 720) viewportMax = 8;
+        if (window.innerWidth >= 1000 && window.innerHeight >= 600) viewportMax = 18;
+        var adaptiveMinimum = viewportMax >= 18 ? 18 : (viewportMax >= 8 ? 8 : 1);
+        var configuredTarget = Math.max(adaptiveMinimum, configuredSlideshowStudentCount);
+        return Math.max(1, Math.min(configuredTarget, viewportMax));
+      }
+
+      function renderGroup(group) {
+        if (!gridEl) return;
+        gridEl.classList.remove('is-spotlight');
+        gridEl.setAttribute('data-slide-size', String(group.length || slideshowPageSize()));
+        gridEl.innerHTML = group.map(function (row) {
+          return '<article class="leaderboard-slideshow-student-card">'
+            + '<div class="leaderboard-slideshow-rank">' + ordinal(row.rank) + '</div>'
+            + '<a class="student-detail-link" href="/teacher/students/' + encodeURIComponent(row.id || '') + '"><img class="leaderboard-slideshow-photo" src="' + escapeHtml(row.photo_url) + '" alt="' + escapeHtml(row.nickname) + '" /></a>'
+            + '<a class="leaderboard-slideshow-name student-detail-link" href="/teacher/students/' + encodeURIComponent(row.id || '') + '">' + escapeHtml(row.nickname) + '</a>'
+            + (row.class_name ? '<div class="leaderboard-slideshow-class-chip">' + escapeHtml(row.class_name) + '</div>' : '')
+            + tierBadge(row)
+            + '<div class="leaderboard-slideshow-points">' + row.total_points.toLocaleString() + ' pitis</div>'
+            + '</article>';
+        }).join('');
+      }
+
+      function parseSchoolSpotlightRows() {
+        if (!schoolSpotlightRowsEl) return [];
+        try { return JSON.parse(schoolSpotlightRowsEl.textContent || '[]'); } catch (_) { return []; }
+      }
+
+      function spotlightCard(row, place) {
+        var title = 'Today’s P.I.T.I.S Spotlight';
+        return '<article class="leaderboard-spotlight-card spotlight-place-' + place + '">'
+          + '<div class="leaderboard-spotlight-kicker">Daily Student Spotlight</div>'
+          + '<div class="leaderboard-spotlight-medal">★</div>'
+          + '<a class="student-detail-link" href="/teacher/students/' + encodeURIComponent(row.id || '') + '"><img class="leaderboard-spotlight-photo" src="' + escapeHtml(row.photo_url) + '" alt="' + escapeHtml(row.nickname) + '" /></a>'
+          + '<div class="leaderboard-spotlight-copy"><h2>' + escapeHtml(row.nickname) + '</h2>'
+          + '<div class="leaderboard-spotlight-title">' + title + '</div>'
+          + (row.class_name ? '<div class="leaderboard-slideshow-class-chip">' + escapeHtml(row.class_name) + '</div>' : '')
+          + tierBadge(row)
+          + '<div class="leaderboard-spotlight-stats"><strong>' + Number(row.total_points || 0).toLocaleString() + '</strong><span>Total P.I.T.I.S</span><strong>' + Number(row.weekly_points || 0).toLocaleString() + '</strong><span>Positive points this week</span></div>'
+          + '<p>Latest recognition: <strong>' + escapeHtml(row.last_reason || '-') + '</strong></p></div></article>';
+      }
+
+      function fitSpotlightName() {
+        window.requestAnimationFrame(function () {
+          var nameEl = gridEl && gridEl.querySelector('.leaderboard-spotlight-copy h2');
+          if (!nameEl) return;
+          nameEl.style.fontSize = '';
+          var size = Number.parseFloat(window.getComputedStyle(nameEl).fontSize) || 38;
+          var minimumSize = window.innerWidth <= 700 ? 14 : 16;
+          while (size > minimumSize && nameEl.scrollWidth > nameEl.clientWidth) {
+            size -= 2;
+            nameEl.style.fontSize = size + 'px';
+          }
+        });
+      }
+
+      function celebrate(intensity) {
+        if (!celebrationLayer || window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+        celebrationLayer.innerHTML = '';
+        var colors = ['#d6aa36', '#2f7a5d', '#f2d56b', '#ffffff', '#b56f47'];
+        var count = intensity === 'champion' ? 28 : 16;
+        for (var i = 0; i < count; i += 1) {
+          var piece = document.createElement('span');
+          piece.className = 'leaderboard-celebration-piece';
+          piece.style.setProperty('--x', (4 + Math.random() * 92) + '%');
+          piece.style.setProperty('--delay', (Math.random() * .35) + 's');
+          piece.style.setProperty('--drift', ((Math.random() - .5) * 130) + 'px');
+          piece.style.background = colors[i % colors.length];
+          celebrationLayer.appendChild(piece);
+        }
+        window.setTimeout(function () { celebrationLayer.innerHTML = ''; }, 2300);
+      }
+
+      function renderSlide(slide) {
+        if (!slide || !gridEl) return;
+        if (slide.type === 'spotlight') {
+          gridEl.classList.add('is-spotlight');
+          gridEl.setAttribute('data-slide-size', 'spotlight');
+          gridEl.innerHTML = spotlightCard(slide.row, slide.place);
+          fitSpotlightName();
+          celebrate(slide.place === 1 ? 'champion' : 'spotlight');
+          return;
+        }
+        renderGroup(slide.rows);
+      }
+
+      function clearTimer() {
+        if (slideshowTimer) {
+          window.clearInterval(slideshowTimer);
+          slideshowTimer = null;
+        }
+      }
+
+      function isFullscreenActive() {
+        return !!document.fullscreenElement;
+      }
+
+      function syncFullscreenButton() {
+        if (!fullscreenBtn) return;
+        fullscreenBtn.textContent = isFullscreenActive() ? 'Exit Fullscreen' : 'Fullscreen';
+      }
+
+      function startSlideshow(rows, title, selectedSpotlights) {
+        var rankedByPoints = withRanks(rows);
+        var ordered = orderRowsForSlideshow(rankedByPoints);
+        var byId = new Map(rankedByPoints.map(function (row) { return [String(row.id), row]; }));
+        if (gridEl) gridEl.classList.toggle('is-whole-school-grid', title === 'Whole School');
+        slideshowGroups = (selectedSpotlights || []).map(function (selected, index) { return { type: 'spotlight', row: byId.get(String(selected.id)), place: index + 1 }; }).filter(function (slide) { return !!slide.row; })
+          .concat(chunkRows(ordered, slideshowPageSize(title)).map(function (group) { return { type: 'grid', rows: group }; }));
+        if (!slideshowGroups.length || !modal) return;
+        slideshowIndex = 0;
+        if (titleEl) titleEl.textContent = title;
+        renderSlide(slideshowGroups[0]);
+        modal.classList.remove('hidden');
+        modal.setAttribute('aria-hidden', 'false');
+        clearTimer();
+        slideshowTimer = window.setInterval(function () {
+          slideshowIndex = (slideshowIndex + 1) % slideshowGroups.length;
+          renderSlide(slideshowGroups[slideshowIndex]);
+        }, slideshowDurationMs);
+      }
+
+      function stopSlideshow() {
+        clearTimer();
+        if (isFullscreenActive() && document.exitFullscreen) {
+          document.exitFullscreen().catch(function () {});
+        }
+        if (!modal) return;
+        modal.classList.add('hidden');
+        modal.setAttribute('aria-hidden', 'true');
+        if (gridEl) gridEl.innerHTML = '';
+      }
+
+      function toggleFullscreen() {
+        if (!modal) return;
+        if (isFullscreenActive()) {
+          if (document.exitFullscreen) document.exitFullscreen().catch(function () {});
+          return;
+        }
+        if (modal.requestFullscreen) modal.requestFullscreen().catch(function () {});
+      }
+
+      function openPhotoModal(src, name) {
+        if (!photoModal || !photoModalImg) return;
+        photoModalImg.src = src;
+        photoModalImg.alt = name || 'Student photo';
+        if (photoModalName) photoModalName.textContent = name || 'Student photo';
+        photoModal.classList.remove('hidden');
+        photoModal.setAttribute('aria-hidden', 'false');
+      }
+
+      function closePhotoModal() {
+        if (!photoModal) return;
+        photoModal.classList.add('hidden');
+        photoModal.setAttribute('aria-hidden', 'true');
+        if (photoModalImg) photoModalImg.removeAttribute('src');
+      }
+
+      function exportCheckboxes() {
+        return Array.prototype.slice.call(document.querySelectorAll('[data-export-scope]'));
+      }
+
+      function openExportModal() {
+        if (!exportModal) return;
+        if (exportStatus) exportStatus.textContent = '';
+        exportModal.classList.remove('hidden');
+        exportModal.setAttribute('aria-hidden', 'false');
+      }
+
+      function closeExportModal() {
+        if (!exportModal) return;
+        exportModal.classList.add('hidden');
+        exportModal.setAttribute('aria-hidden', 'true');
+      }
+
+      function syncExportSelection(changedCheckbox) {
+        var checkboxes = exportCheckboxes();
+        var schoolCheckbox = checkboxes.find(function (checkbox) { return checkbox.value === 'school'; });
+        if (!schoolCheckbox || !changedCheckbox.checked) return;
+        if (changedCheckbox.value === 'school') {
+          checkboxes.forEach(function (checkbox) {
+            if (checkbox !== schoolCheckbox) checkbox.checked = false;
+          });
+        } else {
+          schoolCheckbox.checked = false;
+        }
+        if (exportStatus) exportStatus.textContent = '';
+      }
+
+      function csvCell(value) {
+        var text = String(value == null ? '' : value).replace(/\r?\n/g, ' ');
+        return '"' + text.replace(/"/g, '""') + '"';
+      }
+
+      function rankedExportRows(rows) {
+        var ordered = rows.slice().sort(function (a, b) {
+          var pointDifference = Number(b.total_points || 0) - Number(a.total_points || 0);
+          if (pointDifference) return pointDifference;
+          var classDifference = String(a.class_name || '').localeCompare(String(b.class_name || ''));
+          if (classDifference) return classDifference;
+          return String(a.nickname || '').localeCompare(String(b.nickname || ''));
+        });
+        return withRanks(ordered);
+      }
+
+      function exportLeaderboard() {
+        var selected = exportCheckboxes().filter(function (checkbox) { return checkbox.checked; });
+        if (!selected.length) {
+          if (exportStatus) exportStatus.textContent = 'Select Whole School or at least one class.';
+          return;
+        }
+
+        var allRows = parseRows();
+        var outputRows = [];
+        selected.forEach(function (checkbox) {
+          var isSchool = checkbox.value === 'school';
+          var foundClass = classes.find(function (item) { return String(item.id) === checkbox.value; });
+          var scopeName = isSchool ? 'Whole School' : (foundClass ? foundClass.name : 'Class');
+          var scopedRows = isSchool ? allRows : allRows.filter(function (row) { return String(row.class_id) === checkbox.value; });
+          rankedExportRows(scopedRows).forEach(function (row) {
+            outputRows.push([
+              scopeName,
+              row.rank,
+              row.nickname,
+              row.class_name,
+              row.total_points,
+              row.weekly_points,
+              row.tier ? row.tier.label : tierFor(row.total_points).label,
+              row.last_awarded_at || '',
+              row.last_reason || ''
+            ]);
+          });
+        });
+
+        var csvRows = [['Scope', 'Rank', 'Student', 'Class', 'Total Pitis', 'Weekly Pitis', 'Tier', 'Last Awarded', 'Latest Reason']].concat(outputRows);
+        var csv = '\uFEFF' + csvRows.map(function (row) { return row.map(csvCell).join(','); }).join('\r\n');
+        var blob = new Blob([csv], { type: 'text/csv;charset=utf-8' });
+        var link = document.createElement('a');
+        var date = new Date().toISOString().slice(0, 10);
+        var downloadUrl = URL.createObjectURL(blob);
+        link.href = downloadUrl;
+        link.download = 'pitis-leaderboard-' + date + '.csv';
+        document.body.appendChild(link);
+        link.click();
+        link.remove();
+        window.setTimeout(function () { URL.revokeObjectURL(downloadUrl); }, 1000);
+        closeExportModal();
+      }
+
+      function loadAndPlaySelection() {
+        if (!scopeSelect) return;
+        var value = String(scopeSelect.value || 'school');
+        if (value === 'school') {
+          startSlideshow(parseRows(), 'Whole School', parseSchoolSpotlightRows());
+          return;
+        }
+        fetch('/api/leaderboard/' + encodeURIComponent(value))
+          .then(function (res) { return res.json(); })
+          .then(function (data) {
+            var found = classes.find(function (item) { return String(item.id) === value; });
+            startSlideshow(data.rows || [], found ? found.name : 'Selected Class', data.spotlightRows || []);
+          })
+          .catch(function () {});
+      }
+
+      if (slideshowBtn) slideshowBtn.addEventListener('click', loadAndPlaySelection);
+      if (exportOpenBtn) exportOpenBtn.addEventListener('click', openExportModal);
+      if (exportCloseBtn) exportCloseBtn.addEventListener('click', closeExportModal);
+      if (exportDownloadBtn) exportDownloadBtn.addEventListener('click', exportLeaderboard);
+      if (exportOptions) {
+        exportOptions.addEventListener('change', function (event) {
+          if (event.target && event.target.hasAttribute('data-export-scope')) syncExportSelection(event.target);
+        });
+      }
+      if (exportModal) {
+        exportModal.addEventListener('click', function (event) {
+          if (event.target === exportModal) closeExportModal();
+        });
+      }
+      if (closeBtn) closeBtn.addEventListener('click', stopSlideshow);
+      if (fullscreenBtn) fullscreenBtn.addEventListener('click', toggleFullscreen);
+      if (modal) {
+        modal.addEventListener('click', function (event) {
+          if (event.target === modal) stopSlideshow();
+        });
+      }
+      document.addEventListener('click', function (event) {
+        var photoBtn = event.target.closest ? event.target.closest('.leaderboard-photo-button') : null;
+        if (photoBtn) openPhotoModal(photoBtn.getAttribute('data-photo-src') || '', photoBtn.getAttribute('data-photo-name') || '');
+      });
+      if (photoModalCloseBtn) photoModalCloseBtn.addEventListener('click', closePhotoModal);
+      if (photoModal) {
+        photoModal.addEventListener('click', function (event) {
+          if (event.target === photoModal) closePhotoModal();
+        });
+      }
+      document.addEventListener('fullscreenchange', syncFullscreenButton);
+      document.addEventListener('keydown', function (event) {
+        if (event.key === 'Escape') {
+          stopSlideshow();
+          closePhotoModal();
+          closeExportModal();
+        }
+      });
+      syncFullscreenButton();
+    })();
+  </script>
+</body>
+</html>

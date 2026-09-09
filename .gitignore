@@ -1,0 +1,83 @@
+# Dependencies
+node_modules/
+
+# Environment files and local secrets. Only the redacted example is versioned.
+.env
+.env.*
+!.env.example
+env.env
+env.env.txt
+original.env
+beforehttps.env
+
+# Runtime databases and SQLite sidecar files
+data/
+database/
+*.db
+*.db-*
+*.sqlite
+*.sqlite-*
+*.sqlite3
+*.sqlite3-*
+
+# Certificates and private keys
+certs/
+ssl/
+*.key
+*.crt
+*.pem
+*.p12
+*.pfx
+
+# Runtime logs
+logs/
+*.log
+*.err
+*.out
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Backups, migration snapshots and archives
+backup/
+backups/
+private-migration/
+*.bak
+*.backup
+*.tar
+*.tar.gz
+*.tgz
+*.zip
+
+# User-generated files and local resources
+uploads/
+public/uploads/
+resources/
+public/resources/
+
+# Local student imports/exports and duplicate legacy checkout
+students*.csv
+cleaned-student-details-template.csv
+srkupangPORTAL/
+
+# Build and test output
+dist/
+build/
+.next/
+out/
+coverage/
+.nyc_output/
+
+# Caches and temporary files
+.cache/
+.tmp/
+tmp/
+temp/
+*.tmp
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# Editor settings
+.vscode/
+.idea/

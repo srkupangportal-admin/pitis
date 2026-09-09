@@ -1,0 +1,227 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Informations</title>
+  <link rel="stylesheet" href="/css/theme-c.css" />
+</head>
+<body>
+  <% if (user && user.role === 'admin') { %>
+    <%- include('partials/admin-nav') %>
+  <% } else { %>
+    <%- include('partials/teacher-nav') %>
+  <% } %>
+
+  <main class="container stack">
+    <% if (error) { %>
+      <section class="card"><div class="error"><%= error %></div></section>
+    <% } %>
+    <% if (success) { %>
+      <section class="card"><div><%= success %></div></section>
+    <% } %>
+
+    <section class="card info-head-card">
+      <div class="section-toggle-head">
+        <div>
+          <h2>School Informations</h2>
+          <p class="muted">Open a PDF in the browser, or upload one or more PDFs into an existing category or a new category. Uploaded files automatically use their filename as the title.</p>
+        </div>
+        <div class="inline-filters info-sort-actions">
+          <a class="btn <%= sort === 'date' ? '' : 'secondary' %>" href="/informations?sort=date">Upload Date</a>
+          <a class="btn <%= sort === 'alpha' ? '' : 'secondary' %>" href="/informations?sort=alpha">Alphabetical</a>
+          <button class="btn" type="button" id="showInfoUploadBtn">Show Upload Form</button>
+          <button class="btn secondary" type="button" id="hideInfoUploadBtn" style="display:none;">Hide</button>
+        </div>
+      </div>
+
+      <div id="infoUploadWrap" style="display:none; margin-top:12px;">
+        <form method="post" action="/informations/upload" enctype="multipart/form-data" class="stack">
+          <div class="inline-filters">
+            <label style="min-width:240px; flex:1 1 260px;">Existing Category
+              <select name="folder_id" id="infoExistingCategory">
+                <option value="">Select category</option>
+                <option value="__guidelines__">Guidelines</option>
+                <% (infoFolders || []).forEach(function (folder) { %>
+                  <option value="<%= folder.id %>"><%= folder.name %></option>
+                <% }) %>
+              </select>
+            </label>
+            <label style="min-width:240px; flex:1 1 260px;">New Category
+              <input type="text" name="new_category" id="infoNewCategory" placeholder="Create new category" />
+            </label>
+            <label style="min-width:260px; flex:1 1 340px;">PDF File(s)
+              <input type="file" name="information_pdf" accept="application/pdf,.pdf" multiple required />
+            </label>
+            <button class="btn" type="submit">Upload PDF</button>
+          </div>
+        </form>
+        <div class="muted">Choose one existing category or enter one new category. The uploaded PDF filename becomes the title automatically.</div>
+      </div>
+    </section>
+
+    <section class="card">
+      <% if (!groupedFiles.length) { %>
+        <div class="muted">No information PDFs uploaded yet.</div>
+      <% } else { %>
+        <div class="info-folder-list">
+          <% groupedFiles.forEach((group, idx) => { %>
+            <section class="info-folder-group">
+              <div class="info-folder-head">
+                <div>
+                  <h3><%= group.groupLabel %></h3>
+                  <span class="muted"><%= group.items.length %> file(s)</span>
+                </div>
+                <div class="inline-filters">
+                  <% if (user && user.role === 'admin' && group.folderId) { %>
+                    <form method="post" action="/informations/folders/<%= group.folderId %>/move" class="inline-filters info-folder-order-form">
+                      <input type="hidden" name="direction" value="up" />
+                      <button class="btn secondary" type="submit">Up</button>
+                    </form>
+                    <form method="post" action="/informations/folders/<%= group.folderId %>/move" class="inline-filters info-folder-order-form">
+                      <input type="hidden" name="direction" value="down" />
+                      <button class="btn secondary" type="submit">Down</button>
+                    </form>
+                  <% } %>
+                  <button class="btn" type="button" data-folder-toggle="folder-<%= idx %>">View Files</button>
+                  <button class="btn secondary" type="button" data-folder-hide="folder-<%= idx %>" style="display:none;">Hide Files</button>
+                </div>
+              </div>
+              <% if (user && user.role === 'admin' && group.folderId) { %>
+                <div class="info-folder-admin-list">
+                  <form method="post" action="/informations/folders/<%= group.folderId %>/rename" class="inline-filters info-folder-manage-form">
+                    <label for="folderName-<%= group.folderId %>" style="position:absolute;left:-9999px;">Category name</label>
+                    <input id="folderName-<%= group.folderId %>" type="text" name="name" value="<%= group.groupLabel %>" placeholder="Category name" required />
+                    <button class="btn secondary" type="submit">Rename Category</button>
+                  </form>
+                  <form method="post" action="/informations/folders/<%= group.folderId %>/delete" class="inline-filters info-folder-delete-form" onsubmit="return confirm('Delete this category? Its files will be moved to Guidelines.');">
+                    <button class="btn danger" type="submit">Delete Category</button>
+                  </form>
+                </div>
+              <% } %>
+              <div class="info-file-list" id="folder-<%= idx %>" style="display:none;">
+                <% group.items.forEach(file => { %>
+                  <article class="info-file-item">
+                    <a class="info-file-link" href="<%= file.file_path %>" target="_blank" rel="noopener noreferrer" title="<%= file.title %>">
+                      <span class="info-file-name"><%= file.title %></span>
+                    </a>
+                    <% if (user && user.role === 'admin') { %>
+                      <form method="post" action="/informations/update-title/<%= file.id %>" class="inline-filters info-file-rename">
+                        <input type="text" name="title" value="<%= file.title %>" placeholder="Update title" required />
+                        <button class="btn secondary" type="submit">Rename</button>
+                      </form>
+                      <form method="post" action="/informations/files/<%= file.id %>/move" class="stack info-file-move-form">
+                        <div class="inline-filters">
+                          <select name="folder_id" class="info-file-move-select">
+                            <option value="">Move to category</option>
+                            <option value="__guidelines__" <%= file.folder_id == null ? 'selected' : '' %>>Guidelines</option>
+                            <% (infoFolders || []).forEach(function (folder) { %>
+                              <option value="<%= folder.id %>" <%= Number(file.folder_id) === Number(folder.id) ? 'selected' : '' %>><%= folder.name %></option>
+                            <% }) %>
+                          </select>
+                          <input type="text" name="new_category" placeholder="Or create new category" />
+                          <button class="btn secondary" type="submit">Move</button>
+                        </div>
+                      </form>
+                      <form method="post" action="/informations/files/<%= file.id %>/delete" class="info-file-delete-form" onsubmit="return confirm('Delete this uploaded file?');">
+                        <button class="btn danger" type="submit">Delete</button>
+                      </form>
+                    <% } %>
+                  </article>
+                <% }) %>
+              </div>
+            </section>
+          <% }) %>
+        </div>
+      <% } %>
+    </section>
+  </main>
+
+  <script>
+    (function () {
+      var showInfoUploadBtn = document.getElementById('showInfoUploadBtn');
+      var hideInfoUploadBtn = document.getElementById('hideInfoUploadBtn');
+      var infoUploadWrap = document.getElementById('infoUploadWrap');
+      var infoExistingCategory = document.getElementById('infoExistingCategory');
+      var infoNewCategory = document.getElementById('infoNewCategory');
+      var infoUploadForm = document.querySelector('form[action="/informations/upload"]');
+
+      function toggleFolder(id, show) {
+        var wrap = document.getElementById(id);
+        var showBtn = document.querySelector('[data-folder-toggle="' + id + '"]');
+        var hideBtn = document.querySelector('[data-folder-hide="' + id + '"]');
+        if (wrap) wrap.style.display = show ? 'grid' : 'none';
+        if (showBtn) showBtn.style.display = show ? 'none' : 'inline-flex';
+        if (hideBtn) hideBtn.style.display = show ? 'inline-flex' : 'none';
+      }
+
+      function toggleUpload(show) {
+        if (infoUploadWrap) infoUploadWrap.style.display = show ? 'block' : 'none';
+        if (showInfoUploadBtn) showInfoUploadBtn.style.display = show ? 'none' : 'inline-flex';
+        if (hideInfoUploadBtn) hideInfoUploadBtn.style.display = show ? 'inline-flex' : 'none';
+      }
+
+      if (showInfoUploadBtn) {
+        showInfoUploadBtn.addEventListener('click', function () {
+          toggleUpload(true);
+        });
+      }
+
+      if (hideInfoUploadBtn) {
+        hideInfoUploadBtn.addEventListener('click', function () {
+          toggleUpload(false);
+        });
+      }
+
+      if (infoUploadForm) {
+        infoUploadForm.addEventListener('submit', function (event) {
+          var existingValue = infoExistingCategory ? String(infoExistingCategory.value || '').trim() : '';
+          var newValue = infoNewCategory ? String(infoNewCategory.value || '').trim() : '';
+          if (!existingValue && !newValue) {
+            event.preventDefault();
+            alert('Please choose an existing category or enter a new category.');
+          }
+        });
+      }
+
+      if (infoExistingCategory && infoNewCategory) {
+        function syncInfoCategoryInputs() {
+          var hasNewCategory = String(infoNewCategory.value || '').trim().length > 0;
+          var hasExistingCategory = String(infoExistingCategory.value || '').trim().length > 0;
+          infoExistingCategory.disabled = hasNewCategory;
+          infoNewCategory.disabled = hasExistingCategory;
+        }
+
+        infoNewCategory.addEventListener('input', function () {
+          syncInfoCategoryInputs();
+        });
+
+        infoExistingCategory.addEventListener('change', function () {
+          syncInfoCategoryInputs();
+        });
+
+        syncInfoCategoryInputs();
+      }
+
+      var infoError = <%- JSON.stringify(error || '').replace(/</g, '\u003c') %>;
+      var infoSuccess = <%- JSON.stringify(success || '').replace(/</g, '\u003c') %>;
+      if (/upload/i.test(infoError) || /uploaded/i.test(infoSuccess)) {
+        toggleUpload(true);
+      }
+
+      document.querySelectorAll('[data-folder-toggle]').forEach(function (btn) {
+        btn.addEventListener('click', function () {
+          toggleFolder(btn.getAttribute('data-folder-toggle'), true);
+        });
+      });
+
+      document.querySelectorAll('[data-folder-hide]').forEach(function (btn) {
+        btn.addEventListener('click', function () {
+          toggleFolder(btn.getAttribute('data-folder-hide'), false);
+        });
+      });
+    })();
+  </script>
+  <script src="/js/inactivity.js"></script>
+</body>
+</html>

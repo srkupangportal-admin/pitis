@@ -1,0 +1,245 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Group Maker</title>
+  <link rel="stylesheet" href="/css/theme-c.css" />
+</head>
+<body>
+  <header class="site-header">
+    <h1>Group Maker</h1>
+    <span>Welcome, <%= user.displayName %></span>
+  </header>
+  <%- include('partials/teacher-nav') %>
+
+  <main class="container stack">
+    <% if (error) { %>
+      <section class="card"><div class="error"><%= error %></div></section>
+    <% } %>
+    <% if (success) { %>
+      <section class="card"><div><%= success %></div></section>
+    <% } %>
+
+    <section class="card tool-card" id="groupMakerCard">
+      <div class="tool-card-head">
+        <div>
+          <h2>Group Maker</h2>
+          <p class="muted">Create random groups by class, with all students or only selected students.</p>
+        </div>
+        <a class="btn secondary" href="/teacher/tools">Back to Tools</a>
+      </div>
+
+      <div class="form stack">
+        <label>Class
+          <select id="groupClassSelect">
+            <option value="">Select class</option>
+            <option value="all-school">All Students in School</option>
+            <% classes.forEach(cls => { %>
+              <option value="<%= cls.id %>"><%= cls.name %></option>
+            <% }) %>
+          </select>
+        </label>
+
+        <div class="inline-filters">
+          <label class="tool-choice"><input type="radio" name="groupScope" value="all" checked /> All students</label>
+          <label class="tool-choice"><input type="radio" name="groupScope" value="selected" /> Selected students only</label>
+        </div>
+
+        <div id="groupStudentsWrap" class="tool-student-wrap hidden"></div>
+
+        <label>Members per group
+          <select id="groupSizePreset">
+            <option value="2">2</option>
+            <option value="3">3</option>
+            <option value="4">4</option>
+            <option value="manual">Manual</option>
+          </select>
+        </label>
+
+        <label id="groupSizeManualWrap" class="hidden">Manual group size
+          <input type="number" id="groupSizeManual" min="2" step="1" placeholder="Enter number" />
+        </label>
+
+        <div class="inline-filters">
+          <button class="btn" type="button" id="groupMakeBtn">Make Groups</button>
+        </div>
+
+        <div id="groupResult" class="tool-result hidden"></div>
+      </div>
+    </section>
+  </main>
+
+  <script>
+    (function () {
+      var groupClassSelect = document.getElementById('groupClassSelect');
+      var groupStudentsWrap = document.getElementById('groupStudentsWrap');
+      var groupMakeBtn = document.getElementById('groupMakeBtn');
+      var groupResult = document.getElementById('groupResult');
+      var groupSizePreset = document.getElementById('groupSizePreset');
+      var groupSizeManualWrap = document.getElementById('groupSizeManualWrap');
+      var groupSizeManual = document.getElementById('groupSizeManual');
+
+      function shuffle(items) {
+        var arr = items.slice();
+        for (var i = arr.length - 1; i > 0; i -= 1) {
+          var j = Math.floor(Math.random() * (i + 1));
+          var tmp = arr[i];
+          arr[i] = arr[j];
+          arr[j] = tmp;
+        }
+        return arr;
+      }
+
+      function escapeHtml(value) {
+        return String(value || '')
+          .replace(/&/g, '&amp;')
+          .replace(/</g, '&lt;')
+          .replace(/>/g, '&gt;')
+          .replace(/"/g, '&quot;')
+          .replace(/'/g, '&#39;');
+      }
+
+      function buildAppUrl(pathname) {
+        return new URL(pathname, window.location.origin).toString();
+      }
+
+      function getScope() {
+        var picked = document.querySelector('input[name="groupScope"]:checked');
+        return picked ? picked.value : 'all';
+      }
+
+      function renderStudentChecklist(students) {
+        if (!groupStudentsWrap) return;
+        if (!students.length) {
+          groupStudentsWrap.innerHTML = '<div class="muted">No students in selected class.</div>';
+          return;
+        }
+
+        var html = '<div class="tool-student-grid">';
+        students.forEach(function (student) {
+          var photo = student.photo_src
+            ? '<img class="tool-student-photo" src="' + escapeHtml(student.photo_src) + '" alt="' + escapeHtml(student.nickname || student.full_name) + '" />'
+            : '<div class="tool-student-photo tool-student-photo-fallback">' + escapeHtml((student.nickname || student.full_name || '?').slice(0, 1)) + '</div>';
+          html += '' +
+            '<label class="tool-student-item">' +
+              '<input type="checkbox" name="group_students" value="' + escapeHtml(student.id) + '" data-class-id="' + escapeHtml(student.class_id || '') + '" data-class-name="' + escapeHtml(student.class_name || '') + '" checked />' +
+              photo +
+              '<span class="tool-student-text">' +
+                '<a class="student-detail-link" href="/teacher/students/' + encodeURIComponent(student.id) + '"><strong>' + escapeHtml(student.nickname || student.full_name) + '</strong></a>' +
+              '</span>' +
+            '</label>';
+        });
+        html += '</div>';
+        groupStudentsWrap.innerHTML = html;
+      }
+
+      function syncWrapVisibility() {
+        groupStudentsWrap.classList.toggle('hidden', getScope() !== 'selected');
+      }
+
+      function loadClassStudents(classId) {
+        if (!classId) {
+          groupStudentsWrap.innerHTML = '';
+          return;
+        }
+
+        fetch(buildAppUrl('/teacher/tools/class/' + encodeURIComponent(classId) + '/students'), {
+          headers: { Accept: 'application/json' },
+          credentials: 'same-origin'
+        })
+          .then(function (res) {
+            if (!res.ok) throw new Error('Failed to load students');
+            return res.json();
+          })
+          .then(function (payload) {
+            renderStudentChecklist(payload && payload.students ? payload.students : []);
+          })
+          .catch(function (err) {
+            groupStudentsWrap.innerHTML = '<div class="error">' + escapeHtml(err.message || String(err)) + '</div>';
+          });
+      }
+
+      function getPoolStudents() {
+        var checked = Array.prototype.slice.call(groupStudentsWrap.querySelectorAll('input[type="checkbox"]:checked'));
+        var all = Array.prototype.slice.call(groupStudentsWrap.querySelectorAll('input[type="checkbox"]'));
+        var source = getScope() === 'all' ? all : checked;
+        return source.map(function (input) {
+          var item = input.parentElement;
+          return {
+            id: Number(input.value),
+            class_name: String(input.getAttribute('data-class-name') || ''),
+            nickname: item.querySelector('strong') ? item.querySelector('strong').textContent : '',
+            full_name: ''
+          };
+        }).filter(function (student) { return student.id; });
+      }
+
+      groupClassSelect.addEventListener('change', function () {
+        groupResult.classList.add('hidden');
+        groupResult.innerHTML = '';
+        loadClassStudents(groupClassSelect.value);
+      });
+
+      Array.prototype.slice.call(document.querySelectorAll('input[name="groupScope"]')).forEach(function (input) {
+        input.addEventListener('change', syncWrapVisibility);
+      });
+      syncWrapVisibility();
+
+      groupSizePreset.addEventListener('change', function () {
+        var isManual = groupSizePreset.value === 'manual';
+        groupSizeManualWrap.classList.toggle('hidden', !isManual);
+        if (!isManual) groupSizeManual.value = '';
+      });
+
+      groupMakeBtn.addEventListener('click', function () {
+        if (!groupClassSelect.value) {
+          groupResult.className = 'tool-result error';
+          groupResult.textContent = 'Select a class first.';
+          return;
+        }
+
+        var groupSize = groupSizePreset.value === 'manual' ? Number(groupSizeManual.value || 0) : Number(groupSizePreset.value || 0);
+        if (!Number.isInteger(groupSize) || groupSize < 2) {
+          groupResult.className = 'tool-result error';
+          groupResult.textContent = 'Group size must be at least 2.';
+          return;
+        }
+
+        var students = getPoolStudents();
+        if (!students.length) {
+          groupResult.className = 'tool-result error';
+          groupResult.textContent = 'No students available for grouping.';
+          return;
+        }
+
+        var shuffled = shuffle(students);
+        var groups = [];
+        for (var i = 0; i < shuffled.length; i += groupSize) {
+          groups.push(shuffled.slice(i, i + groupSize));
+        }
+
+        var html = '<div class="tool-group-grid">';
+        groups.forEach(function (group, index) {
+          html += '<section class="tool-group-card"><h3>Group ' + (index + 1) + '</h3><ol>';
+          group.forEach(function (student) {
+            var label = escapeHtml(student.nickname || student.full_name);
+            if (groupClassSelect && groupClassSelect.value === 'all-school' && student.class_name) {
+              label += ' <span>' + escapeHtml(student.class_name) + '</span>';
+            }
+            html += '<li><a class="student-detail-link" href="/teacher/students/' + encodeURIComponent(student.id) + '"><strong>' + label + '</strong></a></li>';
+          });
+          html += '</ol></section>';
+        });
+        html += '</div>';
+
+        groupResult.className = 'tool-result';
+        groupResult.innerHTML = html;
+        groupResult.classList.remove('hidden');
+      });
+    })();
+  </script>
+
+  <script src="/js/inactivity.js"></script>
+</body>
+</html>

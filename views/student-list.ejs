@@ -1,0 +1,55 @@
+﻿<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Student List</title>
+  <link rel="stylesheet" href="/css/theme-c.css" />
+</head>
+<body>
+  <%- include('partials/teacher-nav') %>
+  <main class="container stack">
+    <% const quickSwitchClasses = shortcutClasses || []; %>
+    <% if (quickSwitchClasses.length) { %>
+      <section>
+        <div class="attendance-class-shortcuts">
+          <% quickSwitchClasses.forEach(c => { %>
+            <a class="card action-card attendance-class-shortcut-card <%= Number(cls.id) === Number(c.id) ? 'active' : '' %>" href="/teacher/students/class/<%= c.id %>"><%= c.displayLabel %></a>
+          <% }) %>
+        </div>
+      </section>
+    <% } %>
+
+    <section class="card">
+      <div class="calendar-header-row report-header-row">
+        <div>
+          <h2><%= cls.name %> Students</h2>
+          <p class="muted">Select a student card to open full details.</p>
+        </div>
+      </div>
+
+      <% if (!students.length) { %>
+        <div class="muted">No students found in this class.</div>
+      <% } else { %>
+        <div class="student-class-card-grid">
+          <% students.forEach(st => { %>
+            <a class="student-class-card" href="/teacher/students/<%= st.id %>">
+              <span class="student-class-card-thumb">
+                <% if (st.photo_src) { %>
+                  <img src="<%= st.photo_src %>" alt="<%= st.display_name %>" class="student-class-card-photo" />
+                <% } else { %>
+                  <span class="student-class-card-fallback"><%= (st.display_name || '?').charAt(0).toUpperCase() %></span>
+                <% } %>
+              </span>
+              <span class="student-class-card-name"><%= st.display_name %></span>
+            </a>
+          <% }) %>
+        </div>
+      <% } %>
+    </section>
+  </main>
+  <script src="/js/inactivity.js"></script>
+</body>
+</html>
+
+

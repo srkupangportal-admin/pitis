@@ -1,0 +1,10 @@
+{
+  "name": "SRK Kupang Portal",
+  "short_name": "SRK Portal",
+  "start_url": "/kiosk",
+  "scope": "/",
+  "display": "standalone",
+  "background_color": "#f4f7fb",
+  "theme_color": "#123b63",
+  "description": "LAN-ready school portal kiosk and dashboard."
+}

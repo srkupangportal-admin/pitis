@@ -1,0 +1,433 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Reporting Tool</title>
+  <link rel="stylesheet" href="/css/theme-c.css" />
+</head>
+<body>
+  <%- include('partials/teacher-nav') %>
+  <main class="container stack pitis-usage-report-page">
+    <div class="calendar-header-row report-header-row print-hide">
+      <div>
+        <h2>Reporting Tool</h2>
+        <p class="muted">Teacher Usage Report / P.I.T.I.S. awarding performance</p>
+      </div>
+    </div>
+
+    <% if (error) { %>
+      <section class="card print-hide"><div class="error"><%= error %></div></section>
+    <% } %>
+
+    <section class="card print-hide">
+      <div class="calendar-header-row report-header-row">
+        <div>
+          <h3>Students' P.I.T.I.S. Report</h3>
+          <p class="muted">Open the existing class-based PITIS award report.</p>
+        </div>
+        <a class="btn secondary" href="/teacher/report">Students' P.I.T.I.S. Report</a>
+      </div>
+    </section>
+
+    <section class="card print-hide">
+      <div class="calendar-header-row report-header-row">
+        <div>
+          <h3>Teacher Usage Report</h3>
+          <p class="muted">
+            Criteria: each teacher meets target by logging in and awarding PITIS on 3 out of 5 school days.
+            <% if (auditStatus && auditStatus.finished_at) { %>
+              Last audit: <%= auditStatus.status %> on <%= auditStatus.finished_at %>.
+            <% } else { %>
+              Automatic audit runs every Saturday afternoon.
+            <% } %>
+          </p>
+        </div>
+      </div>
+    </section>
+
+    <form class="card form calendar-add-form report-filter-card pitis-usage-form print-hide" method="get" action="<%= reportBasePath || '/teacher/reporting-tool' %>" id="pitisUsageForm">
+      <input type="hidden" name="generate" value="1" />
+      <div class="calendar-header-row report-header-row">
+        <div>
+          <h3>Filter dashboard</h3>
+          <span class="muted" id="pitisUsageSelectionCount">0 selected</span>
+        </div>
+        <button class="btn secondary" type="button" id="pitisUsageCollapseToggle" aria-expanded="true" aria-controls="pitisUsagePanel">Hide</button>
+      </div>
+      <div id="pitisUsagePanel" class="pitis-usage-collapsible-panel">
+        <div class="inline-filters report-filter-grid">
+          <label class="report-date-field">From
+            <input type="date" name="from" value="<%= dateFrom %>" required />
+          </label>
+          <label class="report-date-field">To
+            <input type="date" name="to" value="<%= dateTo %>" required />
+          </label>
+          <label>Month
+            <input type="month" name="month" id="pitisUsageMonth" value="<%= monthFilter || '' %>" />
+          </label>
+          <label>Weeks
+            <select name="weeks">
+              <option value="all" <%= Number(weekLimit || 0) === 0 ? 'selected' : '' %>>All weeks</option>
+              <option value="4" <%= Number(weekLimit || 0) === 4 ? 'selected' : '' %>>Last 4 weeks</option>
+              <option value="8" <%= Number(weekLimit || 0) === 8 ? 'selected' : '' %>>Last 8 weeks</option>
+              <option value="12" <%= Number(weekLimit || 0) === 12 ? 'selected' : '' %>>Last 12 weeks</option>
+            </select>
+          </label>
+          <label>No. of usage days
+            <select name="usageDays">
+              <option value="all" <%= minUsageDays === '' ? 'selected' : '' %>>All</option>
+              <% [0,1,2,3,4,5].forEach(function (dayCount) { %>
+                <option value="<%= dayCount %>" <%= Number(minUsageDays) === dayCount ? 'selected' : '' %>><%= dayCount %> counted days</option>
+              <% }) %>
+            </select>
+          </label>
+          <label>Status
+            <select name="status">
+              <option value="all" <%= statusFilter === 'all' ? 'selected' : '' %>>All statuses</option>
+              <option value="met" <%= statusFilter === 'met' ? 'selected' : '' %>>Met target</option>
+              <option value="not_met" <%= statusFilter === 'not_met' ? 'selected' : '' %>>Not met</option>
+              <option value="no_usage" <%= statusFilter === 'no_usage' ? 'selected' : '' %>>No usage</option>
+            </select>
+          </label>
+          <label>Search
+            <input type="search" id="pitisUsageSearch" placeholder="Search name or user ID" autocomplete="off" />
+          </label>
+        </div>
+        <div class="reward-bulk-actions pitis-usage-selection-actions">
+          <button class="btn subtle secondary" type="button" id="pitisUsageSelectAll">Select All</button>
+          <button class="btn subtle secondary" type="button" id="pitisUsageClear">Clear Selection</button>
+          <button class="btn" type="submit">Generate Report</button>
+          <a class="btn subtle secondary" href="/teacher/reporting-tool/teacher-usage-report">All Time</a>
+        </div>
+
+        <div class="reward-grid-compact pitis-usage-user-grid" id="pitisUsageUserGrid">
+          <% users.forEach(function (user) {
+            const isSelected = selectedUserIds.includes(Number(user.id));
+            const label = user.display_name || user.username;
+            const roleLabel = user.user_type || user.role || 'user';
+          %>
+            <label class="reward-tile pitis-usage-user-card <%= isSelected ? 'selected' : '' %>" data-user-card data-filter-text="<%= (label + ' ' + user.username + ' ' + roleLabel).toLowerCase() %>">
+              <span class="reward-select-check">
+                <input type="checkbox" name="userIds" value="<%= user.id %>" <%= isSelected ? 'checked' : '' %> />
+                <span>Select</span>
+              </span>
+              <span class="reward-tile-head">
+                <span class="reward-name-wrap">
+                  <span class="reward-nickname"><%= label %></span>
+                  <span class="reward-fullname"><%= user.username %></span>
+                </span>
+                <span class="reward-points"><%= roleLabel %></span>
+              </span>
+            </label>
+          <% }) %>
+        </div>
+      </div>
+    </form>
+
+    <% if (report) {
+      const exportParts = selectedUserIds.map(function (id) { return 'userIds=' + encodeURIComponent(String(id)); });
+      exportParts.push('from=' + encodeURIComponent(report.dateFrom));
+      exportParts.push('to=' + encodeURIComponent(report.dateTo));
+      exportParts.push('weeks=' + encodeURIComponent(Number(weekLimit || 0) || 'all'));
+      exportParts.push('usageDays=' + encodeURIComponent(minUsageDays === '' ? 'all' : String(minUsageDays)));
+      exportParts.push('status=' + encodeURIComponent(statusFilter || 'all'));
+      const exportQuery = exportParts.join('&');
+    %>
+      <section class="card pitis-usage-print-title">
+        <div class="calendar-header-row report-header-row">
+          <div>
+            <h2>Teacher Usage Report</h2>
+            <p class="muted"><%= report.dateFrom %> to <%= report.dateTo %> | <%= report.visibleTeacherWeekCount %> teacher-weeks shown</p>
+          </div>
+          <div class="button-row print-hide">
+            <a class="btn secondary" href="<%= reportExportPath || '/teacher/reporting-tool/export' %>?<%= exportQuery %>">Download CSV</a>
+            <button class="btn secondary" type="button" onclick="window.print()">Print / Save PDF</button>
+          </div>
+        </div>
+      </section>
+
+      <section class="pitis-usage-overview">
+        <div class="card pitis-usage-stat">
+          <span class="muted">Selected teachers</span>
+          <strong><%= report.selectedTeacherCount %></strong>
+        </div>
+        <div class="card pitis-usage-stat">
+          <span class="muted">Teacher-weeks shown</span>
+          <strong><%= report.visibleTeacherWeekCount %></strong>
+        </div>
+        <div class="card pitis-usage-stat">
+          <span class="muted">Teacher-weeks met</span>
+          <strong><%= report.metCount %></strong>
+        </div>
+        <div class="card pitis-usage-stat">
+          <span class="muted">Teacher-weeks not met</span>
+          <strong><%= report.notMetCount %></strong>
+        </div>
+        <div class="card pitis-usage-stat">
+          <span class="muted">Meeting target</span>
+          <strong><%= report.meetingPercentage %>%</strong>
+        </div>
+      </section>
+
+      <% if (visual) { %>
+        <section class="card pitis-usage-visual-dashboard">
+          <div class="calendar-header-row report-header-row">
+            <div>
+              <h3>Visual Dashboard</h3>
+              <p class="muted">Quick scan of target completion, weekly movement, and teacher performance.</p>
+            </div>
+          </div>
+
+          <div class="pitis-usage-visual-grid">
+            <div class="pitis-usage-gauge">
+              <div class="pitis-usage-gauge-ring" style="--pct:<%= report.meetingPercentage %>%;">
+                <span><%= report.meetingPercentage %>%</span>
+              </div>
+              <div>
+                <strong>Meeting target</strong>
+                <span class="muted"><%= report.metCount %> met / <%= report.notMetCount %> not met</span>
+              </div>
+            </div>
+
+            <div class="pitis-usage-status-bars">
+              <div class="pitis-usage-status-row">
+                <span>Met target</span>
+                <div class="pitis-usage-status-track"><span class="met" style="width:<%= report.meetingPercentage %>%"></span></div>
+                <strong><%= report.metCount %></strong>
+              </div>
+              <div class="pitis-usage-status-row">
+                <span>Not met</span>
+                <div class="pitis-usage-status-track"><span class="not-met" style="width:<%= 100 - report.meetingPercentage %>%"></span></div>
+                <strong><%= report.notMetCount %></strong>
+              </div>
+            </div>
+          </div>
+
+          <div class="pitis-usage-chart-row">
+            <div>
+              <h4>Weekly Trend</h4>
+              <div class="pitis-usage-week-chart" aria-label="Weekly teacher usage target trend">
+                <% visual.weeklyTrend.forEach(function (week) { %>
+                  <div class="pitis-usage-week-bar" title="<%= week.label %>: <%= week.met %> met, <%= week.notMet %> not met">
+                    <div class="pitis-usage-week-bar-stack" style="height:<%= week.barHeight %>%">
+                      <span class="met" style="height:<%= week.metPercentage %>%"></span>
+                      <span class="not-met" style="height:<%= 100 - week.metPercentage %>%"></span>
+                    </div>
+                    <span><%= week.start.slice(5) %></span>
+                  </div>
+                <% }) %>
+              </div>
+            </div>
+
+            <div>
+              <h4>Usage Days</h4>
+              <div class="pitis-usage-bucket-chart" aria-label="Teacher weeks by counted usage days">
+                <% visual.usageBuckets.forEach(function (bucket) { %>
+                  <div class="pitis-usage-bucket">
+                    <div class="pitis-usage-bucket-bar" style="height:<%= bucket.height %>%"></div>
+                    <strong><%= bucket.count %></strong>
+                    <span><%= bucket.dayCount %> day<%= bucket.dayCount === 1 ? '' : 's' %></span>
+                  </div>
+                <% }) %>
+              </div>
+            </div>
+          </div>
+
+          <div>
+            <h4>Teacher Performance</h4>
+            <div class="pitis-usage-teacher-bars">
+              <% visual.teacherSummaries.forEach(function (teacher) { %>
+                <div class="pitis-usage-teacher-bar-row">
+                  <div>
+                    <strong><%= teacher.display_name %></strong>
+                    <span class="muted"><%= teacher.metWeeks %>/<%= teacher.totalWeeks %> weeks met | <%= teacher.totalAwards %> awards</span>
+                  </div>
+                  <div class="pitis-usage-teacher-track">
+                    <span style="width:<%= teacher.meetingPercentage %>%"></span>
+                  </div>
+                  <strong><%= teacher.meetingPercentage %>%</strong>
+                </div>
+              <% }) %>
+            </div>
+          </div>
+        </section>
+      <% } %>
+
+      <section class="card pitis-usage-summary-table-wrap">
+        <h3>Summary</h3>
+        <% if (!report.visibleTeacherWeekCount) { %>
+          <div class="muted">No teacher-week records match the selected filters.</div>
+        <% } else { %>
+          <table class="pitis-usage-summary-table">
+            <thead>
+              <tr>
+                <th>Teacher/User</th>
+                <th>Week</th>
+                <th>Valid Days</th>
+                <th>Requirement</th>
+                <th>Status</th>
+                <th>Logins</th>
+                <th>Awards</th>
+                <th>Students</th>
+                <th>Target</th>
+              </tr>
+            </thead>
+            <tbody>
+              <% report.teacherReports.forEach(function (teacher) { %>
+                <% teacher.weeks.forEach(function (week) { %>
+                  <tr>
+                    <td><%= teacher.display_name %></td>
+                    <td><%= week.rangeLabel %></td>
+                    <td><%= week.valid_days %> / <%= week.school_day_count %></td>
+                    <td><%= week.requirement_label %></td>
+                    <td><span class="pitis-usage-badge <%= week.target_met ? 'met' : 'not-met' %>"><%= week.target_met ? 'Met Target' : 'Not Met' %></span></td>
+                    <td><%= week.total_logins %></td>
+                    <td><%= week.total_awards %></td>
+                    <td><%= week.students_awarded %></td>
+                    <td><%= week.target_percentage %>%</td>
+                  </tr>
+                <% }) %>
+              <% }) %>
+            </tbody>
+          </table>
+        <% } %>
+      </section>
+
+      <% report.teacherReports.forEach(function (teacher) { %>
+        <% if (teacher.weeks.length) { %>
+        <section class="card pitis-usage-teacher-card">
+          <div class="calendar-header-row report-header-row">
+            <div>
+              <h3><%= teacher.display_name %></h3>
+              <p class="muted"><%= teacher.username %></p>
+            </div>
+          </div>
+
+          <% teacher.weeks.forEach(function (week) { %>
+            <article class="pitis-usage-week-block">
+              <div class="pitis-usage-week-head">
+                <div>
+                  <h4><%= week.rangeLabel %></h4>
+                  <div class="pitis-usage-day-chips" aria-label="Counted target days">
+                    <% week.days.forEach(function (day) { %>
+                      <span class="pitis-usage-day-chip <%= day.counted ? 'counted' : '' %>"><%= day.shortLabel %></span>
+                    <% }) %>
+                  </div>
+                </div>
+                <div class="pitis-usage-week-status">
+                  <span class="pitis-usage-badge <%= week.target_met ? 'met' : 'not-met' %>"><%= week.target_met ? 'Met Target' : 'Not Met' %></span>
+                  <div class="pitis-usage-progress" aria-label="<%= week.valid_days %> of <%= week.school_day_count %> school days">
+                    <span style="width:<%= week.progress_percentage %>%"></span>
+                  </div>
+                  <span class="muted"><%= week.valid_days %>/<%= week.school_day_count %> school days, target <%= week.required_days %></span>
+                </div>
+              </div>
+
+              <div class="pitis-usage-daily-grid">
+                <% week.days.forEach(function (day) { %>
+                  <div class="pitis-usage-day-card <%= day.counted ? 'counted' : '' %>">
+                    <div class="pitis-usage-day-title"><%= day.label %><% if (day.is_holiday) { %> <span class="pitis-usage-holiday-note">Public Holiday</span><% } %></div>
+                    <div><span>Login</span><strong><%= day.has_login ? 'Yes' : 'No' %></strong></div>
+                    <div><span>PITIS awarded</span><strong><%= day.has_award ? 'Yes' : 'No' %></strong></div>
+                    <div><span>Awards</span><strong><%= day.award_count %></strong></div>
+                    <div><span>Students</span><strong><%= day.student_count %></strong></div>
+                    <div><span>Status</span><strong><%= day.counted ? 'Counted' : 'Not Counted' %></strong></div>
+                  </div>
+                <% }) %>
+              </div>
+            </article>
+          <% }) %>
+        </section>
+        <% } %>
+      <% }) %>
+    <% } %>
+  </main>
+
+  <script>
+    (function () {
+      var form = document.getElementById('pitisUsageForm');
+      var cards = Array.prototype.slice.call(document.querySelectorAll('[data-user-card]'));
+      var boxes = cards.map(function (card) { return card.querySelector('input[type="checkbox"]'); }).filter(Boolean);
+      var count = document.getElementById('pitisUsageSelectionCount');
+      var search = document.getElementById('pitisUsageSearch');
+      var selectAll = document.getElementById('pitisUsageSelectAll');
+      var clear = document.getElementById('pitisUsageClear');
+      var panel = document.getElementById('pitisUsagePanel');
+      var collapseToggle = document.getElementById('pitisUsageCollapseToggle');
+      var monthInput = document.getElementById('pitisUsageMonth');
+
+      function syncCards() {
+        var selected = boxes.filter(function (box) { return box.checked; }).length;
+        if (count) count.textContent = selected + ' selected';
+        cards.forEach(function (card) {
+          var box = card.querySelector('input[type="checkbox"]');
+          card.classList.toggle('selected', !!(box && box.checked));
+        });
+      }
+
+      function visibleBoxes() {
+        return cards.filter(function (card) { return card.style.display !== 'none'; })
+          .map(function (card) { return card.querySelector('input[type="checkbox"]'); })
+          .filter(Boolean);
+      }
+
+      boxes.forEach(function (box) {
+        box.addEventListener('change', syncCards);
+      });
+
+      if (search) {
+        search.addEventListener('input', function () {
+          var term = String(search.value || '').trim().toLowerCase();
+          cards.forEach(function (card) {
+            var text = card.getAttribute('data-filter-text') || '';
+            card.style.display = !term || text.indexOf(term) !== -1 ? '' : 'none';
+          });
+        });
+      }
+
+      if (selectAll) {
+        selectAll.addEventListener('click', function () {
+          visibleBoxes().forEach(function (box) { box.checked = true; });
+          syncCards();
+        });
+      }
+
+      if (clear) {
+        clear.addEventListener('click', function () {
+          boxes.forEach(function (box) { box.checked = false; });
+          syncCards();
+        });
+      }
+
+      if (monthInput && form) {
+        monthInput.addEventListener('change', function () {
+          if (!monthInput.value) return;
+          form.submit();
+        });
+      }
+
+      if (collapseToggle && panel) {
+        collapseToggle.addEventListener('click', function () {
+          var isOpen = collapseToggle.getAttribute('aria-expanded') !== 'false';
+          panel.hidden = isOpen;
+          collapseToggle.setAttribute('aria-expanded', isOpen ? 'false' : 'true');
+          collapseToggle.textContent = isOpen ? 'Show' : 'Hide';
+        });
+      }
+
+      if (form) {
+        form.addEventListener('submit', function (event) {
+          if (!boxes.some(function (box) { return box.checked; })) {
+            event.preventDefault();
+            alert('Select at least one teacher or user.');
+          }
+        });
+      }
+
+      syncCards();
+    })();
+  </script>
+  <script src="/js/inactivity.js"></script>
+</body>
+</html>

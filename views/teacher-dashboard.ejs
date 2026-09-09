@@ -1,0 +1,34 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Staff Dashboard</title>
+  <link rel="stylesheet" href="/css/theme-c.css" />
+</head>
+<body>
+  <header class="site-header">
+    <h1>Staff Panel</h1>
+    <span>Welcome, <%= user.displayName %></span>
+  </header>
+  <%- include('partials/teacher-nav') %>
+  <main class="container">
+    <div class="cards-3">
+      <a class="card action-card" href="/">Home</a>
+      <a class="card action-card" href="/teacher/reward">P.I.T.I.S</a>
+      <a class="card action-card" href="/rewards">P.I.T.I.S Gallery</a>
+      <a class="card action-card" href="/teacher/calendar">Calendar</a>
+      <a class="card action-card" href="/teacher/students">Student details</a>
+      <a class="card action-card" href="/teacher/attendance">Attendance</a>
+      <a class="card action-card" href="/teacher/qr-tools">QR Tools</a>
+      <a class="card action-card" href="/devices">Device bookings</a>
+      <a class="card action-card" href="/teacher/tools">Tools</a>
+      <a class="card action-card" href="/notes">Notes</a>
+      <a class="card action-card" href="/informations">Informations</a>
+      <a class="card action-card" href="/photos-upload">Photos Upload</a>
+    </div>
+  </main>
+  <script src="/js/inactivity.js"></script>
+</body>
+</html>
+

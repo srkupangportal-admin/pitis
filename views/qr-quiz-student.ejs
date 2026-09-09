@@ -1,0 +1,96 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title><%= quiz.title %></title>
+  <link rel="stylesheet" href="/css/theme-c.css" />
+</head>
+<body class="qr-quiz-student-page">
+  <%- include('partials/main-header-card') %>
+
+  <main class="container stack qr-quiz-mobile-shell">
+    <% if (error) { %>
+      <section class="card"><div class="error"><%= error %></div></section>
+    <% } %>
+
+    <section class="card">
+      <h2><%= quiz.title %></h2>
+      <p class="muted"><%= quiz.target_type === 'class' ? ('For ' + (quiz.target_class_names || quiz.class_name || 'selected classes')) : 'For all students' %></p>
+      <% if (quiz.status !== 'active') { %>
+        <div class="error">This quiz is not active.</div>
+      <% } else { %>
+        <form method="post" action="/qr-quiz/<%= encodeURIComponent(quiz.access_token) %>/submit" class="form stack" id="qrQuizStudentForm">
+          <% if (classes.length > 1) { %>
+            <label>Class
+              <select id="qrQuizClassSelect" required>
+                <option value="">Select class</option>
+                <% classes.forEach(function (cls) { %>
+                  <option value="<%= cls.id %>"><%= cls.name %></option>
+                <% }) %>
+              </select>
+            </label>
+          <% } else if (classes.length === 1) { %>
+            <input type="hidden" id="qrQuizClassSelect" value="<%= classes[0].id %>" />
+            <p class="muted">Class: <%= classes[0].name %></p>
+          <% } %>
+
+          <label>Your Name
+            <select name="student_id" id="qrQuizStudentSelect" required>
+              <option value="">Select your name</option>
+              <% students.forEach(function (student) { %>
+                <option value="<%= student.id %>" data-class-id="<%= student.class_id %>"><%= student.nickname || student.full_name %><%= classes.length > 1 ? (' (' + student.class_name + ')') : '' %></option>
+              <% }) %>
+            </select>
+          </label>
+
+          <section class="stack">
+            <% quiz.questions.forEach(function (question) { %>
+              <article class="card qr-quiz-question-card">
+                <h3><%= question.position %>. <%= question.question_text %></h3>
+                <label class="tool-choice">
+                  <input type="radio" name="answer_<%= question.id %>" value="A" required />
+                  <span>A. <%= question.option_a %></span>
+                </label>
+                <label class="tool-choice">
+                  <input type="radio" name="answer_<%= question.id %>" value="B" required />
+                  <span>B. <%= question.option_b %></span>
+                </label>
+                <label class="tool-choice">
+                  <input type="radio" name="answer_<%= question.id %>" value="C" required />
+                  <span>C. <%= question.option_c %></span>
+                </label>
+              </article>
+            <% }) %>
+          </section>
+
+          <button class="btn" type="submit">Submit Quiz</button>
+        </form>
+      <% } %>
+    </section>
+  </main>
+
+  <script>
+    (function () {
+      var classSelect = document.getElementById('qrQuizClassSelect');
+      var studentSelect = document.getElementById('qrQuizStudentSelect');
+      if (!classSelect || !studentSelect) return;
+
+      function updateStudents() {
+        var classId = String(classSelect.value || '');
+        Array.prototype.forEach.call(studentSelect.options, function (option) {
+          if (!option.value) {
+            option.hidden = false;
+            return;
+          }
+          option.hidden = classId && String(option.getAttribute('data-class-id')) !== classId;
+        });
+        studentSelect.value = '';
+      }
+
+      classSelect.addEventListener('change', updateStudents);
+      updateStudents();
+    })();
+  </script>
+</body>
+</html>

@@ -1,0 +1,381 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Student Detail</title>
+  <link rel="stylesheet" href="/css/theme-c.css" />
+</head>
+<body>
+  <%- include('partials/teacher-nav') %>
+  <main class="container">
+    <% function formatDisplayText(value) {
+         return String(value || '').replace(/_/g, ' ').trim();
+       } %>
+    <% function isChecked(value) {
+         return Number(value || 0) === 1;
+       } %>
+    <% if (error) { %>
+      <section class="card"><div class="error"><%= error %></div></section>
+    <% } %>
+    <% if (success) { %>
+      <section class="card"><div><%= success %></div></section>
+    <% } %>
+
+    <% const quickSwitchClasses = shortcutClasses || []; %>
+    <% if (quickSwitchClasses.length) { %>
+      <section class="card">
+        <div class="attendance-class-shortcuts">
+          <% quickSwitchClasses.forEach(c => { %>
+            <a class="card action-card attendance-class-shortcut-card <%= Number(student.class_id) === Number(c.id) ? 'active' : '' %>" href="/teacher/students/class/<%= c.id %>"><%= c.displayLabel %></a>
+          <% }) %>
+        </div>
+      </section>
+    <% } %>
+
+    <div class="card student-detail">
+      <% const primaryPhoto = student.photo_path || ''; %>
+      <% const latestPhotoSlot = (photoSlots || []).reduce((latest, slot) => {
+           if (!slot || !slot.src) return latest;
+           if (!latest) return slot;
+           const slotDate = String(slot.uploadedAt || '');
+           const latestDate = String(latest.uploadedAt || '');
+           return slotDate >= latestDate ? slot : latest;
+         }, null); %>
+      <% if (latestPhotoSlot) { %>
+        <button type="button" class="reward-gallery-thumb-btn student-photo-hero-btn" data-student-photo-open="<%= latestPhotoSlot.slot - 1 %>" aria-label="Open latest student photo">
+          <img src="<%= latestPhotoSlot.src %>" alt="Latest student photo" class="avatar" />
+        </button>
+      <% } else { %>
+        <img src="<%= primaryPhoto || 'https://api.dicebear.com/7.x/adventurer/svg?seed=student' %>" alt="Student photo" class="avatar" />
+      <% } %>
+      <h2><%= student.display_name_with_age %></h2>
+      <div class="student-photo-upload-shell">
+        <div class="section-toggle-head">
+          <div>
+            <h3 style="margin-bottom: 6px;">Manage Student Photos</h3>
+            <p class="muted" style="margin-bottom: 0;">Open this section to upload new photos or replace existing ones.</p>
+          </div>
+          <div class="inline-filters">
+            <button class="btn" type="button" id="showStudentPhotoUploadBtn">Show Photo Upload</button>
+            <button class="btn secondary" type="button" id="hideStudentPhotoUploadBtn" style="display:none;">Hide</button>
+          </div>
+        </div>
+        <div id="studentPhotoUploadWrap" style="display:none; margin-top:12px;">
+          <p class="muted" style="margin-bottom: 10px;">Tap an existing thumbnail to view it larger. Use the upload button below each slot to add or replace a photo.</p>
+          <div class="student-photo-grid">
+            <% (photoSlots || []).forEach((slot) => { %>
+              <form method="post" action="/teacher/students/<%= student.id %>/photos/<%= slot.slot %>/upload" enctype="multipart/form-data" class="student-photo-card">
+                <div class="student-photo-card-head">Photo <%= slot.slot %></div>
+                <div>
+                  <input type="file" name="photo_file" accept="image/*" capture="environment" id="studentPhotoCameraSlot<%= slot.slot %>" style="position:absolute;left:-9999px;width:1px;height:1px;opacity:0;" onchange="if (this.files && this.files[0]) { this.form.submit(); }" />
+                  <input type="file" name="photo_file" accept="image/*" id="studentPhotoGallerySlot<%= slot.slot %>" style="position:absolute;left:-9999px;width:1px;height:1px;opacity:0;" onchange="if (this.files && this.files[0]) { this.form.submit(); }" />
+                  <% if (slot.src) { %>
+                    <button type="button" class="reward-gallery-thumb-btn student-photo-preview-btn" data-student-photo-open="<%= slot.slot - 1 %>" aria-label="Open larger image for student photo <%= slot.slot %>">
+                      <span class="student-photo-thumb-wrap">
+                        <img src="<%= slot.src %>" alt="Student photo thumbnail <%= slot.slot %>" class="student-photo-thumb" />
+                      </span>
+                    </button>
+                  <% } else { %>
+                    <label for="studentPhotoGallerySlot<%= slot.slot %>" class="student-photo-empty">
+                      <span class="muted">Photo <%= slot.slot %><br />Placeholder</span>
+                    </label>
+                  <% } %>
+                </div>
+                <div class="student-photo-meta">
+                  <div><strong>Uploaded:</strong> <%= slot.uploadedAt || 'No upload yet' %></div>
+                  <div><strong>By:</strong> <%= slot.uploadedBy || '-' %></div>
+                </div>
+                <div class="student-photo-upload-actions">
+                  <label for="studentPhotoCameraSlot<%= slot.slot %>" class="btn secondary student-photo-upload-btn"><%= slot.src ? 'Open Camera' : 'Take Photo' %></label>
+                  <label for="studentPhotoGallerySlot<%= slot.slot %>" class="btn secondary student-photo-upload-btn"><%= slot.src ? 'Choose Gallery' : 'Choose Photo' %></label>
+                </div>
+              </form>
+            <% }) %>
+          </div>
+        </div>
+      </div>
+      <form method="post" action="/teacher/students/<%= student.id %>/details" class="student-fee-status-form student-detail-edit-form" id="studentDetailEditForm">
+        <div class="button-row student-detail-edit-actions">
+          <button class="btn secondary" type="button" id="studentDetailEditBtn">Edit Details</button>
+          <button class="btn" type="submit" id="studentDetailSaveBtn" style="display:none;">Save Details</button>
+          <button class="btn secondary" type="button" id="studentDetailCancelBtn" style="display:none;">Cancel</button>
+          <span class="muted">Fields are locked until Edit Details is clicked. Every saved change is logged.</span>
+        </div>
+        <% (studentDetailGroups || []).forEach((group) => { %>
+          <section class="student-detail-section">
+            <h3><%= group.title %></h3>
+            <div class="student-detail-grid">
+              <% group.fields.forEach((field) => { %>
+                <% if (field.type === 'checkbox-status') { return; } %>
+                <% const isLongDetailField = ['full_name', 'notes', 'emergency_contact', 'alamat', 'nama_ayah', 'pekerjaan_ayah', 'nama_ibu', 'pekerjaan_ibu'].includes(field.key) || String(field.editValue || '').length > 32; %>
+                <div class="student-detail-field <%= isLongDetailField ? 'student-detail-field-wide' : '' %>">
+                  <label class="student-detail-label" for="studentEdit_<%= field.key %>"><%= field.label %></label>
+                  <% if (field.type === 'select') { %>
+                    <select id="studentEdit_<%= field.key %>" name="<%= field.key %>" class="student-detail-edit-control" disabled>
+                      <% (field.options || []).forEach((option) => { %>
+                        <option value="<%= option %>" <%= String(field.editValue || '') === String(option) ? 'selected' : '' %>><%= option || 'Select' %></option>
+                      <% }) %>
+                    </select>
+                  <% } else if (field.type === 'class') { %>
+                    <select id="studentEdit_<%= field.key %>" name="<%= field.key %>" class="student-detail-edit-control" disabled required>
+                      <% classes.forEach((c) => { %>
+                        <option value="<%= c.name %>" <%= Number(student.class_id) === Number(c.id) ? 'selected' : '' %>><%= c.name %></option>
+                      <% }) %>
+                    </select>
+                  <% } else if (field.type === 'date') { %>
+                    <input id="studentEdit_<%= field.key %>" type="date" name="<%= field.key %>" value="<%= field.editValue || '' %>" class="student-detail-edit-control" disabled />
+                  <% } else if (field.type === 'email') { %>
+                    <input id="studentEdit_<%= field.key %>" type="email" name="<%= field.key %>" value="<%= field.editValue || '' %>" class="student-detail-edit-control" disabled />
+                  <% } else { %>
+                    <textarea id="studentEdit_<%= field.key %>" name="<%= field.key %>" rows="1" class="student-detail-edit-control student-detail-textarea" data-auto-resize <%= field.key === 'name' || field.key === 'full_name' || field.key === 'student_id' ? 'required' : '' %> disabled><%= field.editValue || '' %></textarea>
+                  <% } %>
+                </div>
+              <% }) %>
+            </div>
+          </section>
+        <% }) %>
+      </form>
+
+      <form method="post" action="/teacher/students/<%= student.id %>/fee-status" class="student-fee-status-form" id="studentFeeStatusForm">
+        <section class="student-detail-section">
+          <h3>Fee Status</h3>
+          <div class="student-detail-grid">
+            <% (studentDetailGroups || []).forEach((group) => { %>
+              <% group.fields.filter((field) => field.type === 'checkbox-status').forEach((field) => { %>
+                <div class="student-detail-field">
+                  <span class="student-detail-label"><%= field.label %></span>
+                  <label class="student-fee-check">
+                    <input type="checkbox" name="<%= field.key %>" value="1" <%= field.checked ? 'checked' : '' %> />
+                  </label>
+                </div>
+              <% }) %>
+            <% }) %>
+          </div>
+        </section>
+        <div class="button-row student-fee-actions">
+          <button class="btn secondary" type="submit">Save Fee Status</button>
+          <span class="muted" id="studentFeeStatusMessage"></span>
+        </div>
+      </form>
+
+      <p><strong>Current Accumulated Pitis:</strong> <%= student.total_points %></p>
+      <p><strong>Attendance Percentage:</strong> <%= Number(student.attendance_sessions_total || 0) ? Math.round((Number(student.attendance_present_sessions || 0) / Number(student.attendance_sessions_total || 0)) * 100) : 0 %>%</p>
+      <p><strong>Siblings:</strong>
+        <% if (!siblings.length) { %>
+          None
+        <% } else { %>
+          <% siblings.forEach((s, i) => { %>
+            <a href="/teacher/students/code/<%= encodeURIComponent(s.student_id) %>"><%= s.full_name %></a> [<%= s.student_id %>] (<%= formatDisplayText(s.class_name) %><%= s.level ? " / " + formatDisplayText(s.level) : "" %>)<%= i < siblings.length - 1 ? ', ' : '' %>
+          <% }) %>
+        <% } %>
+      </p>
+
+      <hr />
+      <details style="margin-top:16px;">
+        <summary style="cursor:pointer; font-weight:600;">Student QR Code</summary>
+        <div class="card" style="margin:12px 0 0; padding:16px; max-width:360px;">
+          <img src="<%= qrCodeImage %>" alt="QR code for <%= student.full_name %>" style="width:220px; max-width:100%; display:block; margin:0 auto 12px;" />
+          <div class="button-row" style="justify-content:center;">
+            <a class="btn secondary" href="<%= qrCodeImage %>" download="student-qr-<%= encodeURIComponent(student.student_id || student.id) %>.png">Download QR Code</a>
+          </div>
+          <div class="muted" style="word-break:break-word; font-size:12px; margin-top:10px;"><%= qrCodePayload %></div>
+        </div>
+      </details>
+    </div>
+  </main>
+  <div id="studentPhotoModal" class="reward-modal hidden" aria-hidden="true">
+    <div class="reward-modal-card reward-gallery-modal-card">
+      <div class="reward-photo-modal-head">
+        <h3 id="studentPhotoModalTitle">Student Photo Preview</h3>
+        <button type="button" class="btn subtle secondary" id="studentPhotoModalClose">Close</button>
+      </div>
+      <div class="reward-gallery-modal-visual">
+        <img id="studentPhotoModalImage" class="reward-gallery-modal-image hidden" src="" alt="Student photo preview" />
+        <div id="studentPhotoModalPlaceholder" class="reward-gallery-modal-placeholder hidden">No image available</div>
+      </div>
+      <div class="reward-gallery-modal-meta">
+        <strong id="studentPhotoModalMetaSlot"></strong>
+        <div class="muted" id="studentPhotoModalMetaUploaded"></div>
+        <div class="muted" id="studentPhotoModalMetaUploader"></div>
+      </div>
+    </div>
+  </div>
+  <script>
+    (function () {
+      var photoSlots = <%- JSON.stringify(photoSlots || []).replace(/</g, '\\u003c') %>;
+      var studentName = <%- JSON.stringify(String(student.full_name || '')).replace(/</g, '\\u003c') %>;
+      var photoModal = document.getElementById('studentPhotoModal');
+      var photoModalTitle = document.getElementById('studentPhotoModalTitle');
+      var photoModalImage = document.getElementById('studentPhotoModalImage');
+      var photoModalPlaceholder = document.getElementById('studentPhotoModalPlaceholder');
+      var photoModalMetaSlot = document.getElementById('studentPhotoModalMetaSlot');
+      var photoModalMetaUploaded = document.getElementById('studentPhotoModalMetaUploaded');
+      var photoModalMetaUploader = document.getElementById('studentPhotoModalMetaUploader');
+      var photoModalClose = document.getElementById('studentPhotoModalClose');
+      var showStudentPhotoUploadBtn = document.getElementById('showStudentPhotoUploadBtn');
+      var hideStudentPhotoUploadBtn = document.getElementById('hideStudentPhotoUploadBtn');
+      var studentPhotoUploadWrap = document.getElementById('studentPhotoUploadWrap');
+      var studentDetailEditForm = document.getElementById('studentDetailEditForm');
+      var studentDetailEditBtn = document.getElementById('studentDetailEditBtn');
+      var studentDetailSaveBtn = document.getElementById('studentDetailSaveBtn');
+      var studentDetailCancelBtn = document.getElementById('studentDetailCancelBtn');
+      var studentDetailControls = Array.prototype.slice.call(document.querySelectorAll('.student-detail-edit-control'));
+      var studentDetailOriginalValues = studentDetailControls.map(function (control) {
+        return control.value;
+      });
+
+      function resizeStudentDetailTextarea(control) {
+        if (!control || control.tagName !== 'TEXTAREA') return;
+        control.style.height = 'auto';
+        control.style.height = Math.max(control.scrollHeight, 40) + 'px';
+      }
+
+      function resizeStudentDetailTextareas() {
+        studentDetailControls.forEach(resizeStudentDetailTextarea);
+      }
+
+      function setStudentDetailEditMode(enabled) {
+        studentDetailControls.forEach(function (control) {
+          control.disabled = !enabled;
+        });
+        if (studentDetailEditBtn) studentDetailEditBtn.style.display = enabled ? 'none' : '';
+        if (studentDetailSaveBtn) studentDetailSaveBtn.style.display = enabled ? '' : 'none';
+        if (studentDetailCancelBtn) studentDetailCancelBtn.style.display = enabled ? '' : 'none';
+        if (studentDetailEditForm) studentDetailEditForm.classList.toggle('is-editing', !!enabled);
+        window.requestAnimationFrame(resizeStudentDetailTextareas);
+      }
+
+      studentDetailControls.forEach(function (control) {
+        if (control.tagName === 'TEXTAREA') {
+          control.addEventListener('input', function () {
+            resizeStudentDetailTextarea(control);
+          });
+        }
+      });
+
+      if (studentDetailEditBtn) {
+        studentDetailEditBtn.addEventListener('click', function () {
+          setStudentDetailEditMode(true);
+          if (studentDetailControls[0]) studentDetailControls[0].focus();
+        });
+      }
+      if (studentDetailCancelBtn) {
+        studentDetailCancelBtn.addEventListener('click', function () {
+          studentDetailControls.forEach(function (control, index) {
+            control.value = studentDetailOriginalValues[index] || '';
+          });
+          resizeStudentDetailTextareas();
+          setStudentDetailEditMode(false);
+        });
+      }
+      setStudentDetailEditMode(false);
+      var studentFeeStatusForm = document.getElementById('studentFeeStatusForm');
+      var studentFeeStatusMessage = document.getElementById('studentFeeStatusMessage');
+
+      function toggleSimpleSection(wrap, showBtn, hideBtn, show) {
+        if (wrap) wrap.style.display = show ? 'block' : 'none';
+        if (showBtn) showBtn.style.display = show ? 'none' : 'inline-flex';
+        if (hideBtn) hideBtn.style.display = show ? 'inline-flex' : 'none';
+      }
+
+      function openStudentPhotoModal(slot) {
+        if (!slot || !photoModal) return;
+        if (photoModalTitle) photoModalTitle.textContent = 'Student Photo ' + String(slot.slot || '');
+        if (photoModalMetaSlot) photoModalMetaSlot.textContent = studentName;
+        if (photoModalMetaUploaded) photoModalMetaUploaded.textContent = 'Uploaded: ' + (slot.uploadedAt || 'No upload yet');
+        if (photoModalMetaUploader) photoModalMetaUploader.textContent = 'By: ' + (slot.uploadedBy || '-');
+        if (slot.src && photoModalImage) {
+          photoModalImage.src = slot.src;
+          photoModalImage.classList.remove('hidden');
+          if (photoModalPlaceholder) photoModalPlaceholder.classList.add('hidden');
+        } else {
+          if (photoModalImage) {
+            photoModalImage.src = '';
+            photoModalImage.classList.add('hidden');
+          }
+          if (photoModalPlaceholder) photoModalPlaceholder.classList.remove('hidden');
+        }
+        photoModal.classList.remove('hidden');
+        photoModal.setAttribute('aria-hidden', 'false');
+      }
+
+      function closeStudentPhotoModal() {
+        if (!photoModal) return;
+        photoModal.classList.add('hidden');
+        photoModal.setAttribute('aria-hidden', 'true');
+        if (photoModalImage) {
+          photoModalImage.src = '';
+          photoModalImage.classList.add('hidden');
+        }
+      }
+
+      document.querySelectorAll('[data-student-photo-open]').forEach(function (btn) {
+        btn.addEventListener('click', function () {
+          var idx = Number(btn.getAttribute('data-student-photo-open') || -1);
+          if (idx < 0 || !photoSlots[idx]) return;
+          openStudentPhotoModal(photoSlots[idx]);
+        });
+      });
+
+      if (photoModalClose) {
+        photoModalClose.addEventListener('click', closeStudentPhotoModal);
+      }
+
+      if (showStudentPhotoUploadBtn) {
+        showStudentPhotoUploadBtn.addEventListener('click', function () {
+          toggleSimpleSection(studentPhotoUploadWrap, showStudentPhotoUploadBtn, hideStudentPhotoUploadBtn, true);
+        });
+      }
+
+      if (hideStudentPhotoUploadBtn) {
+        hideStudentPhotoUploadBtn.addEventListener('click', function () {
+          toggleSimpleSection(studentPhotoUploadWrap, showStudentPhotoUploadBtn, hideStudentPhotoUploadBtn, false);
+        });
+      }
+
+      if (studentFeeStatusForm) {
+        studentFeeStatusForm.addEventListener('submit', function (event) {
+          event.preventDefault();
+          if (studentFeeStatusMessage) studentFeeStatusMessage.textContent = 'Saving...';
+          fetch(studentFeeStatusForm.action, {
+            method: 'POST',
+            headers: { Accept: 'application/json' },
+            body: new FormData(studentFeeStatusForm)
+          })
+            .then(function (res) {
+              return res.json().then(function (data) {
+                return { ok: res.ok, data: data };
+              });
+            })
+            .then(function (result) {
+              if (!result.ok || !result.data || !result.data.success) {
+                throw new Error((result.data && result.data.error) || 'Unable to save fee status');
+              }
+              if (studentFeeStatusMessage) studentFeeStatusMessage.textContent = 'Saved';
+            })
+            .catch(function (err) {
+              if (studentFeeStatusMessage) studentFeeStatusMessage.textContent = err.message || 'Unable to save';
+            });
+        });
+        studentFeeStatusForm.querySelectorAll('input[type="checkbox"]').forEach(function (checkbox) {
+          checkbox.addEventListener('change', function () {
+            studentFeeStatusForm.requestSubmit();
+          });
+        });
+      }
+
+      if (photoModal) {
+        photoModal.addEventListener('click', function (event) {
+          if (event.target === photoModal) closeStudentPhotoModal();
+        });
+      }
+
+      document.addEventListener('keydown', function (event) {
+        if (event.key === 'Escape') closeStudentPhotoModal();
+      });
+    })();
+  </script>
+  <script src="/js/inactivity.js"></script>
+</body>
+</html>

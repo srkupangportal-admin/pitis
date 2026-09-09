@@ -1,0 +1,113 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>My Device Bookings</title>
+  <link rel="stylesheet" href="/css/theme-c.css" />
+</head>
+<body>
+  <% function datePart(value) { return value ? formatDateTimeLocal(value).slice(0, 10) : ''; } %>
+  <% function timePart(value) { return value ? formatDateTimeLocal(value).slice(11, 16) : ''; } %>
+  <% if (currentUser && currentUser.role === 'admin') { %>
+    <%- include('partials/admin-nav') %>
+  <% } else { %>
+    <%- include('partials/teacher-nav') %>
+  <% } %>
+
+  <main class="container stack">
+    <% if (error) { %>
+      <section class="card"><div class="error"><%= error %></div></section>
+    <% } %>
+    <% if (success) { %>
+      <section class="card"><div><%= success %></div></section>
+    <% } %>
+
+    <section class="card device-page-head">
+      <div>
+        <h2>My Device Bookings</h2>
+        <p class="muted">Start and end usage here, including when the device was taken from the hub and when it was returned.</p>
+      </div>
+      <div class="button-row">
+        <a class="btn secondary" href="/devices">Back to Device Booking</a>
+      </div>
+    </section>
+
+    <% if (!bookings.length) { %>
+      <section class="card"><div class="muted">No device bookings found yet.</div></section>
+    <% } %>
+
+    <% bookings.forEach(booking => { %>
+      <section class="card device-booking-card">
+        <div class="device-booking-card-head">
+          <div>
+            <h3><%= booking.device_name %> <span class="muted">(<%= booking.device_code %>)</span></h3>
+            <p class="muted"><%= booking.booking_date %> | <%= booking.planned_start_time %> - <%= booking.planned_end_time %> | <%= booking.class_name %> | <%= booking.subject %></p>
+          </div>
+          <span class="device-status-badge status-<%= String(booking.status).replace(/_/g, '-') %>"><%= String(booking.status).replace(/_/g, ' ') %></span>
+        </div>
+
+        <div class="device-booking-meta">
+          <div><strong>Lesson Topic:</strong> <%= booking.lesson_topic %></div>
+          <div><strong>Venue:</strong> <%= booking.venue %></div>
+          <div><strong>Purpose:</strong> <%= booking.purpose %></div>
+          <div><strong>Remarks:</strong> <%= booking.remarks || '-' %></div>
+          <div><strong>Taken From Hub:</strong> <%= booking.took_from_hub_at || '-' %></div>
+          <div><strong>Actual Start:</strong> <%= booking.actual_start_time || '-' %></div>
+          <div><strong>Actual End:</strong> <%= booking.actual_end_time || '-' %></div>
+          <div><strong>Returned To Hub:</strong> <%= booking.returned_to_hub_at || '-' %></div>
+        </div>
+
+        <% if (booking.status === 'booked') { %>
+          <div class="device-booking-actions">
+            <form method="post" action="/devices/bookings/<%= booking.id %>/start" class="form grid-form" data-async-form="1">
+              <input type="hidden" name="return_to" value="/devices/my-bookings" />
+              <label class="report-date-field attendance-date-picker">Teacher Took Device From Hub Date
+                <input type="date" name="took_from_hub_date" value="<%= datePart(booking.took_from_hub_at || booking.actual_start_time || booking.booking_date + ' ' + booking.planned_start_time + ':00') %>" />
+              </label>
+              <label>Teacher Took Device From Hub Time
+                <input type="time" name="took_from_hub_time" value="<%= timePart(booking.took_from_hub_at || booking.actual_start_time || booking.booking_date + ' ' + booking.planned_start_time + ':00') %>" />
+              </label>
+              <label class="report-date-field attendance-date-picker">Actual Usage Start Date
+                <input type="date" name="actual_start_date" value="<%= datePart(booking.actual_start_time || booking.booking_date + ' ' + booking.planned_start_time + ':00') %>" />
+              </label>
+              <label>Actual Usage Start Time
+                <input type="time" name="actual_start_time" value="<%= timePart(booking.actual_start_time || booking.booking_date + ' ' + booking.planned_start_time + ':00') %>" />
+              </label>
+              <div class="button-row">
+                <button class="btn" type="submit">Start Usage</button>
+              </div>
+            </form>
+
+            <form method="post" action="/devices/bookings/<%= booking.id %>/cancel" class="inline-form" data-async-form="1">
+              <input type="hidden" name="return_to" value="/devices/my-bookings" />
+              <button class="btn danger" type="submit" onclick="return confirm('Cancel this device booking?');">Cancel Booking</button>
+            </form>
+          </div>
+        <% } %>
+
+        <% if (booking.status === 'in_use') { %>
+          <form method="post" action="/devices/bookings/<%= booking.id %>/end" class="form grid-form device-booking-actions" data-async-form="1">
+            <input type="hidden" name="return_to" value="/devices/my-bookings" />
+            <label class="report-date-field attendance-date-picker">Actual Usage End Date
+              <input type="date" name="actual_end_date" value="<%= datePart(booking.actual_end_time || booking.booking_date + ' ' + booking.planned_end_time + ':00') %>" />
+            </label>
+            <label>Actual Usage End Time
+              <input type="time" name="actual_end_time" value="<%= timePart(booking.actual_end_time || booking.booking_date + ' ' + booking.planned_end_time + ':00') %>" />
+            </label>
+            <label class="report-date-field attendance-date-picker">Returned To Hub Date
+              <input type="date" name="returned_to_hub_date" value="<%= datePart(booking.returned_to_hub_at || booking.actual_end_time || booking.booking_date + ' ' + booking.planned_end_time + ':00') %>" />
+            </label>
+            <label>Returned To Hub Time
+              <input type="time" name="returned_to_hub_time" value="<%= timePart(booking.returned_to_hub_at || booking.actual_end_time || booking.booking_date + ' ' + booking.planned_end_time + ':00') %>" />
+            </label>
+            <div class="button-row">
+              <button class="btn" type="submit">End Usage</button>
+            </div>
+          </form>
+        <% } %>
+      </section>
+    <% }) %>
+  </main>
+</body>
+</html>

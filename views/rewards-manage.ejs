@@ -1,0 +1,137 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Manage P.I.T.I.S Gallery</title>
+  <link rel="stylesheet" href="/css/theme-c.css" />
+</head>
+<body>
+  <% if (user && user.role === 'admin') { %>
+    <%- include('partials/admin-nav') %>
+  <% } else { %>
+    <%- include('partials/teacher-nav') %>
+  <% } %>
+
+  <main class="container stack">
+    <% if (error) { %>
+      <section class="card"><div class="error"><%= error %></div></section>
+    <% } %>
+    <% if (success) { %>
+      <section class="card"><div><%= success %></div></section>
+    <% } %>
+
+    <section class="card rewards-gallery-head">
+      <div>
+        <h2>Manage P.I.T.I.S Gallery</h2>
+        <p class="muted">Add P.I.T.I.S images, set pitis required, and control which items appear in the student gallery.</p>
+      </div>
+      <div class="inline-filters">
+        <a class="btn secondary" href="/rewards">Open Gallery</a>
+      </div>
+    </section>
+
+    <section class="card">
+      <h3>Add New P.I.T.I.S</h3>
+      <form method="post" action="/teacher/rewards" enctype="multipart/form-data" class="stack">
+        <div class="inline-filters">
+          <label style="min-width:220px; flex:1 1 260px;">P.I.T.I.S Title
+            <input type="text" name="title" placeholder="P.I.T.I.S title" required />
+          </label>
+          <label style="min-width:180px; flex:1 1 180px;">Pitis Required
+            <input type="number" name="points_required" min="1" step="1" placeholder="Pitis" required />
+          </label>
+          <label style="min-width:180px; flex:1 1 180px;">Status
+            <select name="is_active">
+              <option value="1" selected>active</option>
+              <option value="0">inactive</option>
+            </select>
+          </label>
+          <label style="min-width:240px; flex:1 1 280px;">P.I.T.I.S Image
+            <input type="file" name="reward_image" accept="image/*,.jpg,.jpeg,.png,.webp,image/jpeg,image/png,image/webp" capture="environment" />
+          </label>
+        </div>
+        <label>Description
+          <textarea name="description" rows="3" placeholder="Short description (optional)"></textarea>
+        </label>
+        <div class="muted">Allowed formats: JPG, JPEG, PNG, WEBP. Maximum size: 5MB.</div>
+        <div class="inline-filters">
+          <button class="btn" type="submit">Add P.I.T.I.S</button>
+        </div>
+      </form>
+    </section>
+
+    <section class="card">
+      <div class="section-toggle-head">
+        <div>
+          <h3>Existing P.I.T.I.S</h3>
+          <p class="muted">Edit P.I.T.I.S details, replace the image, set active/inactive, or delete items here.</p>
+        </div>
+      </div>
+
+      <% if (!rewards.length) { %>
+        <div class="muted">No P.I.T.I.S items added yet.</div>
+      <% } else { %>
+        <div class="rewards-manage-list">
+          <% rewards.forEach(reward => { %>
+            <article class="reward-manage-card">
+              <div class="reward-manage-preview">
+                <% if (reward.image_path) { %>
+                  <div class="reward-gallery-thumb-wrap">
+                    <img class="reward-manage-image" src="<%= reward.image_path %>" alt="<%= reward.title %>" onerror="this.style.display='none'; this.nextElementSibling.style.display='grid';" />
+                    <div class="reward-gallery-placeholder reward-manage-placeholder" style="display:none;">No image</div>
+                  </div>
+                <% } else { %>
+                  <div class="reward-gallery-placeholder reward-manage-placeholder">No image</div>
+                <% } %>
+                <div class="muted">
+                  <div>Status: <strong><%= Number(reward.is_active) === 1 ? 'active' : 'inactive' %></strong></div>
+                  <div>Created: <%= reward.created_at %></div>
+                  <% if (reward.creator_name) { %><div>By: <%= reward.creator_name %></div><% } %>
+                </div>
+              </div>
+
+              <div class="reward-manage-main">
+                <form method="post" action="/teacher/rewards/<%= reward.id %>/update" enctype="multipart/form-data" class="stack">
+                  <div class="inline-filters">
+                    <label style="min-width:220px; flex:1 1 240px;">P.I.T.I.S Title
+                      <input type="text" name="title" value="<%= reward.title %>" required />
+                    </label>
+                    <label style="min-width:180px; flex:1 1 180px;">Pitis Required
+                      <input type="number" name="points_required" min="1" step="1" value="<%= reward.points_required %>" required />
+                    </label>
+                    <label style="min-width:180px; flex:1 1 180px;">Status
+                      <select name="is_active">
+                        <option value="1" <%= Number(reward.is_active) === 1 ? 'selected' : '' %>>active</option>
+                        <option value="0" <%= Number(reward.is_active) === 0 ? 'selected' : '' %>>inactive</option>
+                      </select>
+                    </label>
+                    <label style="min-width:240px; flex:1 1 280px;">Replace Image
+                      <input type="file" name="reward_image" accept="image/*,.jpg,.jpeg,.png,.webp,image/jpeg,image/png,image/webp" capture="environment" />
+                    </label>
+                  </div>
+                  <label>Description
+                    <textarea name="description" rows="3" placeholder="Short description (optional)"><%= reward.description || '' %></textarea>
+                  </label>
+                  <label class="inline-filters">
+                    <input type="checkbox" name="remove_image" value="1" />
+                    <span>Remove current image</span>
+                  </label>
+                  <div class="inline-filters">
+                    <button class="btn secondary" type="submit">Save Changes</button>
+                  </div>
+                </form>
+
+                <form method="post" action="/teacher/rewards/<%= reward.id %>/delete" class="inline-filters" onsubmit="return confirm('Delete this reward?');">
+                  <button class="btn danger" type="submit">Delete P.I.T.I.S</button>
+                </form>
+              </div>
+            </article>
+          <% }) %>
+        </div>
+      <% } %>
+    </section>
+  </main>
+  <script src="/js/inactivity.js"></script>
+</body>
+</html>

@@ -1,0 +1,533 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>School Inventory</title>
+  <link rel="stylesheet" href="/css/theme-c.css" />
+</head>
+<body>
+  <% if (currentUser && currentUser.role === 'admin') { %>
+    <%- include('partials/admin-nav') %>
+  <% } else { %>
+    <%- include('partials/teacher-nav') %>
+  <% } %>
+
+  <main class="container stack">
+    <% const isAdminInventory = currentUser && currentUser.role === 'admin'; %>
+    <% const statusTotals = (inventory || []).reduce((acc, item) => { acc[item.status] = (acc[item.status] || 0) + 1; return acc; }, {}); %>
+    <% const selectedFilters = filters || {}; %>
+    <% const activeCategories = inventoryCategoryOptions || []; %>
+    <% const activeLocations = inventoryLocationOptions || []; %>
+    <% const activeConditions = inventoryConditionOptions || []; %>
+    <% const activeAvailability = inventoryAvailabilityOptions || []; %>
+    <% const activeDetailFields = inventoryDetailFields || []; %>
+    <% const allDetailFields = allInventoryDetailFields || []; %>
+    <% if (error) { %>
+      <section class="card"><div class="error"><%= error %></div></section>
+    <% } %>
+    <% if (success) { %>
+      <section class="card"><div><%= success %></div></section>
+    <% } %>
+
+    <section class="card device-page-head">
+      <div>
+        <h2>School Inventory</h2>
+        <p class="muted"><%= isAdminInventory ? 'Manage school inventory records, QR codes, and which items appear in Device Bookings.' : 'View inventory items currently available for school use.' %></p>
+      </div>
+      <div class="button-row">
+        <a class="btn secondary" href="/devices">Device Booking</a>
+      </div>
+    </section>
+
+    <section class="cards-3 device-summary-grid">
+      <div class="card device-summary-card">
+        <span class="muted"><%= isAdminInventory ? 'Inventory Records' : 'Available Items' %></span>
+        <strong><%= (inventory || []).length %></strong>
+      </div>
+      <div class="card device-summary-card">
+        <span class="muted">Available</span>
+        <strong><%= statusTotals.available || 0 %></strong>
+      </div>
+      <div class="card device-summary-card">
+        <span class="muted">Bookable Devices</span>
+        <strong><%= (inventory || []).filter(item => Number(item.is_bookable) === 1).length %></strong>
+      </div>
+    </section>
+
+    <% if (isAdminInventory) { %>
+      <section class="card">
+        <details class="notes-collapsed-card" data-async-state-key="inventory-options">
+          <summary class="notes-card-summary device-admin-summary">
+            <span>
+              <strong>Manage Inventory Options</strong>
+              <span class="muted">Control locations, categories, conditions, and availability choices.</span>
+            </span>
+            <span class="device-admin-summary-right">
+              <span class="device-status-badge status-available">Admin</span>
+            </span>
+          </summary>
+          <div class="notes-section">
+            <% const optionGroups = [
+              { type: 'categories', title: 'Categories', options: allInventoryCategoryOptions || [], placeholder: 'Teaching Aid' },
+              { type: 'locations', title: 'Locations', options: allInventoryLocationOptions || [], placeholder: 'Resource Room' },
+              { type: 'conditions', title: 'Conditions', options: allInventoryConditionOptions || [], placeholder: 'good' },
+              { type: 'availability', title: 'Availability', options: allInventoryAvailabilityOptions || [], placeholder: 'available' }
+            ]; %>
+            <div class="admin-device-dashboard-grid">
+              <% optionGroups.forEach(group => { %>
+                <div class="admin-device-panel">
+                  <h3><%= group.title %></h3>
+                  <form method="post" action="/admin/inventory-options/<%= group.type %>" class="form inline-filters" data-async-form="1">
+                    <input type="hidden" name="return_to" value="/inventory" />
+                    <label class="filter-grow"><%= group.title %>
+                      <input type="text" name="name" placeholder="<%= group.placeholder %>" required />
+                    </label>
+                    <button class="btn secondary" type="submit">Add</button>
+                  </form>
+                  <% if (!(group.options || []).length) { %>
+                    <div class="muted">No options yet.</div>
+                  <% } else { %>
+                    <div class="device-location-list">
+                      <% group.options.forEach(option => { %>
+                        <div class="device-location-item">
+                          <form method="post" action="/admin/inventory-options/<%= group.type %>/<%= option.id %>/edit" class="form inline-filters" data-async-form="1">
+                            <input type="hidden" name="return_to" value="/inventory" />
+                            <label class="filter-grow">Name
+                              <input type="text" name="name" value="<%= option.name %>" required />
+                            </label>
+                            <span class="device-status-badge status-<%= option.is_active ? 'available' : 'inactive' %>"><%= option.is_active ? 'active' : 'hidden' %></span>
+                            <button class="btn secondary" type="submit">Save</button>
+                          </form>
+                          <form method="post" action="/admin/inventory-options/<%= group.type %>/<%= option.id %>/delete" class="inline-form" data-async-form="1">
+                            <input type="hidden" name="return_to" value="/inventory" />
+                            <button class="btn danger" type="submit" onclick="return confirm('Remove this inventory option? Used options will be hidden instead of deleted.');">Remove</button>
+                          </form>
+                        </div>
+                      <% }) %>
+                    </div>
+                  <% } %>
+                </div>
+              <% }) %>
+            </div>
+          </div>
+        </details>
+      </section>
+
+      <section class="card">
+        <details class="notes-collapsed-card" data-async-state-key="inventory-detail-fields">
+          <summary class="notes-card-summary device-admin-summary">
+            <span>
+              <strong>Manage Inventory Details</strong>
+              <span class="muted">Add stockbook-only fields visible in Inventory and CSV exports.</span>
+            </span>
+            <span class="device-admin-summary-right">
+              <span class="device-status-badge status-available"><%= allDetailFields.length %> fields</span>
+            </span>
+          </summary>
+          <div class="notes-section stack">
+            <form method="post" action="/admin/inventory-detail-fields" class="form inline-filters" data-async-form="1">
+              <input type="hidden" name="return_to" value="/inventory" />
+              <label class="filter-grow">Detail Label
+                <input type="text" name="label" placeholder="Warranty Expiry" required />
+              </label>
+              <label>Type
+                <select name="field_type">
+                  <option value="text">Text</option>
+                  <option value="date">Date</option>
+                  <option value="number">Number</option>
+                </select>
+              </label>
+              <button class="btn secondary" type="submit">Add Detail</button>
+            </form>
+            <% if (!allDetailFields.length) { %>
+              <div class="muted">No inventory detail fields yet.</div>
+            <% } else { %>
+              <div class="device-location-list">
+                <% allDetailFields.forEach(field => { %>
+                  <div class="device-location-item">
+                    <form method="post" action="/admin/inventory-detail-fields/<%= field.id %>/edit" class="form inline-filters" data-async-form="1">
+                      <input type="hidden" name="return_to" value="/inventory" />
+                      <label class="filter-grow">Label
+                        <input type="text" name="label" value="<%= field.label %>" required />
+                      </label>
+                      <label>Type
+                        <select name="field_type">
+                          <option value="text" <%= field.field_type === 'text' ? 'selected' : '' %>>Text</option>
+                          <option value="date" <%= field.field_type === 'date' ? 'selected' : '' %>>Date</option>
+                          <option value="number" <%= field.field_type === 'number' ? 'selected' : '' %>>Number</option>
+                        </select>
+                      </label>
+                      <label>Order
+                        <input type="number" name="sort_order" value="<%= field.sort_order || 0 %>" step="1" />
+                      </label>
+                      <label class="calendar-label-option">
+                        <input type="checkbox" name="is_active" value="1" <%= Number(field.is_active) === 1 ? 'checked' : '' %> />
+                        <span>Active</span>
+                      </label>
+                      <button class="btn secondary" type="submit">Save</button>
+                    </form>
+                    <form method="post" action="/admin/inventory-detail-fields/<%= field.id %>/delete" class="inline-form" data-async-form="1">
+                      <input type="hidden" name="return_to" value="/inventory" />
+                      <button class="btn danger" type="submit" onclick="return confirm('Remove this inventory detail field? Existing values will hide the field instead of deleting it.');">Remove</button>
+                    </form>
+                  </div>
+                <% }) %>
+              </div>
+            <% } %>
+          </div>
+        </details>
+      </section>
+
+      <section class="card">
+        <details class="notes-collapsed-card" data-async-state-key="inventory-csv">
+          <summary class="notes-card-summary device-admin-summary">
+            <span>
+              <strong>CSV Inventory Management</strong>
+              <span class="muted">Import, overwrite, export, or download the inventory CSV template.</span>
+            </span>
+            <span class="device-admin-summary-right">
+              <span class="device-status-badge status-available">CSV</span>
+            </span>
+          </summary>
+          <div class="notes-section stack">
+            <div class="button-row">
+              <a class="btn secondary" href="/admin/inventory/template" download>Download CSV Template</a>
+              <a class="btn secondary" href="/admin/inventory/export" download>Export Existing Inventory</a>
+            </div>
+            <form method="post" action="/admin/inventory/import" enctype="multipart/form-data" class="form grid-form" data-async-form="1">
+              <input type="hidden" name="return_to" value="/inventory" />
+              <label>Inventory CSV
+                <input type="file" name="inventory_csv" accept=".csv,text/csv" required />
+              </label>
+              <label>Import Mode
+                <select name="import_mode" required>
+                  <option value="append">Add/update existing inventory database</option>
+                  <option value="overwrite">Overwrite current inventory database</option>
+                </select>
+              </label>
+              <div class="device-booking-remarks muted">
+                CSV rows are matched by inventory code. Append mode updates matching codes and adds new ones. Overwrite mode clears current inventory records before importing.
+              </div>
+              <div class="button-row">
+                <button class="btn" type="submit" onclick="return this.form.import_mode.value !== 'overwrite' || confirm('Overwrite current inventory records with this CSV? This cannot be undone.');">Import CSV</button>
+              </div>
+            </form>
+          </div>
+        </details>
+      </section>
+
+      <section class="card">
+        <details class="notes-collapsed-card" data-async-state-key="inventory-add" <%= error ? 'open' : '' %>>
+          <summary class="notes-card-summary device-admin-summary">
+            <span>
+              <strong>Add Inventory Item</strong>
+              <span class="muted">Create an inventory record with its own QR token.</span>
+            </span>
+            <span class="device-admin-summary-right">
+              <span class="device-status-badge status-available">Admin</span>
+            </span>
+          </summary>
+          <div class="notes-section">
+            <form method="post" action="/admin/inventory" class="form grid-form" data-async-form="1">
+              <input type="hidden" name="return_to" value="/inventory" />
+              <label>Name
+                <input type="text" name="name" placeholder="Science Kit A" required />
+              </label>
+              <label>Inventory Code
+                <input type="text" name="code" placeholder="INV-001" required />
+              </label>
+              <label>Category
+                <select name="category" required>
+                  <option value="">Select category</option>
+                  <% activeCategories.forEach(option => { %>
+                    <option value="<%= option.name %>"><%= option.name %></option>
+                  <% }) %>
+                </select>
+              </label>
+              <label>Location
+                <select name="location" required>
+                  <option value="">Select location</option>
+                  <% activeLocations.forEach(option => { %>
+                    <option value="<%= option.name %>"><%= option.name %></option>
+                  <% }) %>
+                </select>
+              </label>
+              <label>Condition
+                <select name="item_condition" required>
+                  <option value="">Select condition</option>
+                  <% activeConditions.forEach(option => { %>
+                    <option value="<%= option.name %>" <%= option.name === 'good' ? 'selected' : '' %>><%= option.name %></option>
+                  <% }) %>
+                </select>
+              </label>
+              <label>Status
+                <select name="status" required>
+                  <% activeAvailability.forEach(option => { %>
+                    <option value="<%= option.name %>" <%= option.name === 'available' ? 'selected' : '' %>><%= option.name.replace(/_/g, ' ') %></option>
+                  <% }) %>
+                </select>
+              </label>
+              <label class="calendar-label-option device-booking-remarks">
+                <input type="checkbox" name="is_bookable" value="1" />
+                <span>Available for Device Booking</span>
+              </label>
+              <% activeDetailFields.forEach(field => { %>
+                <label><%= field.label %>
+                  <input type="<%= field.field_type === 'date' ? 'date' : (field.field_type === 'number' ? 'number' : 'text') %>" name="detail_<%= field.id %>" <% if (field.field_type === 'number') { %>step="0.01"<% } %> />
+                </label>
+              <% }) %>
+              <label class="device-booking-remarks">Notes
+                <textarea name="notes" rows="3" placeholder="Optional notes"></textarea>
+              </label>
+              <div class="button-row">
+                <button class="btn" type="submit">Add Inventory</button>
+              </div>
+            </form>
+          </div>
+        </details>
+      </section>
+    <% } %>
+
+    <section class="card">
+      <details class="notes-collapsed-card" data-async-state-key="inventory-list" open>
+        <summary class="notes-card-summary device-admin-summary">
+          <span>
+            <strong><%= isAdminInventory ? 'All Inventory' : 'Available Inventory' %></strong>
+            <span class="muted">Every item has a unique QR code with item information and token ID.</span>
+          </span>
+          <span class="device-admin-summary-right">
+            <span class="device-status-badge status-available"><%= (inventory || []).length %> items</span>
+          </span>
+        </summary>
+        <div class="notes-section">
+
+      <form method="get" action="/inventory" class="form inline-filters inventory-filter-bar">
+        <label class="filter-grow">Search
+          <input type="search" name="search" value="<%= selectedFilters.search || '' %>" placeholder="Name, code, or notes" />
+        </label>
+        <label>Category
+          <select name="category">
+            <option value="">All categories</option>
+            <% activeCategories.forEach(option => { %>
+              <option value="<%= option.name %>" <%= selectedFilters.category === option.name ? 'selected' : '' %>><%= option.name %></option>
+            <% }) %>
+          </select>
+        </label>
+        <label>Location
+          <select name="location">
+            <option value="">All locations</option>
+            <% activeLocations.forEach(option => { %>
+              <option value="<%= option.name %>" <%= selectedFilters.location === option.name ? 'selected' : '' %>><%= option.name %></option>
+            <% }) %>
+          </select>
+        </label>
+        <label>Condition
+          <select name="condition">
+            <option value="">All conditions</option>
+            <% activeConditions.forEach(option => { %>
+              <option value="<%= option.name %>" <%= selectedFilters.condition === option.name ? 'selected' : '' %>><%= option.name %></option>
+            <% }) %>
+          </select>
+        </label>
+        <% if (isAdminInventory) { %>
+          <label>Availability
+            <select name="availability">
+              <option value="">All availability</option>
+              <% activeAvailability.forEach(option => { %>
+                <option value="<%= option.name %>" <%= selectedFilters.status === option.name ? 'selected' : '' %>><%= option.name.replace(/_/g, ' ') %></option>
+              <% }) %>
+            </select>
+          </label>
+        <% } %>
+        <div class="button-row">
+          <button class="btn secondary" type="submit">Filter</button>
+          <a class="btn secondary" href="/inventory">Reset</a>
+        </div>
+      </form>
+
+      <% if (!(inventory || []).length) { %>
+        <div class="muted"><%= isAdminInventory ? 'No inventory records yet.' : 'No available inventory records right now.' %></div>
+      <% } else { %>
+        <div class="inventory-grid">
+          <% inventory.forEach(item => { %>
+            <article class="card inventory-card">
+              <div class="inventory-card-head">
+                <div>
+                  <h3><%= item.name %></h3>
+                  <div class="muted"><%= item.code %> | <%= item.category %></div>
+                </div>
+                <span class="device-status-badge status-<%= String(item.status).replace(/_/g, '-') %>"><%= String(item.status).replace(/_/g, ' ') %></span>
+              </div>
+
+              <div class="device-booking-meta">
+                <div><span class="muted">Location</span><br /><strong><%= item.location %></strong></div>
+                <div><span class="muted">Condition</span><br /><strong><%= item.item_condition %></strong></div>
+                <div><span class="muted">Token ID</span><br /><code class="inventory-token"><%= item.token %></code></div>
+                <div>
+                  <span class="muted">Device Booking</span><br />
+                  <% if (Number(item.is_bookable) === 1 && item.linked_device_id) { %>
+                    <a href="/devices?device_id=<%= item.linked_device_id %>"><%= item.linked_device_name %> (<%= item.linked_device_code %>)</a>
+                  <% } else if (Number(item.is_bookable) === 1) { %>
+                    <strong>Enabled</strong>
+                  <% } else { %>
+                    <strong>Not available for booking</strong>
+                  <% } %>
+                </div>
+              </div>
+
+              <% const visibleDetails = isAdminInventory ? activeDetailFields.map(field => ({ field, value: (item.detail_values || {})[field.id] || '' })).filter(entry => entry.value) : []; %>
+              <% if (visibleDetails.length) { %>
+                <div class="inventory-stockbook-details">
+                  <strong>Stockbook Details</strong>
+                  <div class="device-booking-meta">
+                    <% visibleDetails.forEach(entry => { %>
+                      <div><span class="muted"><%= entry.field.label %></span><br /><strong><%= entry.value %></strong></div>
+                    <% }) %>
+                  </div>
+                </div>
+              <% } %>
+
+              <div class="device-qr-admin-panel">
+                <div>
+                  <strong>Inventory QR</strong>
+                  <p class="muted">Contains item details and unique token ID.</p>
+                  <a class="btn secondary" href="<%= item.qr_code_image %>" download="inventory-qr-<%= item.code %>.png">Download QR</a>
+                  <% if (Number(item.is_bookable) === 1 && item.linked_device_id) { %>
+                    <a class="btn secondary" href="/devices?device_id=<%= item.linked_device_id %>">Book Linked Device</a>
+                  <% } %>
+                </div>
+                <img class="device-qr-image" src="<%= item.qr_code_image %>" alt="<%= item.name %> inventory QR code" />
+              </div>
+
+              <% if (item.notes) { %>
+                <div class="muted"><%= item.notes %></div>
+              <% } %>
+
+              <div class="inventory-documents">
+                <div class="inventory-documents-head">
+                  <strong>Inventory Documents</strong>
+                  <span class="muted">PDF / JPG</span>
+                </div>
+                <% if ((item.documents || []).length) { %>
+                  <div class="inventory-document-list">
+                    <% item.documents.forEach(document => { %>
+                      <div class="inventory-document-item">
+                        <a class="inventory-document-link" href="<%= document.file_path %>" target="_blank" rel="noopener">
+                          <span class="device-status-badge status-available"><%= String(document.document_type || '').toUpperCase() %></span>
+                          <span><%= document.original_name %></span>
+                        </a>
+                        <% if (isAdminInventory) { %>
+                          <form method="post" action="/admin/inventory/documents/<%= document.id %>/delete" class="inline-form" data-async-form="1">
+                            <input type="hidden" name="return_to" value="/inventory" />
+                            <button class="btn danger" type="submit" onclick="return confirm('Delete this inventory document?');">Delete</button>
+                          </form>
+                        <% } %>
+                      </div>
+                    <% }) %>
+                  </div>
+                <% } else { %>
+                  <div class="muted">No documents uploaded.</div>
+                <% } %>
+                <% if (isAdminInventory) { %>
+                  <form method="post" action="/admin/inventory/<%= item.id %>/documents" enctype="multipart/form-data" class="form inventory-document-upload" data-async-form="1">
+                    <input type="hidden" name="return_to" value="/inventory" />
+                    <label>Upload document
+                      <input type="file" name="inventory_document" accept=".pdf,.jpg,.jpeg,application/pdf,image/jpeg" required />
+                    </label>
+                    <button class="btn secondary" type="submit">Upload PDF/JPG</button>
+                  </form>
+                <% } %>
+              </div>
+
+              <% if (isAdminInventory) { %>
+                <details class="notes-collapsed-card inventory-edit-collapse">
+                  <summary class="notes-card-summary device-admin-summary">
+                    <span><strong>Edit Inventory</strong></span>
+                    <span class="device-admin-summary-right"><span class="device-status-badge status-available">Manage</span></span>
+                  </summary>
+                  <div class="notes-section">
+                    <%
+                      const categoryChoices = activeCategories.slice();
+                      if (item.category && !categoryChoices.some(option => option.name === item.category)) categoryChoices.push({ name: item.category });
+                      const locationChoices = activeLocations.slice();
+                      if (item.location && !locationChoices.some(option => option.name === item.location)) locationChoices.push({ name: item.location });
+                      const conditionChoices = activeConditions.slice();
+                      if (item.item_condition && !conditionChoices.some(option => option.name === item.item_condition)) conditionChoices.push({ name: item.item_condition });
+                      const availabilityChoices = activeAvailability.slice();
+                      if (item.status && !availabilityChoices.some(option => option.name === item.status)) availabilityChoices.push({ name: item.status });
+                    %>
+                    <form method="post" action="/admin/inventory/<%= item.id %>/edit" class="form grid-form" data-async-form="1">
+                      <input type="hidden" name="return_to" value="/inventory" />
+                      <label>Name
+                        <input type="text" name="name" value="<%= item.name %>" required />
+                      </label>
+                      <label>Inventory Code
+                        <input type="text" name="code" value="<%= item.code %>" required />
+                      </label>
+                      <label>Category
+                        <select name="category" required>
+                          <% categoryChoices.forEach(option => { %>
+                            <option value="<%= option.name %>" <%= item.category === option.name ? 'selected' : '' %>><%= option.name %></option>
+                          <% }) %>
+                        </select>
+                      </label>
+                      <label>Location
+                        <select name="location" required>
+                          <% locationChoices.forEach(option => { %>
+                            <option value="<%= option.name %>" <%= item.location === option.name ? 'selected' : '' %>><%= option.name %></option>
+                          <% }) %>
+                        </select>
+                      </label>
+                      <label>Condition
+                        <select name="item_condition" required>
+                          <% conditionChoices.forEach(option => { %>
+                            <option value="<%= option.name %>" <%= item.item_condition === option.name ? 'selected' : '' %>><%= option.name %></option>
+                          <% }) %>
+                        </select>
+                      </label>
+                      <label>Status
+                        <select name="status" required>
+                          <% availabilityChoices.forEach(option => { %>
+                            <option value="<%= option.name %>" <%= item.status === option.name ? 'selected' : '' %>><%= option.name.replace(/_/g, ' ') %></option>
+                          <% }) %>
+                        </select>
+                      </label>
+                      <label class="calendar-label-option device-booking-remarks">
+                        <input type="checkbox" name="is_bookable" value="1" <%= Number(item.is_bookable) === 1 ? 'checked' : '' %> />
+                        <span>Available for Device Booking</span>
+                      </label>
+                      <% activeDetailFields.forEach(field => { %>
+                        <label><%= field.label %>
+                          <input
+                            type="<%= field.field_type === 'date' ? 'date' : (field.field_type === 'number' ? 'number' : 'text') %>"
+                            name="detail_<%= field.id %>"
+                            value="<%= (item.detail_values || {})[field.id] || '' %>"
+                            <% if (field.field_type === 'number') { %>step="0.01"<% } %> />
+                        </label>
+                      <% }) %>
+                      <label class="device-booking-remarks">Notes
+                        <textarea name="notes" rows="3"><%= item.notes || '' %></textarea>
+                      </label>
+                      <div class="button-row">
+                        <button class="btn secondary" type="submit">Save Inventory</button>
+                      </div>
+                    </form>
+                    <form method="post" action="/admin/inventory/<%= item.id %>/delete" class="inline-form" data-async-form="1">
+                      <input type="hidden" name="return_to" value="/inventory" />
+                      <button class="btn danger" type="submit" onclick="return confirm('Permanently delete this inventory item? This cannot be undone.');">Permanently Delete Inventory</button>
+                    </form>
+                  </div>
+                </details>
+              <% } %>
+            </article>
+          <% }) %>
+        </div>
+      <% } %>
+        </div>
+      </details>
+    </section>
+  </main>
+  <script src="/js/inactivity.js"></script>
+</body>
+</html>
