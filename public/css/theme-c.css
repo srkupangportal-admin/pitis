@@ -1114,6 +1114,161 @@ body.calendar-ref-dark .portal-sidebar h1::before {
   }
 }
 
+/* Shared small-screen header.  Mobile uses the Quick Menu, so the duplicate
+   horizontal shortcut strip must not consume space below the banner. */
+@media (max-width: 900px) {
+  body:has(.portal-sidebar) {
+    padding-left: 0 !important;
+    padding-top: 68px !important;
+  }
+
+  body .portal-sidebar.main-header-card {
+    position: fixed !important;
+    z-index: 1000 !important;
+    inset: 0 0 auto 0 !important;
+    width: 100% !important;
+    height: 68px !important;
+    min-height: 68px !important;
+    margin: 0 !important;
+    padding: 8px 12px !important;
+    overflow: visible !important;
+  }
+
+  body .portal-sidebar .landing-header-inner {
+    width: 100% !important;
+    min-height: 0 !important;
+    height: 52px !important;
+    display: grid !important;
+    grid-template-columns: 46px minmax(0, 1fr) auto !important;
+    grid-template-rows: 52px !important;
+    align-items: center !important;
+    justify-items: stretch !important;
+    gap: 8px !important;
+  }
+
+  body .portal-sidebar .portal-school-logo {
+    grid-column: 1 !important;
+    grid-row: 1 !important;
+    width: 46px !important;
+    height: 46px !important;
+    max-width: 46px !important;
+    margin: 0 !important;
+    padding: 3px !important;
+    object-fit: contain !important;
+    border-radius: 9px !important;
+  }
+
+  body .portal-sidebar h1 {
+    grid-column: 2 !important;
+    grid-row: 1 !important;
+    min-width: 0 !important;
+    max-width: none !important;
+    margin: 0 !important;
+    overflow: hidden !important;
+    color: #fffdf8 !important;
+    font-size: clamp(.72rem, 3.6vw, .94rem) !important;
+    line-height: 1.25 !important;
+    text-align: left !important;
+    text-overflow: ellipsis !important;
+    white-space: nowrap !important;
+  }
+
+  body .portal-sidebar h1::before,
+  body .portal-public-header h1::before {
+    content: none !important;
+    display: none !important;
+  }
+
+  body .portal-sidebar .landing-subtitle,
+  body .portal-sidebar .landing-datetime,
+  body .portal-sidebar .recent-login-strip,
+  body .portal-sidebar .main-header-shortcuts-desktop,
+  body .portal-top-shortcuts {
+    display: none !important;
+  }
+
+  body .portal-sidebar .main-header-mobile-menu {
+    grid-column: 3 !important;
+    grid-row: 1 !important;
+    display: block !important;
+    position: static !important;
+    width: auto !important;
+    min-width: 0 !important;
+    margin: 0 !important;
+  }
+
+  body .portal-sidebar .main-header-mobile-toggle {
+    width: auto !important;
+    min-width: 88px !important;
+    min-height: 44px !important;
+    margin: 0 !important;
+    padding: 7px 10px !important;
+    color: #fff !important;
+    background: rgba(255,255,255,.08) !important;
+    border: 1px solid rgba(255,255,255,.18) !important;
+    font-size: .78rem !important;
+    line-height: 1.1 !important;
+    white-space: normal !important;
+  }
+
+  body .portal-sidebar .main-header-mobile-panel {
+    position: fixed !important;
+    z-index: 1100 !important;
+    inset: 68px 0 auto 0 !important;
+    width: 100% !important;
+    max-height: calc(100dvh - 68px) !important;
+    margin: 0 !important;
+    padding: 12px !important;
+    overflow-y: auto !important;
+    display: grid !important;
+    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+    gap: 8px !important;
+    background: #18382d !important;
+    border: 0 !important;
+    border-radius: 0 !important;
+    box-shadow: 0 16px 30px rgba(5,24,17,.24) !important;
+  }
+
+  body .portal-sidebar .main-header-mobile-panel.hidden {
+    display: none !important;
+  }
+
+  body .portal-sidebar .main-header-mobile-panel .btn,
+  body .portal-sidebar .main-header-mobile-panel .inline-form,
+  body .portal-sidebar .main-header-mobile-panel .inline-form .btn {
+    width: 100% !important;
+    min-width: 0 !important;
+    margin: 0 !important;
+  }
+}
+
+@media (max-width: 420px) {
+  body .portal-sidebar .landing-header-inner {
+    grid-template-columns: 42px minmax(0, 1fr) 82px !important;
+    gap: 6px !important;
+  }
+
+  body .portal-sidebar .portal-school-logo {
+    width: 42px !important;
+    height: 42px !important;
+    max-width: 42px !important;
+  }
+
+  body .portal-sidebar h1 {
+    font-size: .7rem !important;
+  }
+
+  body .portal-sidebar .main-header-mobile-toggle {
+    min-width: 82px !important;
+    padding-inline: 6px !important;
+    font-size: .72rem !important;
+  }
+
+  body .portal-sidebar .main-header-mobile-panel {
+    grid-template-columns: 1fr !important;
+  }
+}
+
 /* Leaderboard CSV export */
 .leaderboard-scope-buttons {
   display: flex;
@@ -2738,4 +2893,161 @@ img, video, canvas, svg { max-width: 100%; }
   .portal-sidebar { padding-inline: 10px; }
   .portal-sidebar h1 { max-width: calc(100vw - 96px); }
   .card, .panel { padding: 14px; }
+}
+
+/* Final shared-header override: keep this last so legacy theme layers cannot
+   restore the duplicate mobile shortcut strip or expand the header. */
+@media (max-width: 900px) {
+  body:has(.portal-sidebar) {
+    padding-left: 0 !important;
+    padding-top: 68px !important;
+  }
+
+  body .portal-top-shortcuts {
+    display: none !important;
+  }
+
+  body .main-header-card.portal-sidebar {
+    position: fixed !important;
+    z-index: 1000 !important;
+    inset: 0 0 auto !important;
+    width: 100% !important;
+    height: 68px !important;
+    min-height: 68px !important;
+    margin: 0 !important;
+    padding: 8px 12px !important;
+    overflow: visible !important;
+  }
+
+  body .main-header-card .landing-header-inner {
+    width: 100% !important;
+    min-height: 0 !important;
+    height: 52px !important;
+    display: grid !important;
+    grid-template-columns: 46px minmax(0, 1fr) auto !important;
+    grid-template-rows: 52px !important;
+    align-items: center !important;
+    justify-items: stretch !important;
+    gap: 8px !important;
+  }
+
+  body .main-header-card .portal-school-logo {
+    grid-column: 1 !important;
+    grid-row: 1 !important;
+    display: block !important;
+    width: 46px !important;
+    height: 46px !important;
+    max-width: 46px !important;
+    margin: 0 !important;
+    padding: 3px !important;
+    object-fit: contain !important;
+    background: #fffdf8 !important;
+    border-radius: 9px !important;
+  }
+
+  body .main-header-card h1 {
+    grid-column: 2 !important;
+    grid-row: 1 !important;
+    min-width: 0 !important;
+    max-width: none !important;
+    margin: 0 !important;
+    overflow: hidden !important;
+    font-size: clamp(.72rem, 3.6vw, .94rem) !important;
+    line-height: 1.25 !important;
+    text-align: left !important;
+    text-overflow: ellipsis !important;
+    white-space: nowrap !important;
+  }
+
+  body .portal-sidebar h1 { color: #fffdf8 !important; }
+  body .main-header-card h1::before { content: none !important; display: none !important; }
+
+  body .main-header-card .landing-subtitle,
+  body .main-header-card .landing-datetime,
+  body .main-header-card .recent-login-strip,
+  body .main-header-card .main-header-shortcuts-desktop {
+    display: none !important;
+  }
+
+  body .main-header-card .main-header-mobile-menu {
+    grid-column: 3 !important;
+    grid-row: 1 !important;
+    display: block !important;
+    position: static !important;
+    width: auto !important;
+    min-width: 0 !important;
+    margin: 0 !important;
+  }
+
+  body .main-header-card .main-header-mobile-toggle {
+    width: auto !important;
+    min-width: 88px !important;
+    min-height: 44px !important;
+    margin: 0 !important;
+    padding: 7px 10px !important;
+    font-size: .78rem !important;
+    line-height: 1.1 !important;
+  }
+
+  body .portal-sidebar .main-header-mobile-toggle {
+    color: #fff !important;
+    background: rgba(255,255,255,.08) !important;
+    border-color: rgba(255,255,255,.18) !important;
+  }
+
+  body .portal-sidebar .main-header-mobile-panel,
+  body .portal-public-header .main-header-mobile-panel {
+    position: fixed !important;
+    z-index: 1100 !important;
+    inset: 68px 0 auto !important;
+    width: 100% !important;
+    max-height: calc(100dvh - 68px) !important;
+    margin: 0 !important;
+    padding: 12px !important;
+    overflow-y: auto !important;
+    display: grid !important;
+    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+    gap: 8px !important;
+    border: 0 !important;
+    border-radius: 0 !important;
+    box-shadow: 0 16px 30px rgba(5,24,17,.24) !important;
+  }
+
+  body .portal-sidebar .main-header-mobile-panel { background: #18382d !important; }
+  body .portal-public-header .main-header-mobile-panel { background: #fffdf8 !important; }
+
+  body .main-header-card .main-header-mobile-panel.hidden {
+    display: none !important;
+  }
+
+  body .main-header-card .main-header-mobile-panel .btn,
+  body .main-header-card .main-header-mobile-panel .inline-form,
+  body .main-header-card .main-header-mobile-panel .inline-form .btn {
+    width: 100% !important;
+    min-width: 0 !important;
+    margin: 0 !important;
+  }
+}
+
+@media (max-width: 420px) {
+  body .main-header-card .landing-header-inner {
+    grid-template-columns: 42px minmax(0, 1fr) 82px !important;
+    gap: 6px !important;
+  }
+
+  body .main-header-card .portal-school-logo {
+    width: 42px !important;
+    height: 42px !important;
+    max-width: 42px !important;
+  }
+
+  body .main-header-card h1 { font-size: .7rem !important; }
+  body .main-header-card .main-header-mobile-toggle {
+    min-width: 82px !important;
+    padding-inline: 6px !important;
+    font-size: .72rem !important;
+  }
+  body .main-header-card .main-header-mobile-panel {
+    grid-template-columns: 1fr !important;
+  }
 }
