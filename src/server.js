@@ -8,7 +8,7 @@ const bcrypt = require("bcryptjs");
 const express = require("express");
 const session = require("express-session");
 const helmet = require("helmet");
-const { rateLimit } = require("express-rate-limit");
+const { ipKeyGenerator, rateLimit } = require("express-rate-limit");
 const dayjs = require("dayjs");
 const { initializeDatabase } = require("./db/init");
 const { getServerConfig, loadEnvFile } = require("./config/env");
@@ -117,14 +117,21 @@ function createApp(config) {
   const loginLimiter = rateLimit({
     windowMs: 15 * 60 * 1000,
     limit: 10,
+    keyGenerator: (req) => {
+      const username = String((req.body || {}).username || "unknown").trim().toLowerCase();
+      return `${ipKeyGenerator(req.ip)}:${username}`;
+    },
     standardHeaders: "draft-8",
     legacyHeaders: false,
     skipSuccessfulRequests: true,
-    message: "Too many sign-in attempts. Please wait 15 minutes and try again."
+    message: "Too many unsuccessful attempts for this account. Please wait 15 minutes and try again."
   });
   const apiLimiter = rateLimit({
     windowMs: 15 * 60 * 1000,
     limit: 1500,
+    keyGenerator: (req) => req.session?.user?.id
+      ? `user:${req.session.user.id}`
+      : `ip:${ipKeyGenerator(req.ip)}`,
     standardHeaders: "draft-8",
     legacyHeaders: false
   });
