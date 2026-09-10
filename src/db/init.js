@@ -1484,6 +1484,36 @@ function migrateBackupTables() {
   }
 }
 
+function requirePrivatePasswordsForExistingUsers() {
+  const migrationKey = "require_private_passwords_for_existing_users_v1";
+  const completed = db.prepare(
+    "SELECT setting_value FROM app_settings WHERE setting_key = ?"
+  ).get(migrationKey);
+  if (completed) return;
+
+  const appliedAt = dayjs().toISOString();
+  const transaction = db.transaction(() => {
+    db.prepare(
+      "UPDATE users SET must_change_password = 1 WHERE COALESCE(is_active, 1) = 1"
+    ).run();
+
+    const sessionTable = db.prepare(
+      "SELECT 1 FROM sqlite_master WHERE type = 'table' AND name = 'web_sessions'"
+    ).get();
+    if (sessionTable) {
+      db.prepare("DELETE FROM web_sessions").run();
+    }
+
+    db.prepare(
+      `INSERT INTO app_settings (setting_key, setting_value, updated_at, updated_by)
+       VALUES (?, 'complete', ?, NULL)`
+    ).run(migrationKey, appliedAt);
+  });
+
+  transaction();
+  console.log("Password-change requirement enabled for all existing active users.");
+}
+
 function retireKnownDemoAccounts() {
   const knownAccounts = [
     { username: "admin", password: "117911Zam" },
@@ -1817,6 +1847,7 @@ function initializeDatabase() {
   migrateDeviceTables();
   migrateInventoryTables();
   migrateBackupTables();
+  requirePrivatePasswordsForExistingUsers();
   migrateAcademicYearRolloverTables();
   migrateAdminAuditTables();
   migrateTeacherUsageAuditTables();

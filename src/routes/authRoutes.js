@@ -118,6 +118,9 @@ router.post("/account/change-password", (req, res) => {
   if (newPassword.length < 12) {
     return res.status(400).render("change-password", { error: "Choose a password with at least 12 characters." });
   }
+  if (bcrypt.compareSync(newPassword, user.password_hash)) {
+    return res.status(400).render("change-password", { error: "Your new password must be different from the temporary password." });
+  }
   if (newPassword !== confirmPassword) {
     return res.status(400).render("change-password", { error: "The new passwords do not match." });
   }
