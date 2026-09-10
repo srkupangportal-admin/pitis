@@ -1930,6 +1930,15 @@ router.get("/reward/:classId", (req, res) => {
 
   const reasons = db.prepare("SELECT id, reason, reason_type, is_custom FROM point_reasons ORDER BY reason_type ASC, reason ASC").all();
   const customReasons = reasons.filter((r) => Number(r.is_custom) === 1);
+  const canAttributeAwards = req.session.user.role === "admin";
+  const awardTeachers = canAttributeAwards
+    ? db.prepare(
+      `SELECT id, display_name, username, role
+       FROM users
+       WHERE role IN ('teacher', 'staff') AND COALESCE(is_active, 1) = 1
+       ORDER BY LOWER(display_name), LOWER(username)`
+    ).all()
+    : [];
   const shortcutClasses = buildShortcutClasses(classes, classId);
   res.render("teacher-reward", {
     cls,
@@ -1938,6 +1947,9 @@ router.get("/reward/:classId", (req, res) => {
     students,
     reasons,
     customReasons,
+    canAttributeAwards,
+    awardTeachers,
+    defaultAwardDate: dayjs().format("YYYY-MM-DD"),
     user: req.session.user,
     error: req.query.error || null,
     success: req.query.success || null
@@ -1957,6 +1969,32 @@ router.post("/reward/award", (req, res) => {
   const mode = String(pickLast(req.body.point_mode) || "").trim();
   const manualPoints = Number(pickLast(req.body.manual_points) || 0);
   const studentIds = normalizeStudentIds(req.body.student_ids || req.body.student_id);
+
+  let awardedByUserId = Number(req.session.user.id);
+  let awardedByUser = req.session.user;
+  let awardDate = dayjs().format("YYYY-MM-DD");
+
+  if (req.session.user.role === "admin") {
+    awardedByUserId = Number(pickLast(req.body.awarded_by_user_id) || 0);
+    awardedByUser = db.prepare(
+      `SELECT id, display_name, username, role
+       FROM users
+       WHERE id = ?
+         AND role IN ('teacher', 'staff')
+         AND COALESCE(is_active, 1) = 1`
+    ).get(awardedByUserId);
+    if (!awardedByUser) {
+      return res.status(400).send("Select an active teacher or staff account for this award");
+    }
+
+    awardDate = String(pickLast(req.body.award_date) || "").trim();
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(awardDate) || !dayjs(awardDate).isValid() || dayjs(awardDate).format("YYYY-MM-DD") !== awardDate) {
+      return res.status(400).send("Enter a valid award date");
+    }
+    if (dayjs(awardDate).isAfter(dayjs(), "day")) {
+      return res.status(400).send("Award date cannot be in the future");
+    }
+  }
 
   const points = mode === "manual" ? manualPoints : Number(mode);
   if (!Number.isInteger(points)) {
@@ -1978,7 +2016,9 @@ router.post("/reward/award", (req, res) => {
     return res.status(400).send("Select at least one student");
   }
 
-  const now = dayjs().toISOString();
+  const now = req.session.user.role === "admin"
+    ? dayjs(`${awardDate}T12:00:00`).toISOString()
+    : dayjs().toISOString();
 
   if (reasonBase && !customReason) {
     const selectedReason = db.prepare("SELECT reason_type FROM point_reasons WHERE reason = ?").get(reasonBase);
@@ -2019,13 +2059,16 @@ router.post("/reward/award", (req, res) => {
 
   db.transaction(() => {
     students.forEach((student) => {
-      insertPointLog.run(student.id, Number(student.class_id), points, reason, req.session.user.id, now);
+      insertPointLog.run(student.id, Number(student.class_id), points, reason, awardedByUserId, now);
       updateDailySnapshot(student.id);
     });
   })();
 
   const actionLabel = points > 0 ? "Awarded" : "Deducted";
-  const message = `${actionLabel} ${Math.abs(points)} pitis for ${students.length} student${students.length === 1 ? "" : "s"}`;
+  const attribution = req.session.user.role === "admin"
+    ? ` on behalf of ${awardedByUser.display_name || awardedByUser.username} for ${awardDate}`
+    : "";
+  const message = `${actionLabel} ${Math.abs(points)} pitis for ${students.length} student${students.length === 1 ? "" : "s"}${attribution}`;
   res.redirect(`/teacher/reward/${classId}?success=${encodeURIComponent(message)}`);
 });
 

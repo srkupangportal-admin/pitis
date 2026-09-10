@@ -97,6 +97,26 @@
         <input type="hidden" name="class_id" id="modalClassId" />
         <input type="hidden" name="point_mode" id="modalPointMode" />
 
+        <% if (canAttributeAwards) { %>
+          <section class="card" style="padding:14px; background:#f5f8f6;">
+            <strong>Record an award on behalf of a teacher</strong>
+            <p class="muted" style="margin:5px 0 12px;">The selected teacher and original award date will be used in teacher progress calculations.</p>
+            <div class="grid-2">
+              <label>Awarding teacher
+                <select name="awarded_by_user_id" id="modalAwardedByUserId" required>
+                  <option value="">Select teacher</option>
+                  <% awardTeachers.forEach(teacher => { %>
+                    <option value="<%= teacher.id %>"><%= teacher.display_name %> (<%= teacher.username %>)</option>
+                  <% }) %>
+                </select>
+              </label>
+              <label>Original award date
+                <input type="date" name="award_date" id="modalAwardDate" value="<%= defaultAwardDate %>" max="<%= defaultAwardDate %>" required />
+              </label>
+            </div>
+          </section>
+        <% } %>
+
         <label id="manualPointsWrap" class="hidden" style="display:none;">Manual Pitis
           <input type="number" name="manual_points" id="modalManualPoints" value="0" disabled />
         </label>
