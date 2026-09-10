@@ -1,0 +1,17 @@
+# Web Push notifications
+
+SchoolPortal stores every notification in SQLite first; Web Push is an optional additional delivery channel. `notificationService.notifyUser()` creates the history record, applies the user's module preferences, and sends to every enabled subscription owned by that user. HTTP 404/410 push endpoints are disabled automatically.
+
+## Configure VAPID
+
+Run `npx web-push generate-vapid-keys` once on an administrator workstation. Put the public key, private key, and a `mailto:` or HTTPS contact in the private server environment file as `VAPID_PUBLIC_KEY`, `VAPID_PRIVATE_KEY`, and `VAPID_SUBJECT`. Never commit the private key. Restart SchoolPortal after configuration.
+
+Users open Notification Settings and explicitly enable each browser/device. Login sessions and push subscriptions are independent; a user may keep multiple active devices. iPhone/iPad Web Push requires iOS/iPadOS 16.4 or newer and the portal installed on the Home Screen.
+
+## Calendar and reminders
+
+Newly tagged calendar users receive one `calendar_tag` notification. Persistent jobs send reminders at event time, 15 minutes, 1 hour, and 1 day before; unique database keys and claimed job states prevent repeats across restarts. Assigned reminders generate an immediate notification, a due-soon alert within one hour, and an overdue alert. The Node scheduler runs every minute; no separate cron service is required.
+
+## Testing
+
+Use HTTPS, sign in, configure VAPID, open Notification Settings, enable the current device, and use the admin-only test endpoint through the portal session. Verify history in Notifications even when browser permission is denied. Admin diagnostics are available at `/admin/notification-diagnostics` and deliberately omit endpoints and encryption keys.

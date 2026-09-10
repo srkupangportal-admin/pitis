@@ -7,6 +7,7 @@ const crypto = require("crypto");
 const QRCode = require("qrcode");
 const { db, updateDailySnapshot } = require("../db/init");
 const { requireRole } = require("../middleware/auth");
+const { notifyUser, scheduleEvent } = require("../services/notificationService");
 const { buildStudentQrPayload, generateStudentQrDataUrl, parseStudentQrPayload } = require("../services/qrCodeService");
 const {
   getLatestTeacherUsageAudit,
@@ -242,6 +243,7 @@ function resolveTaggedUserIds(scopeRaw, teacherRaw, staffRaw) {
 }
 function assignEventTaggedUsers(eventId, userIds) {
   const ids = Array.from(new Set((userIds || []).filter((v) => Number.isInteger(v) && v > 0)));
+  const previous = new Set(db.prepare("SELECT user_id FROM calendar_event_users WHERE event_id = ?").all(eventId).map(row => Number(row.user_id)));
   const del = db.prepare("DELETE FROM calendar_event_users WHERE event_id = ?");
   const ins = db.prepare("INSERT INTO calendar_event_users (event_id, user_id) VALUES (?, ?)");
 
@@ -261,6 +263,7 @@ function assignEventTaggedUsers(eventId, userIds) {
   });
 
   tx();
+  return ids.filter(id => !previous.has(id));
 }
 
 function listCalendarLabels() {
@@ -3207,6 +3210,7 @@ router.post("/calendar/add", (req, res) => {
   if (dayjs(endDate).isBefore(dayjs(eventDate), "day")) return res.status(400).send("End date cannot be earlier than start date");
 
   const now = dayjs().toISOString();
+  let eventId;
   const tx = db.transaction(() => {
     const info = db
       .prepare(
@@ -3215,12 +3219,14 @@ router.post("/calendar/add", (req, res) => {
       )
       .run(title, details, eventDate, endDate, req.session.user.id, now);
 
-    const eventId = Number(info.lastInsertRowid);
+    eventId = Number(info.lastInsertRowid);
     assignEventLabels(eventId, labelIds);
     assignEventTaggedUsers(eventId, taggedUserIds);
   });
 
   tx();
+  taggedUserIds.forEach(userId => notifyUser(userId, { type: "calendar_tag", title: "Calendar", message: `You were added to ${title}.`, url: `/teacher/calendar?event=${eventId}`, entityType: "calendar_event", entityId: eventId, createdBy: req.session.user.id }));
+  scheduleEvent(eventId, taggedUserIds, eventDate, String(req.body.event_time || "09:00"), [0, 15, 60, 1440]);
   const monthKey = dayjs(eventDate).format("YYYY-MM");
   res.redirect(`/teacher/calendar?month=${monthKey}&success=${encodeURIComponent("Event created")}`);
 });
@@ -3247,6 +3253,7 @@ router.post("/calendar/update/:eventId", (req, res) => {
     .get(eventId);
   if (!target) return res.status(404).send("Event not found or not editable");
 
+  let newlyTagged = [];
   const tx = db.transaction(() => {
     db.prepare(
       `UPDATE calendar_events
@@ -3255,10 +3262,12 @@ router.post("/calendar/update/:eventId", (req, res) => {
     ).run(title, details, eventDate, endDate, eventId);
 
     assignEventLabels(eventId, labelIds);
-    assignEventTaggedUsers(eventId, taggedUserIds);
+    newlyTagged = assignEventTaggedUsers(eventId, taggedUserIds);
   });
 
   tx();
+  newlyTagged.forEach(userId => notifyUser(userId, { type: "calendar_tag", title: "Calendar", message: `You were added to ${title}.`, url: `/teacher/calendar?event=${eventId}`, entityType: "calendar_event", entityId: eventId, createdBy: req.session.user.id }));
+  scheduleEvent(eventId, taggedUserIds, eventDate, String(req.body.event_time || "09:00"), [0, 15, 60, 1440]);
   const monthKey = dayjs(eventDate).format("YYYY-MM");
   return res.redirect(`/teacher/calendar?month=${monthKey}&success=${encodeURIComponent("Event updated")}`);
 });

@@ -47,6 +47,9 @@
       <% } %>
     </div>
     <nav class="landing-shortcuts main-header-shortcuts main-header-shortcuts-desktop" aria-label="Main shortcuts">
+      <% if (isAuthenticated) { %><a class="btn notification-bell" data-notification-bell href="/notifications" aria-label="Notifications">&#128276;<span data-notification-count hidden></span></a><% } %>
+      <% if (isAuthenticated) { %><a class="btn" href="/notification-settings">Notification Settings</a><% } %>
+      <% if (isAuthenticated) { %><a class="btn" href="/reminders">Reminders</a><% } %>
       <% mainHeaderShortcuts.forEach(function (item) { %>
         <a class="btn <%= item.className || '' %>" href="<%= item.href %>"><%= item.label %></a>
       <% }) %>
@@ -63,6 +66,7 @@
         Quick Menu
       </button>
       <nav id="mainHeaderMobileShortcuts" class="main-header-mobile-panel hidden" aria-label="Mobile shortcuts">
+        <% if (isAuthenticated) { %><a class="btn notification-bell" href="/notifications">&#128276; Notifications</a><a class="btn" href="/notification-settings">Notification Settings</a><a class="btn" href="/reminders">Reminders</a><% } %>
         <% mainHeaderShortcuts.forEach(function (item) { %>
           <a class="btn <%= item.className || '' %>" href="<%= item.href %>"><%= item.label %></a>
         <% }) %>
@@ -181,4 +185,5 @@
     });
   })();
 </script>
+<% if (isAuthenticated) { %><script src="/js/notifications.js"></script><% } %>
 <script src="/js/async-forms.js"></script>

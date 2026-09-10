@@ -25,6 +25,8 @@ const notesRoutes = require("./routes/notesRoutes");
 const deviceRoutes = require("./routes/deviceRoutes");
 const inventoryRoutes = require("./routes/inventoryRoutes");
 const rewardGalleryRoutes = require("./routes/rewardGalleryRoutes");
+const notificationRoutes = require("./routes/notificationRoutes");
+const { initializeNotificationTables, initializeNotificationScheduler } = require("./services/notificationService");
 const { initializeBackupScheduler } = require("./services/backupService");
 const { initializeTeacherUsageAuditScheduler } = require("./services/teacherUsageAuditService");
 const { seedOfficialSchoolCalendar2026 } = require("./services/schoolCalendarService");
@@ -38,6 +40,8 @@ loadEnvFile();
 const serverConfig = getServerConfig();
 
 initializeDatabase();
+initializeNotificationTables();
+initializeNotificationScheduler();
 seedOfficialSchoolCalendar2026();
 initializeBackupScheduler();
 initializeTeacherUsageAuditScheduler();
@@ -206,6 +210,7 @@ function createApp(config) {
   app.use(informationRoutes);
   app.use(photoRoutes);
   app.use(rewardGalleryRoutes);
+  app.use(notificationRoutes);
   app.use("/notes", notesRoutes);
   app.use(deviceRoutes);
   app.use(inventoryRoutes);
