@@ -152,11 +152,12 @@ function migrateUsersTable() {
   }
   if (needsCredentialHardening) {
     db.exec("ALTER TABLE users ADD COLUMN must_change_password INTEGER NOT NULL DEFAULT 0");
-    db.exec("UPDATE users SET must_change_password = 1 WHERE role = 'admin' AND is_active = 1");
+    db.exec("UPDATE users SET must_change_password = 1 WHERE role IN ('teacher', 'staff') AND is_active = 1");
   }
 
   db.exec("UPDATE users SET is_active = 1 WHERE is_active IS NULL");
   db.exec("UPDATE users SET user_type = CASE WHEN role = 'admin' THEN 'admin' WHEN role = 'staff' THEN 'staff' ELSE 'teacher' END WHERE user_type IS NULL OR TRIM(user_type) = ''");
+  db.exec("UPDATE users SET must_change_password = 0 WHERE role = 'admin'");
   db.exec("UPDATE users SET email = NULL WHERE email IS NOT NULL AND TRIM(email) = ''");
 
   const duplicates = db
@@ -1494,7 +1495,7 @@ function requirePrivatePasswordsForExistingUsers() {
   const appliedAt = dayjs().toISOString();
   const transaction = db.transaction(() => {
     db.prepare(
-      "UPDATE users SET must_change_password = 1 WHERE COALESCE(is_active, 1) = 1"
+      "UPDATE users SET must_change_password = 1 WHERE role IN ('teacher', 'staff') AND COALESCE(is_active, 1) = 1"
     ).run();
 
     const sessionTable = db.prepare(

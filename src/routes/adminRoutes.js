@@ -1167,8 +1167,8 @@ function addUserHandler(req, res) {
 
   db.prepare(
     `INSERT INTO users (username, email, display_name, role, user_type, password_hash, is_active, must_change_password, created_at)
-     VALUES (?, ?, ?, ?, ?, ?, ?, 1, ?)`
-  ).run(username, email, displayName, role, userType, bcrypt.hashSync(password, 12), isActive, dayjs().toISOString());
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`
+  ).run(username, email, displayName, role, userType, bcrypt.hashSync(password, 12), isActive, role === "admin" ? 0 : 1, dayjs().toISOString());
 
   return res.redirect("/admin/dashboard?success=User+account+added");
 }
@@ -1184,11 +1184,15 @@ router.post("/teachers/reset-password", (req, res) => {
     return res.redirect("/admin/dashboard?error=Password+must+be+at+least+12+characters");
   }
 
-  const target = db.prepare("SELECT id FROM users WHERE id = ?").get(userId);
+  const target = db.prepare("SELECT id, role FROM users WHERE id = ?").get(userId);
   if (!target) return res.redirect("/admin/dashboard?error=User+account+not+found");
 
-  db.prepare("UPDATE users SET password_hash = ?, must_change_password = 1 WHERE id = ?").run(bcrypt.hashSync(newPassword, 12), userId);
-  res.redirect("/admin/dashboard?success=Temporary+password+set;+user+must+choose+a+new+password+after+login");
+  const mustChangePassword = target.role === "admin" ? 0 : 1;
+  db.prepare("UPDATE users SET password_hash = ?, must_change_password = ? WHERE id = ?").run(bcrypt.hashSync(newPassword, 12), mustChangePassword, userId);
+  const success = target.role === "admin"
+    ? "Administrator password updated"
+    : "Temporary password set; user must choose a new password after login";
+  res.redirect(`/admin/dashboard?success=${encodeURIComponent(success)}`);
 });
 
 router.post("/staff/set-active", (req, res) => {
@@ -1333,7 +1337,7 @@ router.post("/staff/import", uploadMemory.single("staff_csv"), (req, res) => {
   const findExistingEmail = db.prepare("SELECT id FROM users WHERE LOWER(TRIM(email)) = LOWER(TRIM(?))");
   const insertUser = db.prepare(
     `INSERT INTO users (username, email, display_name, role, user_type, password_hash, is_active, must_change_password, created_at)
-     VALUES (?, ?, ?, ?, ?, ?, ?, 1, ?)`
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`
   );
 
   const summary = { inserted: 0, skipped: 0, failed: 0, errors: [] };
@@ -1386,7 +1390,7 @@ router.post("/staff/import", uploadMemory.single("staff_csv"), (req, res) => {
         continue;
       }
       try {
-        insertUser.run(userId, email, fullName, role, userType, bcrypt.hashSync(password, 12), isActiveFlag, now);
+        insertUser.run(userId, email, fullName, role, userType, bcrypt.hashSync(password, 12), isActiveFlag, role === "admin" ? 0 : 1, now);
         summary.inserted += 1;
       } catch (err) {
         summary.failed += 1;

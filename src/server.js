@@ -298,7 +298,7 @@ app.post("/api/integrations/classcompass/staff-login", (req, res) => {
   if (!user || Number(user.is_active || 0) !== 1 || (!isTeacher && !isAdmin) || !bcrypt.compareSync(password, user.password_hash)) {
     return res.status(401).json({ error: "Invalid SchoolPortal staff credentials." });
   }
-  if (Number(user.must_change_password || 0) === 1) {
+  if (user.role !== "admin" && Number(user.must_change_password || 0) === 1) {
     return res.status(403).json({ error: "Change this password in SchoolPortal before using Classroom Compass." });
   }
   return res.json({
