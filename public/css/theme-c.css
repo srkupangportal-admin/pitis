@@ -3051,3 +3051,26 @@ img, video, canvas, svg { max-width: 100%; }
     grid-template-columns: 1fr !important;
   }
 }
+
+.admin-historical-bulk-panel {
+  display: grid;
+  gap: 14px;
+  margin-bottom: 16px;
+  border-left: 4px solid var(--c-gold);
+  background: linear-gradient(135deg, #fffaf0, #fffdf8 58%, #eef5f0);
+}
+
+.admin-historical-bulk-panel h3 {
+  margin-bottom: 5px;
+}
+
+@media (max-width: 640px) {
+  .admin-historical-bulk-panel .reward-bulk-actions {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .admin-historical-bulk-panel .reward-bulk-actions .btn {
+    width: 100%;
+  }
+}

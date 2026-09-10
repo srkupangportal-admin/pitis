@@ -41,6 +41,22 @@
       <div class="muted reward-selection-count" id="rewardSelectionCount">0 students selected</div>
     </section>
 
+    <% if (canAttributeAwards) { %>
+      <section class="card admin-historical-bulk-panel">
+        <div>
+          <h3>Historical Bulk Entry</h3>
+          <p class="muted">Select the students below, then record the same paper-based award for all of them under one teacher and original date.</p>
+        </div>
+        <div class="reward-bulk-actions">
+          <button class="btn subtle reward-quick plus bulk-award-trigger" type="button" data-mode="1" data-modal-title="Historical Bulk Award +1">Bulk +1</button>
+          <button class="btn subtle reward-quick plus bulk-award-trigger" type="button" data-mode="2" data-modal-title="Historical Bulk Award +2">Bulk +2</button>
+          <button class="btn subtle reward-quick plus bulk-award-trigger" type="button" data-mode="5" data-modal-title="Historical Bulk Award +5">Bulk +5</button>
+          <button class="btn subtle reward-quick manual bulk-award-trigger" type="button" data-mode="manual" data-modal-title="Historical Bulk Award">Bulk Manual</button>
+        </div>
+        <p class="muted" style="margin:0;">The selected teacher, date, reason and P.I.T.I.S amount will be applied to every selected student in one transaction.</p>
+      </section>
+    <% } %>
+
     <div class="reward-grid-compact">
       <% students.forEach(st => { %>
         <div class="reward-tile">
@@ -254,7 +270,7 @@
         return { points: points, reasonType: reasonType };
       }
 
-      function openModal(studentIds, targetClassId, mode) {
+      function openModal(studentIds, targetClassId, mode, requestedTitle) {
         var ids = Array.isArray(studentIds) ? studentIds : [studentIds];
         ids = ids.map(function (id) { return String(id || '').trim(); }).filter(Boolean);
         if (!ids.length) {
@@ -267,7 +283,7 @@
         modalPointMode.value = mode;
         if (modalTitle) {
           var titleBase = mode === 'manual' ? 'Manual P.I.T.I.S' : (Number(mode) < 0 ? 'Deduct P.I.T.I.S' : 'Award P.I.T.I.S');
-          modalTitle.textContent = titleBase + (ids.length > 1 ? ' (' + ids.length + ' students)' : '');
+          modalTitle.textContent = (requestedTitle || titleBase) + (ids.length > 1 ? ' (' + ids.length + ' students)' : '');
         }
 
         reason.value = '';
@@ -330,7 +346,7 @@
 
       document.querySelectorAll('.bulk-award-trigger').forEach(function (btn) {
         btn.addEventListener('click', function () {
-          openModal(selectedStudentIds(), classId, btn.dataset.mode);
+          openModal(selectedStudentIds(), classId, btn.dataset.mode, btn.dataset.modalTitle || '');
         });
       });
 
