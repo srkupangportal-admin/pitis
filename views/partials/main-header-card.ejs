@@ -19,6 +19,7 @@
     { label: 'Informations', href: authHref('/informations') },
     { label: 'Attendance', href: authHref('/teacher/attendance') },
     isAdmin ? { label: 'Admin Dashboard', href: '/admin/dashboard' } : null,
+    isAdmin ? { label: 'Notification Devices', href: '/admin/notification-users' } : null,
     { label: 'Inventory', href: authHref('/inventory'), className: 'main-header-inventory-shortcut' },
     { label: 'QR Tools', href: authHref('/teacher/qr-tools') },
     { label: 'Notes', href: authHref('/notes') },

@@ -1,0 +1,19 @@
+<!doctype html>
+<html lang="en">
+<head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Notification Device Status</title><link rel="stylesheet" href="/css/theme-c.css"></head>
+<body>
+  <%- include('partials/main-header-card') %>
+  <main class="container"><section class="card">
+    <div class="notification-heading"><div><h2>Notification Device Status</h2><p class="muted">Users need at least one active browser or device to receive Web Push alerts. In-portal notifications remain available without a device.</p></div><a class="btn secondary" href="/admin/notification-diagnostics">Diagnostics</a></div>
+    <% if (message) { %><p class="notice"><%= message %></p><% } %>
+    <div class="table-wrap"><table class="data-table notification-user-table">
+      <thead><tr><th>User</th><th>Role</th><th>Status</th><th>Last reminder</th><th>Action</th></tr></thead>
+      <tbody><% users.forEach(function(user) { %><tr>
+        <td><strong><%= user.display_name %></strong><br><small class="muted"><%= user.username %></small></td><td><%= user.role %></td>
+        <td><% if (user.active_devices) { %><span class="status-badge status-good"><%= user.active_devices %> active device<%= user.active_devices === 1 ? '' : 's' %></span><% } else { %><span class="status-badge status-warning">No active device</span><% } %></td>
+        <td><%= user.last_reminded_at ? new Date(user.last_reminded_at).toLocaleString() : 'Never' %></td>
+        <td><% if (!user.active_devices) { %><form method="post" action="/admin/notification-users/<%= user.id %>/remind" class="inline-form"><button class="btn" type="submit">Send in-portal reminder</button></form><% } else { %><span class="muted">Ready</span><% } %></td>
+      </tr><% }) %></tbody>
+    </table></div>
+  </section></main>
+</body></html>

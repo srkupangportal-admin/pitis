@@ -8,6 +8,8 @@ Run `npx web-push generate-vapid-keys` once on an administrator workstation. Put
 
 Users open Notification Settings and explicitly enable each browser/device. Login sessions and push subscriptions are independent; a user may keep multiple active devices. iPhone/iPad Web Push requires iOS/iPadOS 16.4 or newer and the portal installed on the Home Screen.
 
+If a user selects **Remind Me Next Week** in the portal invitation, that browser stores a seven-day deferral and shows the invitation again when permission is still undecided. A browser-level denial cannot be reset by SchoolPortal. Administrators can open **Notification Devices** to see active users without an enabled device and send an in-portal setup reminder; this creates notification history but does not override browser permission.
+
 ## Calendar and reminders
 
 Newly tagged calendar users receive one `calendar_tag` notification. Persistent jobs send reminders at event time, 15 minutes, 1 hour, and 1 day before; unique database keys and claimed job states prevent repeats across restarts. Assigned reminders generate an immediate notification, a due-soon alert within one hour, and an overdue alert. The Node scheduler runs every minute; no separate cron service is required.
