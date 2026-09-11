@@ -71,6 +71,20 @@
             <div class="reward-points">pitis: <strong><%= st.total_points %></strong></div>
           </div>
 
+          <div class="reward-card-actions">
+            <button
+              class="btn reward-card-action award-trigger"
+              type="button"
+              data-student-id="<%= st.id %>"
+              data-class-id="<%= cls.id %>"
+              data-action="award">Award</button>
+            <button
+              class="btn secondary reward-card-action award-trigger"
+              type="button"
+              data-student-id="<%= st.id %>"
+              data-class-id="<%= cls.id %>"
+              data-action="deduct">Deduct</button>
+          </div>
         </div>
       <% }) %>
     </div>
@@ -253,7 +267,7 @@
         return { points: points, reasonType: reasonType };
       }
 
-      function openModal(studentIds, targetClassId) {
+      function openModal(studentIds, targetClassId, requestedAction) {
         var ids = Array.isArray(studentIds) ? studentIds : [studentIds];
         ids = ids.map(function (id) { return String(id || '').trim(); }).filter(Boolean);
         if (!ids.length) {
@@ -271,7 +285,11 @@
         customReason.value = '';
         actionInputs.forEach(function (input) { input.checked = false; });
         pointInputs.forEach(function (input) { input.checked = false; });
-        refreshReasonOptionsByType('');
+        if (requestedAction === 'award' || requestedAction === 'deduct') {
+          var requestedInput = actionInputs.find(function (input) { return input.value === requestedAction; });
+          if (requestedInput) requestedInput.checked = true;
+        }
+        refreshReasonOptionsByType(currentPointsAndType().reasonType);
 
         modal.classList.remove('hidden');
         modal.setAttribute('aria-hidden', 'false');
@@ -310,6 +328,20 @@
       document.querySelectorAll('.bulk-award-trigger').forEach(function (btn) {
         btn.addEventListener('click', function () {
           openModal(selectedStudentIds(), classId);
+        });
+      });
+
+      document.querySelectorAll('.award-trigger').forEach(function (btn) {
+        btn.addEventListener('click', function () {
+          var cardStudentId = String(btn.dataset.studentId || '');
+          var cardCheckbox = rewardStudentSelects.find(function (box) {
+            return String(box.value) === cardStudentId;
+          });
+          if (cardCheckbox && !cardCheckbox.checked) {
+            cardCheckbox.checked = true;
+            syncSelectionCount();
+          }
+          openModal(selectedStudentIds(), btn.dataset.classId || classId, btn.dataset.action);
         });
       });
 
