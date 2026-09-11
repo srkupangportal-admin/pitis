@@ -17,10 +17,16 @@
       return 'None';
     }
     const selectedLabelQuery = (selectedLabelIds || []).map(id => 'label_ids=' + encodeURIComponent(id)).join('&');
+    const todayKey = now.format('YYYY-MM-DD');
     const filteredEventsSorted = (allEvents || []).slice().sort((a, b) => {
-      const aKey = String(a.end_date || a.event_date || '');
-      const bKey = String(b.end_date || b.event_date || '');
-      return bKey.localeCompare(aKey);
+      const aStart = String(a.event_date || '');
+      const bStart = String(b.event_date || '');
+      const aEnd = String(a.end_date || aStart);
+      const bEnd = String(b.end_date || bStart);
+      const aUpcoming = aEnd >= todayKey;
+      const bUpcoming = bEnd >= todayKey;
+      if (aUpcoming !== bUpcoming) return aUpcoming ? -1 : 1;
+      return aUpcoming ? aStart.localeCompare(bStart) : bEnd.localeCompare(aEnd);
     });
     const calendarMonthDate = new Date(monthKey + '-01T00:00:00');
     const previousMonthDate = new Date(calendarMonthDate.getFullYear(), calendarMonthDate.getMonth() - 1, 1);
