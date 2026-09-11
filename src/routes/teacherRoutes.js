@@ -1976,8 +1976,8 @@ router.post("/reward/award", (req, res) => {
   };
 
   const classId = Number(pickLast(req.body.class_id));
-  const mode = String(pickLast(req.body.point_mode) || "").trim();
-  const manualPoints = Number(pickLast(req.body.manual_points) || 0);
+  const action = String(pickLast(req.body.point_action) || "").trim().toLowerCase();
+  const amount = Number(pickLast(req.body.points));
   const studentIds = normalizeStudentIds(req.body.student_ids || req.body.student_id);
 
   let awardedByUserId = Number(req.session.user.id);
@@ -2006,15 +2006,15 @@ router.post("/reward/award", (req, res) => {
     }
   }
 
-  const points = mode === "manual" ? manualPoints : Number(mode);
-  if (!Number.isInteger(points)) {
-    return res.status(400).send("Points must be an integer");
+  if (!["award", "deduct"].includes(action)) {
+    return res.status(400).send("Select Award or Deduct");
   }
-  if (points === 0) {
-    return res.status(400).send("Points cannot be zero");
+  if (!Number.isInteger(amount) || amount < 1 || amount > 5) {
+    return res.status(400).send("P.I.T.I.S. amount must be a whole number from 1 to 5");
   }
 
-  const reasonType = points > 0 ? "positive" : "negative";
+  const points = action === "deduct" ? -amount : amount;
+  const reasonType = action === "deduct" ? "negative" : "positive";
   const reasonBase = (req.body.reason || "").trim();
   const customReason = (req.body.custom_reason || "").trim();
   const reason = customReason || reasonBase;
@@ -2074,7 +2074,7 @@ router.post("/reward/award", (req, res) => {
     });
   })();
 
-  const actionLabel = points > 0 ? "Awarded" : "Deducted";
+  const actionLabel = action === "deduct" ? "Deducted" : "Awarded";
   const attribution = req.session.user.role === "admin"
     ? ` on behalf of ${awardedByUser.display_name || awardedByUser.username} for ${awardDate}`
     : "";

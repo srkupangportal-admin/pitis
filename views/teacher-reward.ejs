@@ -29,14 +29,12 @@
     <section class="card reward-bulk-panel">
       <div>
         <h3>Bulk P.I.T.I.S</h3>
-        <p class="muted">Select multiple students, then award or deduct pitis in one action.</p>
+        <p class="muted">Select one or more students, then continue to choose the P.I.T.I.S. amount and reason.</p>
       </div>
       <div class="reward-bulk-actions">
         <button class="btn subtle secondary" type="button" id="rewardSelectAll">Select All</button>
         <button class="btn subtle secondary" type="button" id="rewardClearSelection">Clear</button>
-        <button class="btn subtle reward-quick plus bulk-award-trigger" type="button" data-mode="1">Award +1</button>
-        <button class="btn subtle reward-quick minus bulk-award-trigger" type="button" data-mode="-1">Deduct -1</button>
-        <button class="btn subtle reward-quick manual bulk-award-trigger" type="button" data-mode="manual">Manual</button>
+        <button class="btn bulk-award-trigger" type="button">Continue with Selected Students</button>
       </div>
       <div class="muted reward-selection-count" id="rewardSelectionCount">0 students selected</div>
     </section>
@@ -45,15 +43,9 @@
       <section class="card admin-historical-bulk-panel">
         <div>
           <h3>Historical Bulk Entry</h3>
-          <p class="muted">Select the students below, then record the same paper-based award for all of them under one teacher and original date.</p>
+          <p class="muted">Select the students below, then record the same paper-based award or deduction for all of them under one teacher and original date.</p>
         </div>
-        <div class="reward-bulk-actions">
-          <button class="btn subtle reward-quick plus bulk-award-trigger" type="button" data-mode="1" data-modal-title="Historical Bulk Award +1">Bulk +1</button>
-          <button class="btn subtle reward-quick plus bulk-award-trigger" type="button" data-mode="2" data-modal-title="Historical Bulk Award +2">Bulk +2</button>
-          <button class="btn subtle reward-quick plus bulk-award-trigger" type="button" data-mode="5" data-modal-title="Historical Bulk Award +5">Bulk +5</button>
-          <button class="btn subtle reward-quick manual bulk-award-trigger" type="button" data-mode="manual" data-modal-title="Historical Bulk Award">Bulk Manual</button>
-        </div>
-        <p class="muted" style="margin:0;">The selected teacher, date, reason and P.I.T.I.S amount will be applied to every selected student in one transaction.</p>
+        <p class="muted" style="margin:0;">Use Continue with Selected Students above. The selected teacher, date, action, reason and P.I.T.I.S. amount will be applied to every selected student in one transaction.</p>
       </section>
     <% } %>
 
@@ -79,26 +71,6 @@
             <div class="reward-points">pitis: <strong><%= st.total_points %></strong></div>
           </div>
 
-          <div class="reward-quick-row reward-quick-3">
-            <button
-              class="btn reward-quick plus award-trigger"
-              type="button"
-              data-student-id="<%= st.id %>"
-              data-class-id="<%= cls.id %>"
-              data-mode="1">+1</button>
-            <button
-              class="btn reward-quick minus award-trigger"
-              type="button"
-              data-student-id="<%= st.id %>"
-              data-class-id="<%= cls.id %>"
-              data-mode="-1">-1</button>
-            <button
-              class="btn reward-quick manual award-trigger"
-              type="button"
-              data-student-id="<%= st.id %>"
-              data-class-id="<%= cls.id %>"
-              data-mode="manual">Manual</button>
-          </div>
         </div>
       <% }) %>
     </div>
@@ -106,16 +78,15 @@
 
   <div id="awardModal" class="reward-modal hidden" aria-hidden="true">
     <div class="reward-modal-card">
-      <h3 id="awardModalTitle">Award P.I.T.I.S</h3>
+      <h3 id="awardModalTitle">Award or Deduct P.I.T.I.S.</h3>
       <form id="awardModalForm" method="post" action="/teacher/reward/award" class="form">
         <input type="hidden" name="student_id" id="modalStudentId" />
         <input type="hidden" name="student_ids" id="modalStudentIds" />
         <input type="hidden" name="class_id" id="modalClassId" />
-        <input type="hidden" name="point_mode" id="modalPointMode" />
 
         <% if (canAttributeAwards) { %>
           <section class="card" style="padding:14px; background:#f5f8f6;">
-            <strong>Record an award on behalf of a teacher</strong>
+            <strong>Record an award or deduction on behalf of a teacher</strong>
             <p class="muted" style="margin:5px 0 12px;">The selected teacher and original award date will be used in teacher progress calculations.</p>
             <div class="grid-2">
               <label>Awarding teacher
@@ -133,9 +104,22 @@
           </section>
         <% } %>
 
-        <label id="manualPointsWrap" class="hidden" style="display:none;">Manual Pitis
-          <input type="number" name="manual_points" id="modalManualPoints" value="0" disabled />
-        </label>
+        <fieldset class="pitis-choice-group">
+          <legend>Action</legend>
+          <div class="pitis-choice-grid pitis-action-grid">
+            <label><input type="radio" name="point_action" value="award" required /><span>Award</span></label>
+            <label><input type="radio" name="point_action" value="deduct" required /><span>Deduct</span></label>
+          </div>
+        </fieldset>
+
+        <fieldset class="pitis-choice-group">
+          <legend>P.I.T.I.S. amount</legend>
+          <div class="pitis-choice-grid pitis-amount-grid">
+            <% [1, 2, 3, 4, 5].forEach(amount => { %>
+              <label><input type="radio" name="points" value="<%= amount %>" required /><span><%= amount %></span></label>
+            <% }) %>
+          </div>
+        </fieldset>
 
         <label>Reason
           <select name="reason" id="modalReason">
@@ -205,9 +189,8 @@
       var modalStudentId = document.getElementById('modalStudentId');
       var modalStudentIds = document.getElementById('modalStudentIds');
       var modalClassId = document.getElementById('modalClassId');
-      var modalPointMode = document.getElementById('modalPointMode');
-      var manualWrap = document.getElementById('manualPointsWrap');
-      var manualPoints = document.getElementById('modalManualPoints');
+      var actionInputs = Array.prototype.slice.call(modalForm.querySelectorAll('input[name="point_action"]'));
+      var pointInputs = Array.prototype.slice.call(modalForm.querySelectorAll('input[name="points"]'));
       var reason = document.getElementById('modalReason');
       var customReason = document.getElementById('modalCustomReason');
       var cancelBtn = document.getElementById('modalCancel');
@@ -236,10 +219,9 @@
         if (rewardSelectionCount) rewardSelectionCount.textContent = count + ' student' + (count === 1 ? '' : 's') + ' selected';
       }
 
-      function getReasonTypeFromPoints(pointsValue) {
-        var n = Number(pointsValue);
-        if (!Number.isInteger(n) || n === 0) return '';
-        return n > 0 ? 'positive' : 'negative';
+      function selectedAction() {
+        var selected = actionInputs.find(function (input) { return input.checked; });
+        return selected ? selected.value : '';
       }
 
       function refreshReasonOptionsByType(reasonType) {
@@ -264,13 +246,14 @@
       }
 
       function currentPointsAndType() {
-        var mode = modalPointMode.value;
-        var points = mode === 'manual' ? Number(manualPoints.value || 0) : Number(mode);
-        var reasonType = getReasonTypeFromPoints(points);
+        var selectedPoints = pointInputs.find(function (input) { return input.checked; });
+        var points = selectedPoints ? Number(selectedPoints.value) : 0;
+        var action = selectedAction();
+        var reasonType = action === 'award' ? 'positive' : (action === 'deduct' ? 'negative' : '');
         return { points: points, reasonType: reasonType };
       }
 
-      function openModal(studentIds, targetClassId, mode, requestedTitle) {
+      function openModal(studentIds, targetClassId) {
         var ids = Array.isArray(studentIds) ? studentIds : [studentIds];
         ids = ids.map(function (id) { return String(id || '').trim(); }).filter(Boolean);
         if (!ids.length) {
@@ -280,29 +263,15 @@
         modalStudentId.value = ids[0] || '';
         if (modalStudentIds) modalStudentIds.value = ids.join(',');
         modalClassId.value = targetClassId;
-        modalPointMode.value = mode;
         if (modalTitle) {
-          var titleBase = mode === 'manual' ? 'Manual P.I.T.I.S' : (Number(mode) < 0 ? 'Deduct P.I.T.I.S' : 'Award P.I.T.I.S');
-          modalTitle.textContent = (requestedTitle || titleBase) + (ids.length > 1 ? ' (' + ids.length + ' students)' : '');
+          modalTitle.textContent = 'Award or Deduct P.I.T.I.S.' + (ids.length > 1 ? ' (' + ids.length + ' students)' : '');
         }
 
         reason.value = '';
         customReason.value = '';
-        manualPoints.value = 0;
-
-        var inferred = currentPointsAndType();
-        refreshReasonOptionsByType(inferred.reasonType);
-
-        if (mode === 'manual') {
-          manualWrap.classList.remove('hidden');
-          manualWrap.style.display = 'grid';
-          manualPoints.disabled = false;
-        } else {
-          manualWrap.classList.add('hidden');
-          manualWrap.style.display = 'none';
-          manualPoints.disabled = true;
-          manualPoints.value = 0;
-        }
+        actionInputs.forEach(function (input) { input.checked = false; });
+        pointInputs.forEach(function (input) { input.checked = false; });
+        refreshReasonOptionsByType('');
 
         modal.classList.remove('hidden');
         modal.setAttribute('aria-hidden', 'false');
@@ -338,15 +307,9 @@
         photoPreviewImage.src = '';
       }
 
-      document.querySelectorAll('.award-trigger').forEach(function (btn) {
-        btn.addEventListener('click', function () {
-          openModal(btn.dataset.studentId, btn.dataset.classId, btn.dataset.mode);
-        });
-      });
-
       document.querySelectorAll('.bulk-award-trigger').forEach(function (btn) {
         btn.addEventListener('click', function () {
-          openModal(selectedStudentIds(), classId, btn.dataset.mode, btn.dataset.modalTitle || '');
+          openModal(selectedStudentIds(), classId);
         });
       });
 
@@ -455,12 +418,12 @@
         });
       }
 
-      if (manualPoints) {
-        manualPoints.addEventListener('input', function () {
+      actionInputs.forEach(function (input) {
+        input.addEventListener('change', function () {
           var inferred = currentPointsAndType();
           refreshReasonOptionsByType(inferred.reasonType);
         });
-      }
+      });
 
       if (reason) {
         reason.addEventListener('change', function () {
@@ -477,9 +440,15 @@
         var custom = (customReason.value || '').trim();
 
         var inferred = currentPointsAndType();
-        if (!Number.isInteger(inferred.points) || inferred.points === 0) {
+        if (!inferred.reasonType) {
           e.preventDefault();
-          alert('Pitis must be a non-zero integer.');
+          alert('Please select Award or Deduct.');
+          return;
+        }
+
+        if (!Number.isInteger(inferred.points) || inferred.points < 1 || inferred.points > 5) {
+          e.preventDefault();
+          alert('Please select a P.I.T.I.S. amount from 1 to 5.');
           return;
         }
 
