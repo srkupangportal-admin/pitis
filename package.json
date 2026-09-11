@@ -6,6 +6,7 @@
   "scripts": {
     "start": "node src/server.js",
     "dev": "node src/server.js",
+    "test:notifications": "node scripts/check-notification-schedule.js",
     "check:git-safety": "node scripts/check-git-safety.js",
     "check:git-history": "node scripts/check-git-safety.js --history"
   },

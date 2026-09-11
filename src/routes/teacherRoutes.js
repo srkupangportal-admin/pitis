@@ -143,6 +143,12 @@ function parseLabelIds(raw) {
   return Array.from(new Set(ids));
 }
 
+function includesBirthdayLabel(labelIds) {
+  if (!labelIds.length) return false;
+  const placeholders = labelIds.map(() => "?").join(",");
+  return !!db.prepare(`SELECT 1 FROM calendar_labels WHERE id IN (${placeholders}) AND LOWER(name)='birthday' LIMIT 1`).get(...labelIds);
+}
+
 function eventMatchesSelectedLabels(event, selectedLabelIds) {
   if (!selectedLabelIds || !selectedLabelIds.length) return true;
   const eventLabelIds = new Set((event.labels || []).map((lb) => Number(lb.id)).filter((id) => Number.isInteger(id) && id > 0));
@@ -3226,7 +3232,7 @@ router.post("/calendar/add", (req, res) => {
 
   tx();
   taggedUserIds.forEach(userId => notifyUser(userId, { type: "calendar_tag", title: "Calendar", message: `You were added to ${title}.`, url: `/teacher/calendar?event=${eventId}`, entityType: "calendar_event", entityId: eventId, createdBy: req.session.user.id }));
-  scheduleEvent(eventId, taggedUserIds, eventDate, String(req.body.event_time || "09:00"), [0, 15, 60, 1440]);
+  scheduleEvent(eventId, includesBirthdayLabel(labelIds) ? [] : taggedUserIds, eventDate, String(req.body.event_time || "09:00"));
   const monthKey = dayjs(eventDate).format("YYYY-MM");
   res.redirect(`/teacher/calendar?month=${monthKey}&success=${encodeURIComponent("Event created")}`);
 });
@@ -3267,7 +3273,7 @@ router.post("/calendar/update/:eventId", (req, res) => {
 
   tx();
   newlyTagged.forEach(userId => notifyUser(userId, { type: "calendar_tag", title: "Calendar", message: `You were added to ${title}.`, url: `/teacher/calendar?event=${eventId}`, entityType: "calendar_event", entityId: eventId, createdBy: req.session.user.id }));
-  scheduleEvent(eventId, taggedUserIds, eventDate, String(req.body.event_time || "09:00"), [0, 15, 60, 1440]);
+  scheduleEvent(eventId, includesBirthdayLabel(labelIds) ? [] : taggedUserIds, eventDate, String(req.body.event_time || "09:00"));
   const monthKey = dayjs(eventDate).format("YYYY-MM");
   return res.redirect(`/teacher/calendar?month=${monthKey}&success=${encodeURIComponent("Event updated")}`);
 });

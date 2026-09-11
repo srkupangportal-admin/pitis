@@ -12,7 +12,7 @@ If a user selects **Remind Me Next Week** in the portal invitation, that browser
 
 ## Calendar and reminders
 
-Newly tagged calendar users receive one `calendar_tag` notification. Persistent jobs send reminders at event time, 15 minutes, 1 hour, and 1 day before; unique database keys and claimed job states prevent repeats across restarts. Assigned reminders generate an immediate notification, a due-soon alert within one hour, and an overdue alert. The Node scheduler runs every minute; no separate cron service is required.
+Newly tagged calendar users receive one `calendar_tag` notification. For ordinary events, persistent jobs send three reminders by default: 5 days before, 3 days before, and on the event day at the selected event time. System-generated birthdays are excluded from notifications. Unique database keys and claimed job states prevent repeats across restarts. Assigned reminders generate an immediate notification, a due-soon alert within one hour, and an overdue alert. The Node scheduler runs every minute; no separate cron service is required.
 
 ## Testing
 
