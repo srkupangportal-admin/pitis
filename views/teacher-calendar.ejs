@@ -273,6 +273,9 @@
 
         <div class="button-row" id="calendarEventModalActions">
           <button type="button" class="btn secondary" id="calendarEventEditBtn">Edit Event</button>
+          <form method="post" id="calendarEventDeleteForm" class="inline-form hidden" onsubmit="return confirm('Delete this event? It will be retained for administrator review.');">
+            <button type="submit" class="btn danger">Delete Event</button>
+          </form>
           <button type="button" class="btn" id="calendarEventCloseBtn">Close</button>
         </div>
       </div>
@@ -549,6 +552,7 @@
       var labelsEl = document.getElementById('calendarEventLabels');
       var taggedUsersEl = document.getElementById('calendarEventTaggedUsers');
       var editBtn = document.getElementById('calendarEventEditBtn');
+      var deleteForm = document.getElementById('calendarEventDeleteForm');
       var closeBtn = document.getElementById('calendarEventCloseBtn');
       var closeXBtn = document.getElementById('calendarEventCloseX');
       var actions = document.getElementById('calendarEventModalActions');
@@ -647,6 +651,11 @@
         } else {
           editBtn.classList.add('hidden');
           setEditMode(false);
+        }
+
+        if (deleteForm) {
+          deleteForm.action = '/teacher/calendar/delete/' + encodeURIComponent(ev.id);
+          deleteForm.classList.toggle('hidden', !ev.canDelete);
         }
 
         setEditMode(false);

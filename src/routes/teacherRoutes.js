@@ -353,6 +353,7 @@ function fetchManualEvents({ rangeStart, rangeEnd, allActive = false }) {
       ce.event_date,
       COALESCE(ce.end_date, ce.event_date) AS end_date,
       ce.event_source,
+      ce.created_by,
       ce.created_at,
       u.display_name AS creator_name,
       COALESCE((
@@ -3158,7 +3159,7 @@ router.get("/calendar", (req, res) => {
       return {
         ...ev,
         canEdit: !ev.is_system,
-        canDelete: false,
+        canDelete: !ev.is_system && Number(ev.created_by) === Number(req.session.user.id),
         tag_scope,
         tagged_teacher_ids: teacherTagged,
         tagged_staff_ids: staffTagged
@@ -3278,8 +3279,29 @@ router.post("/calendar/update/:eventId", (req, res) => {
   return res.redirect(`/teacher/calendar?month=${monthKey}&success=${encodeURIComponent("Event updated")}`);
 });
 
-router.post("/calendar/delete/:eventId", (_req, res) => {
-  return res.status(403).send("Only admin can delete events");
+router.post("/calendar/delete/:eventId", (req, res) => {
+  const eventId = Number(req.params.eventId);
+  if (!eventId) return res.status(400).send("Invalid event ID");
+
+  const target = db.prepare(
+    "SELECT id,event_date,event_source,created_by FROM calendar_events WHERE id=? AND is_deleted=0"
+  ).get(eventId);
+  if (!target) return res.status(404).send("Event not found");
+  if (String(target.event_source || "manual") !== "manual") {
+    return res.status(403).send("System events cannot be deleted");
+  }
+  if (Number(target.created_by) !== Number(req.session.user.id)) {
+    return res.status(403).send("Only the event creator or an administrator can delete this event");
+  }
+
+  const now = dayjs().toISOString();
+  db.transaction(() => {
+    db.prepare("UPDATE calendar_events SET is_deleted=1,deleted_by=?,deleted_at=? WHERE id=? AND is_deleted=0").run(req.session.user.id, now, eventId);
+    db.prepare("DELETE FROM calendar_notification_jobs WHERE event_id=? AND status='pending'").run(eventId);
+  })();
+
+  const monthKey = dayjs(target.event_date).isValid() ? dayjs(target.event_date).format("YYYY-MM") : dayjs().format("YYYY-MM");
+  return res.redirect(`/teacher/calendar?month=${monthKey}&success=${encodeURIComponent("Event deleted")}`);
 });
 
 function parseNumberArray(raw) {
