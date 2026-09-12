@@ -75,10 +75,15 @@
     prompt.querySelector("[data-enable]").onclick = async () => {
       try {
         await window.PortalNotifications.enable();
-        prompt.remove();
       } catch (error) {
-        prompt.querySelector("span").textContent = error.message;
+        // The browser permission decision has already been made. Do not leave a
+        // blocking prompt on screen when a server or device detail needs later
+        // attention; the weekly invitation/reminder flow can ask again.
+        console.warn("Push notification setup was not completed:", error);
+        localStorage.setItem(dismissedUntilKey, String(Date.now() + invitationIntervalMs));
+        localStorage.removeItem(legacyDismissedKey);
       }
+      prompt.remove();
     };
     prompt.querySelector("[data-dismiss]").onclick = () => {
       localStorage.setItem(dismissedUntilKey, String(Date.now() + invitationIntervalMs));
