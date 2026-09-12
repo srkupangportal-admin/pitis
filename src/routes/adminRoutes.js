@@ -766,6 +766,7 @@ function getDashboardDeviceAvailability(activeOnly = false) {
 }
 
 router.get("/dashboard", async (req, res) => {
+  const signedInUserId = Number((req.session.user || {}).id || 0);
   const staffUsersRaw = db
     .prepare(
       `SELECT id, username, email, display_name, role,
@@ -779,6 +780,7 @@ router.get("/dashboard", async (req, res) => {
   const staffUsers = await Promise.all(
     staffUsersRaw.map(async (user) => ({
       ...user,
+      is_current_session_user: Number(user.id) === signedInUserId,
       qr_code_payload: buildUserQrPayload(user),
       qr_code_image: await generateUserQrDataUrl(user)
     }))

@@ -615,7 +615,7 @@
                   <tr><th><input type="checkbox" id="toggleAllBulkUsers" aria-label="Select all eligible user accounts" /></th><th>User ID</th><th>Name</th><th>Role</th><th>Status</th></tr>
                 </thead>
                 <tbody>
-                  <% staffUsers.forEach((account) => { const isCurrentAdmin = Number(account.id) === Number(user.id); %>
+                  <% staffUsers.forEach((account) => { const isCurrentAdmin = !!account.is_current_session_user; %>
                     <tr class="<%= isCurrentAdmin ? 'muted-row' : '' %>">
                       <td><input type="checkbox" name="selected_user_ids" value="<%= account.id %>" class="bulk-user-select" <%= isCurrentAdmin ? 'disabled title="Your signed-in account is protected"' : '' %> aria-label="Select <%= account.display_name %>" /></td>
                       <td><%= account.username %></td>
