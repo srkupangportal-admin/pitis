@@ -575,9 +575,15 @@
       </div>
 
       <% if (staffUsers.length) { %>
-        <div class="card bulk-user-management" style="margin-top:12px;">
-          <h3>Bulk User Management</h3>
-          <p class="muted">Select staff accounts, then apply one action. Your signed-in administrator account cannot be changed here. Temporary passwords require teachers and staff to choose a private password after their next sign-in.</p>
+        <details class="card bulk-user-management" style="margin-top:12px;">
+          <summary class="section-toggle-head">
+            <div>
+              <h3>Bulk User Management</h3>
+              <p class="muted">Select multiple accounts to change their password, role, or active status together.</p>
+            </div>
+          </summary>
+          <div class="bulk-user-management-content">
+          <p class="muted">Your signed-in administrator account cannot be changed here. Temporary passwords require teachers and staff to choose a private password after their next sign-in.</p>
           <form method="post" action="/admin/users/bulk-manage" id="bulkUserManagementForm" class="stack">
             <div class="inline-filters bulk-user-controls">
               <button class="btn secondary" type="button" id="selectAllBulkUsersBtn">Select All</button>
@@ -628,7 +634,8 @@
               </table>
             </div>
           </form>
-        </div>
+          </div>
+        </details>
       <% } %>
 
       <div class="stack" style="margin-top:12px;">

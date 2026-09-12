@@ -3077,6 +3077,30 @@ img, video, canvas, svg { max-width: 100%; }
   border-left: 4px solid var(--c-green);
 }
 
+.bulk-user-management summary {
+  cursor: pointer;
+  list-style: none;
+}
+
+.bulk-user-management summary::-webkit-details-marker {
+  display: none;
+}
+
+.bulk-user-management summary::after {
+  content: 'Show';
+  color: var(--c-green);
+  font-weight: 800;
+}
+
+.bulk-user-management[open] summary::after {
+  content: 'Hide';
+}
+
+.bulk-user-management-content {
+  display: grid;
+  gap: 12px;
+}
+
 .bulk-user-controls {
   align-items: end;
 }
