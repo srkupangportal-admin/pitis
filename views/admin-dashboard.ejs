@@ -574,6 +574,63 @@
         </div>
       </div>
 
+      <% if (staffUsers.length) { %>
+        <div class="card bulk-user-management" style="margin-top:12px;">
+          <h3>Bulk User Management</h3>
+          <p class="muted">Select staff accounts, then apply one action. Your signed-in administrator account cannot be changed here. Temporary passwords require teachers and staff to choose a private password after their next sign-in.</p>
+          <form method="post" action="/admin/users/bulk-manage" id="bulkUserManagementForm" class="stack">
+            <div class="inline-filters bulk-user-controls">
+              <button class="btn secondary" type="button" id="selectAllBulkUsersBtn">Select All</button>
+              <button class="btn secondary" type="button" id="clearBulkUsersBtn">Clear</button>
+              <label style="min-width:220px; flex:1 1 240px;">Temporary Password
+                <input type="password" name="new_password" minlength="12" autocomplete="new-password" placeholder="12+ characters" />
+              </label>
+              <label style="min-width:220px; flex:1 1 240px;">Confirm Password
+                <input type="password" name="confirm_new_password" minlength="12" autocomplete="new-password" placeholder="Repeat temporary password" />
+              </label>
+              <button class="btn" type="submit" name="bulk_action" value="set-temporary-password" onclick="return confirm('Set this temporary password for all selected accounts?');">Set Temporary Password</button>
+            </div>
+            <div class="inline-filters bulk-user-controls">
+              <label style="min-width:190px; flex:1 1 210px;">New Role
+                <select name="bulk_role">
+                  <option value="teacher">teacher</option>
+                  <option value="staff">staff</option>
+                  <option value="admin">admin</option>
+                </select>
+              </label>
+              <label style="min-width:190px; flex:1 1 210px;">New User Type
+                <select name="bulk_user_type">
+                  <option value="teacher">teacher</option>
+                  <option value="staff">staff</option>
+                  <option value="admin">admin</option>
+                </select>
+              </label>
+              <button class="btn secondary" type="submit" name="bulk_action" value="set-role" onclick="return confirm('Change the role for all selected accounts?');">Set Role and Type</button>
+              <button class="btn secondary" type="submit" name="bulk_action" value="set-active" onclick="return confirm('Activate all selected accounts?');">Set Active</button>
+              <button class="btn danger" type="submit" name="bulk_action" value="set-inactive" onclick="return confirm('Deactivate all selected accounts?');">Set Inactive</button>
+            </div>
+            <div class="admin-table-wrap">
+              <table class="bulk-user-table">
+                <thead>
+                  <tr><th><input type="checkbox" id="toggleAllBulkUsers" aria-label="Select all eligible user accounts" /></th><th>User ID</th><th>Name</th><th>Role</th><th>Status</th></tr>
+                </thead>
+                <tbody>
+                  <% staffUsers.forEach((account) => { const isCurrentAdmin = Number(account.id) === Number(user.id); %>
+                    <tr class="<%= isCurrentAdmin ? 'muted-row' : '' %>">
+                      <td><input type="checkbox" name="selected_user_ids" value="<%= account.id %>" class="bulk-user-select" <%= isCurrentAdmin ? 'disabled title="Your signed-in account is protected"' : '' %> aria-label="Select <%= account.display_name %>" /></td>
+                      <td><%= account.username %></td>
+                      <td><%= account.display_name %><%= isCurrentAdmin ? ' (you)' : '' %></td>
+                      <td><%= account.role %> · <%= account.user_type %></td>
+                      <td><%= Number(account.is_active) === 1 ? 'Active' : 'Inactive' %></td>
+                    </tr>
+                  <% }) %>
+                </tbody>
+              </table>
+            </div>
+          </form>
+        </div>
+      <% } %>
+
       <div class="stack" style="margin-top:12px;">
         <div class="inline-filters">
           <label style="min-width:280px; flex:1 1 360px;">Existing Users
@@ -1793,6 +1850,10 @@
       var showUserManagementBtn = document.getElementById('showUserManagementBtn');
       var hideUserManagementBtn = document.getElementById('hideUserManagementBtn');
       var userManagementWrap = document.getElementById('userManagementWrap');
+      var toggleAllBulkUsers = document.getElementById('toggleAllBulkUsers');
+      var selectAllBulkUsersBtn = document.getElementById('selectAllBulkUsersBtn');
+      var clearBulkUsersBtn = document.getElementById('clearBulkUsersBtn');
+      var bulkUserCheckboxes = Array.from(document.querySelectorAll('.bulk-user-select'));
       var showAddUserBtn = document.getElementById('showAddUserBtn');
       var hideAddUserBtn = document.getElementById('hideAddUserBtn');
       var addUserFormWrap = document.getElementById('addUserFormWrap');
@@ -2149,6 +2210,24 @@
           toggleSimpleSection(userManagementWrap, showUserManagementBtn, hideUserManagementBtn, false);
         });
       }
+      function setAllBulkUsers(checked) {
+        bulkUserCheckboxes.forEach(function (checkbox) { checkbox.checked = checked; });
+        if (toggleAllBulkUsers) toggleAllBulkUsers.checked = checked && bulkUserCheckboxes.length > 0;
+      }
+      if (toggleAllBulkUsers) {
+        toggleAllBulkUsers.addEventListener('change', function () { setAllBulkUsers(toggleAllBulkUsers.checked); });
+      }
+      if (selectAllBulkUsersBtn) {
+        selectAllBulkUsersBtn.addEventListener('click', function () { setAllBulkUsers(true); });
+      }
+      if (clearBulkUsersBtn) {
+        clearBulkUsersBtn.addEventListener('click', function () { setAllBulkUsers(false); });
+      }
+      bulkUserCheckboxes.forEach(function (checkbox) {
+        checkbox.addEventListener('change', function () {
+          if (toggleAllBulkUsers) toggleAllBulkUsers.checked = bulkUserCheckboxes.length > 0 && bulkUserCheckboxes.every(function (item) { return item.checked; });
+        });
+      });
       if (showAddUserBtn) {
         showAddUserBtn.addEventListener('click', function () {
           toggleSimpleSection(addUserFormWrap, showAddUserBtn, hideAddUserBtn, true);

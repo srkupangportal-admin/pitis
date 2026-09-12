@@ -3071,6 +3071,32 @@ img, video, canvas, svg { max-width: 100%; }
   margin-bottom: 5px;
 }
 
+.bulk-user-management {
+  display: grid;
+  gap: 12px;
+  border-left: 4px solid var(--c-green);
+}
+
+.bulk-user-controls {
+  align-items: end;
+}
+
+.bulk-user-table th:first-child,
+.bulk-user-table td:first-child {
+  width: 44px;
+  text-align: center;
+}
+
+.bulk-user-table .muted-row {
+  opacity: .65;
+}
+
+@media (max-width: 640px) {
+  .bulk-user-controls .btn {
+    width: 100%;
+  }
+}
+
 @media (max-width: 640px) {
   .admin-historical-bulk-panel .reward-bulk-actions {
     display: grid;

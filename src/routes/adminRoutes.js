@@ -1195,6 +1195,59 @@ router.post("/teachers/reset-password", (req, res) => {
   res.redirect(`/admin/dashboard?success=${encodeURIComponent(success)}`);
 });
 
+router.post("/users/bulk-manage", (req, res) => {
+  const selectedIds = Array.from(new Set(
+    (Array.isArray(req.body.selected_user_ids) ? req.body.selected_user_ids : [req.body.selected_user_ids])
+      .map((value) => Number(value))
+      .filter((value) => Number.isSafeInteger(value) && value > 0)
+  ));
+  const action = String(req.body.bulk_action || "").trim().toLowerCase();
+  const sessionUserId = Number((req.session.user || {}).id || 0);
+
+  if (!selectedIds.length) {
+    return res.redirect("/admin/dashboard?error=Select+at+least+one+user+account");
+  }
+  if (selectedIds.length > 500) {
+    return res.redirect("/admin/dashboard?error=Select+no+more+than+500+user+accounts+at+one+time");
+  }
+  if (selectedIds.includes(sessionUserId)) {
+    return res.redirect("/admin/dashboard?error=For+safety,+your+own+administrator+account+cannot+be+changed+in+a+bulk+action");
+  }
+
+  const placeholders = selectedIds.map(() => "?").join(",");
+  const targets = db.prepare(`SELECT id, role FROM users WHERE id IN (${placeholders})`).all(...selectedIds);
+  if (targets.length !== selectedIds.length) {
+    return res.redirect("/admin/dashboard?error=One+or+more+selected+user+accounts+no+longer+exist");
+  }
+
+  try {
+    if (action === "set-temporary-password") {
+      const password = String(req.body.new_password || "");
+      const confirmation = String(req.body.confirm_new_password || "");
+      if (password.length < 12) {
+        return res.redirect("/admin/dashboard?error=Temporary+password+must+be+at+least+12+characters");
+      }
+      if (password !== confirmation) {
+        return res.redirect("/admin/dashboard?error=Temporary+password+confirmation+does+not+match");
+      }
+      const update = db.prepare("UPDATE users SET password_hash = ?, must_change_password = ? WHERE id = ?");
+      const hash = bcrypt.hashSync(password, 12);
+      db.transaction(() => targets.forEach((target) => update.run(hash, target.role === "admin" ? 0 : 1, target.id)))();
+    } else if (action === "set-active" || action === "set-inactive") {
+      db.prepare(`UPDATE users SET is_active = ? WHERE id IN (${placeholders})`).run(action === "set-active" ? 1 : 0, ...selectedIds);
+    } else if (action === "set-role") {
+      const { role, userType } = parseRoleAndType(req.body.bulk_role, req.body.bulk_user_type);
+      db.prepare(`UPDATE users SET role = ?, user_type = ?, must_change_password = CASE WHEN ? = 'admin' THEN 0 ELSE must_change_password END WHERE id IN (${placeholders})`).run(role, userType, role, ...selectedIds);
+    } else {
+      return res.redirect("/admin/dashboard?error=Choose+a+valid+bulk+user+action");
+    }
+  } catch (err) {
+    return res.redirect(`/admin/dashboard?error=${encodeURIComponent(`Bulk user update failed: ${err.message}`)}`);
+  }
+
+  return res.redirect(`/admin/dashboard?success=${encodeURIComponent(`Updated ${selectedIds.length} user account${selectedIds.length === 1 ? "" : "s"}`)}`);
+});
+
 router.post("/staff/set-active", (req, res) => {
   const userId = Number(req.body.user_id || 0);
   const isActive = String(req.body.is_active || "1") === "1" ? 1 : 0;
