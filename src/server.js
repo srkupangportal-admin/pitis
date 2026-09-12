@@ -161,7 +161,10 @@ function createApp(config) {
       cookie: {
         httpOnly: true,
         sameSite: "lax",
-        secure: config.httpsEnabled && !config.redirectHttpToHttps ? "auto" : config.secureCookies
+        secure: config.httpsEnabled && !config.redirectHttpToHttps ? "auto" : config.secureCookies,
+        // Keep authentication in a browser-session cookie. No Expires or
+        // Max-Age attribute is sent, so it is not a persistent login cookie.
+        maxAge: null
       }
     })
   );
@@ -199,6 +202,11 @@ function createApp(config) {
     }
     next();
   });
+
+  // Server-to-server ClassCompass endpoints must be registered before any
+  // globally mounted authenticated routers, otherwise those routers can turn
+  // a valid integration request into a browser login redirect.
+  registerClassCompassIntegrationRoutes(app);
 
   app.use(authRoutes);
   app.use(publicRoutes);
@@ -275,6 +283,7 @@ function integrationTokenMatches(requestToken, configuredToken) {
   return supplied.length === configured.length && supplied.length > 0 && crypto.timingSafeEqual(supplied, configured);
 }
 
+function registerClassCompassIntegrationRoutes(app) {
 app.post("/api/integrations/classcompass/pitis-awards", (req, res) => {
   const configuredToken = String(process.env.CLASSCOMPASS_INTEGRATION_TOKEN || "").trim();
   const token = String(req.get("authorization") || "").replace(/^Bearer\s+/i, "").trim();
@@ -320,6 +329,7 @@ app.post("/api/integrations/classcompass/staff-login", (req, res) => {
     role: user.role
   });
 });
+}
 
 if (serverConfig.httpsEnabled) {
   const httpsOptions = buildHttpsOptions(serverConfig);

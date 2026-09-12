@@ -187,7 +187,8 @@ h3,
   display: inline-flex;
   max-width: 100%;
   padding: 3px 6px;
-  overflow: hidden;
+  overflow-x: hidden;
+  overflow-y: auto;
   color: #edf3ef;
   background: rgba(120,150,130,.18);
   border-radius: 5px;
@@ -1547,10 +1548,16 @@ body.teacher-progress-open { overflow: hidden; }
 .teacher-progress-bar span { display: block; height: 100%; background: linear-gradient(90deg, #34755e, #cfaa50); border-radius: inherit; }
 .teacher-progress-percent { color: #28644f; text-align: right; }
 .teacher-progress-actions {
+  position: sticky;
+  z-index: 3;
+  bottom: 0;
   display: flex;
   justify-content: flex-end;
   gap: 10px;
   padding: 18px 28px 22px;
+  border-top: 1px solid #e2e8e4;
+  background: #fffdf8;
+  box-shadow: 0 -10px 24px rgba(23, 63, 50, .08);
 }
 @keyframes teacher-progress-fade-in { from { opacity: 0; } }
 @keyframes teacher-progress-rise { from { transform: translateY(14px) scale(.985); opacity: 0; } }

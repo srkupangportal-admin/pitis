@@ -5,6 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>P.I.T.I.S Leaders</title>
   <link rel="stylesheet" href="/css/theme-c.css?v=20260910-mobile-header-5" />
+  <script src="/js/student-photo-fallback.js?v=20260912-1"></script>
 </head>
 <body class="leaderboard-bg">
   <%- include('partials/main-header-card') %>
@@ -68,7 +69,7 @@
             schoolTop10[2] ? { student: schoolTop10[2], place: 3, slot: 'third', medal: 'Bronze Star' } : null
           ].filter(Boolean); %>
           <section class="leaderboard-podium animated-podium whole-school-podium" aria-label="Whole school top three P.I.T.I.S leaders">
-            <% podiumEntries.forEach(function (entry) { const st = entry.student; const photo = String(st.photo_url || '').trim() || ('https://api.dicebear.com/7.x/adventurer/svg?seed=' + encodeURIComponent(st.nickname || 'student')); %>
+            <% podiumEntries.forEach(function (entry) { const st = entry.student; const photo = String(st.photo_url || '').trim() || '/img/student-placeholder.svg'; %>
               <article class="podium-card animated-podium-card <%= entry.slot %>" style="--podium-place:<%= entry.place %>">
                 <% if (entry.place === 1) { %><div class="podium-crown" aria-hidden="true">♛</div><% } %>
                 <div class="podium-medal"><%= entry.place %></div>
@@ -89,7 +90,7 @@
         <% } %>
         <div class="leaderboard-list">
           <% (schoolTop10 || []).slice(3).forEach((st, idx) => {
-               const photo = String(st.photo_url || '').trim() || ('https://api.dicebear.com/7.x/adventurer/svg?seed=' + encodeURIComponent(st.nickname || 'student'));
+               const photo = String(st.photo_url || '').trim() || '/img/student-placeholder.svg';
                const rank = idx + 4;
           %>
             <article class="leaderboard-row layout-ref rank-<%= rank <= 3 ? rank : 0 %>">
@@ -218,8 +219,7 @@
       function avatarFromRow(row) {
         var photo = String(row.photo_url || '').trim();
         if (photo) return photo;
-        var seed = encodeURIComponent(String(row.nickname || 'student'));
-        return 'https://api.dicebear.com/7.x/adventurer/svg?seed=' + seed;
+        return '/img/student-placeholder.svg';
       }
 
       function withRanks(rows) {
