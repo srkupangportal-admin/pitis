@@ -3211,16 +3211,18 @@ router.get("/calendar", (req, res) => {
     })
     .filter((ev) => eventMatchesSelectedLabels(ev, selectedLabelIds));
 
-  const deletedLogs = db
-    .prepare(
-      `SELECT ce.id, ce.title, ce.event_date, COALESCE(ce.end_date, ce.event_date) AS end_date, ce.deleted_at, u.display_name AS deleted_by_name
-       FROM calendar_events ce
-       LEFT JOIN users u ON u.id = ce.deleted_by
-       WHERE ce.is_deleted = 1
-       ORDER BY ce.deleted_at DESC
-       LIMIT 100`
-    )
-    .all();
+  const deletedLogs = req.session.user.role === "admin"
+    ? db
+        .prepare(
+          `SELECT ce.id, ce.title, ce.event_date, COALESCE(ce.end_date, ce.event_date) AS end_date, ce.deleted_at, u.display_name AS deleted_by_name
+           FROM calendar_events ce
+           LEFT JOIN users u ON u.id = ce.deleted_by
+           WHERE ce.is_deleted = 1
+           ORDER BY ce.deleted_at DESC
+           LIMIT 100`
+        )
+        .all()
+    : [];
 
   const weeks = buildCalendarWeeks(monthStart, eventsForGrid);
 

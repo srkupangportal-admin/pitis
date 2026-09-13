@@ -158,13 +158,15 @@ router.get("/", (req, res) => {
   const totalStudents = Number(db.prepare("SELECT COUNT(*) AS total FROM students").get().total || 0);
   const sipPitisDashboard = buildSipPitisDashboard({});
   const currentUser = req.session.user || null;
+  const teacherProgressSummary = isTeacherUser(currentUser)
+    ? buildTeacherProgressSummary(currentUser.id, { asOf: today })
+    : null;
   const showTeacherProgressWelcome = isTeacherUser(currentUser)
     && shouldShowDailySummary(currentUser.id, today);
-  let teacherProgressWelcome = null;
+  const teacherProgressWelcome = showTeacherProgressWelcome ? teacherProgressSummary : null;
 
-  if (showTeacherProgressWelcome) {
-    teacherProgressWelcome = buildTeacherProgressSummary(currentUser.id, { asOf: today });
-    if (teacherProgressWelcome.currentTeacher) markDailySummaryShown(currentUser.id, today);
+  if (teacherProgressWelcome && teacherProgressWelcome.currentTeacher) {
+    markDailySummaryShown(currentUser.id, today);
   }
   const attendanceToday = db.prepare(
     `SELECT COUNT(DISTINCT CASE WHEN ar.is_present = 1 THEN ar.student_id END) AS present
@@ -189,6 +191,7 @@ router.get("/", (req, res) => {
       upcomingSevenDayEvents
     },
     sipPitisKpis: sipPitisDashboard.kpis,
+    teacherProgressSummary,
     teacherProgressWelcome
   });
 });

@@ -197,6 +197,46 @@ h3,
   white-space: nowrap;
 }
 
+.portal-sidebar .sidebar-user-progress {
+  width: 100%;
+  margin: 9px 0 11px;
+  padding: 10px 11px;
+  color: #edf3ef;
+  background: rgba(255,255,255,.08);
+  border: 1px solid rgba(255,255,255,.13);
+  border-radius: 8px;
+  text-align: left;
+}
+.sidebar-user-welcome {
+  display: block;
+  margin-bottom: 8px;
+  font-size: .76rem;
+  line-height: 1.35;
+}
+.sidebar-progress-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  color: #cbd9d2;
+  font-size: .65rem;
+}
+.sidebar-progress-heading strong { color: #f0d895; font-size: .75rem; }
+.sidebar-progress-bar {
+  height: 6px;
+  margin: 6px 0;
+  overflow: hidden;
+  background: rgba(255,255,255,.14);
+  border-radius: 99px;
+}
+.sidebar-progress-bar span {
+  display: block;
+  height: 100%;
+  background: linear-gradient(90deg, #7eb99d, #e4ca8b);
+  border-radius: inherit;
+}
+.portal-sidebar .sidebar-user-progress small { color: #b8c9c0; font-size: .61rem; }
+
 /* Public header */
 .portal-public-header,
 .landing-home .portal-public-header,
@@ -1104,7 +1144,7 @@ body.calendar-apple .calendar-page-title h2 {
 body.calendar-apple .calendar-page-title p { color: var(--calendar-secondary); font-size: .9rem; }
 body.calendar-apple .calendar-eyebrow {
   color: var(--calendar-red);
-  font-size: .7rem;
+  font-size: clamp(1rem, 1.6vw, 1.35rem);
   font-weight: 700;
   letter-spacing: .08em;
 }
@@ -1638,6 +1678,7 @@ body.calendar-ref-dark .portal-sidebar h1::before {
 
   body .portal-sidebar .landing-subtitle,
   body .portal-sidebar .landing-datetime,
+  body .portal-sidebar .sidebar-user-progress,
   body .portal-sidebar .recent-login-strip,
   body .portal-sidebar .main-header-shortcuts-desktop,
   body .portal-top-shortcuts {

@@ -1,8 +1,9 @@
 <!DOCTYPE html>
 <%
-  const rewardsGalleryHref = '/rewards';
   const homeUser = typeof currentUser !== 'undefined' && currentUser ? currentUser : null;
-  const controlPanelHref = homeUser && homeUser.role === 'admin' ? '/admin/dashboard' : '/teacher/dashboard';
+  function authenticatedHomeHref(path) {
+    return homeUser ? path : '/login?next=' + encodeURIComponent(path);
+  }
   function formatHomeDate(value) {
     const date = new Date(String(value || '') + 'T00:00:00');
     if (Number.isNaN(date.getTime())) return value || '';
@@ -69,34 +70,29 @@
         <% } %>
       </div>
 
-      <a class="landing-action teacher" href="<%= homeUser ? controlPanelHref : '/login' %>">
-        <span class="action-title"><%= homeUser ? 'Control Panel' : 'USER ID' %></span>
-        <span class="action-desc"><%= homeUser ? 'Open administration and staff controls' : 'Manage P.I.T.I.S, students, reports' %></span>
+      <a class="landing-action teacher" href="<%= authenticatedHomeHref('/teacher/reward') %>">
+        <span class="action-title">PITIS</span>
+        <span class="action-desc">Award and manage student PITIS</span>
       </a>
 
-      <a class="landing-action leaderboard" href="/leaderboard">
-        <span class="action-title">P.I.T.I.S Leaders</span>
-        <span class="action-desc">Display class rankings live</span>
+      <a class="landing-action teacher" href="<%= authenticatedHomeHref('/teacher/tools') %>">
+        <span class="action-title">Tools</span>
+        <span class="action-desc">Open classroom tools</span>
       </a>
 
-      <a class="landing-action teacher" href="/kiosk">
-        <span class="action-title">Kiosk</span>
-        <span class="action-desc">Scan student QR for attendance</span>
+      <a class="landing-action teacher" href="<%= authenticatedHomeHref('/teacher/attendance') %>">
+        <span class="action-title">Attendance</span>
+        <span class="action-desc">View and manage student attendance</span>
       </a>
 
-      <a class="landing-action teacher" href="/login?next=%2Fteacher%2Fattendance%2Fscan">
-        <span class="action-title">QR Scan</span>
-        <span class="action-desc">Open teacher multi-scan attendance mode</span>
+      <a class="landing-action teacher" href="<%= authenticatedHomeHref('/informations') %>">
+        <span class="action-title">Informations</span>
+        <span class="action-desc">Browse school information and files</span>
       </a>
 
-      <a class="landing-action teacher" href="<%= rewardsGalleryHref %>">
-        <span class="action-title">P.I.T.I.S Gallery</span>
-        <span class="action-desc">View prizes and pitis targets</span>
-      </a>
-
-      <a class="landing-action teacher" href="/login?next=%2Fphotos-upload">
-        <span class="action-title">Photos Upload</span>
-        <span class="action-desc">Upload and browse shared school photos</span>
+      <a class="landing-action teacher" href="<%= authenticatedHomeHref('/teacher/qr-tools') %>">
+        <span class="action-title">QR Tools</span>
+        <span class="action-desc">Open attendance and device QR scanners</span>
       </a>
     </section>
 

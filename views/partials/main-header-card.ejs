@@ -2,6 +2,12 @@
   const headerUser = typeof currentUser !== 'undefined' && currentUser ? currentUser : (typeof user !== 'undefined' ? user : null);
   const isAuthenticated = !!headerUser;
   const isAdmin = isAuthenticated && headerUser.role === 'admin';
+  const headerProgressSummary = typeof teacherProgressSummary !== 'undefined' && teacherProgressSummary
+    ? teacherProgressSummary
+    : null;
+  const headerProgress = headerProgressSummary && headerProgressSummary.currentTeacher
+    ? headerProgressSummary.currentTeacher
+    : null;
   const recentUsers = Array.isArray(typeof recentPortalUsers !== 'undefined' ? recentPortalUsers : null) ? recentPortalUsers : [];
   function authHref(path) {
     return isAuthenticated ? path : '/login?next=' + encodeURIComponent(path);
@@ -35,6 +41,28 @@
     <div class="landing-datetime muted" data-main-header-clock>
       <%= now.format('DD.MMM.YYYY hh:mm a') %>
     </div>
+    <% if (isAuthenticated) { %>
+      <section class="sidebar-user-progress" aria-label="Current user PITIS progress">
+        <span class="sidebar-user-welcome">Welcome, <strong><%= headerUser.displayName %></strong></span>
+        <% if (headerProgress) { %>
+          <div class="sidebar-progress-heading">
+            <span>Weekly PITIS progress</span>
+            <strong><%= headerProgress.percentage %>%</strong>
+          </div>
+          <div class="sidebar-progress-bar" aria-label="<%= headerProgress.percentage %> percent of weekly target">
+            <span style="width: <%= Math.max(0, Math.min(100, headerProgress.percentage)) %>%"></span>
+          </div>
+          <small>
+            <%= headerProgress.activeDays %>/<%= headerProgress.requiredDays %> target days
+            <% if (headerProgress.requiredDays > headerProgress.activeDays) { %>
+              · <%= headerProgress.requiredDays - headerProgress.activeDays %> remaining
+            <% } else if (headerProgress.requiredDays > 0) { %>
+              · Target met
+            <% } %>
+          </small>
+        <% } %>
+      </section>
+    <% } %>
     <div class="recent-login-strip" aria-label="Recent portal users">
       <span class="recent-login-title">Recent users</span>
       <% if (recentUsers.length) { %>

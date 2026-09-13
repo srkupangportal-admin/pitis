@@ -495,32 +495,34 @@
       </details>
     </section>
 
-    <h3>Deletion Log</h3>
-    <table>
-      <thead>
-        <tr>
-          <th>Start</th>
-          <th>End</th>
-          <th>Title</th>
-          <th>Deleted By</th>
-          <th>Deleted At</th>
-        </tr>
-      </thead>
-      <tbody>
-        <% if (!deletedLogs.length) { %>
-          <tr><td colspan="5" class="muted">No deleted events.</td></tr>
-        <% } %>
-        <% deletedLogs.forEach(ev => { %>
+    <% if (user.role === 'admin') { %>
+      <h3>Deletion Log</h3>
+      <table>
+        <thead>
           <tr>
-            <td><%= ev.event_date %></td>
-            <td><%= ev.end_date %></td>
-            <td><%= ev.title %></td>
-            <td><%= ev.deleted_by_name || 'Unknown' %></td>
-            <td><%= ev.deleted_at || '-' %></td>
+            <th>Start</th>
+            <th>End</th>
+            <th>Title</th>
+            <th>Deleted By</th>
+            <th>Deleted At</th>
           </tr>
-        <% }) %>
-      </tbody>
-    </table>
+        </thead>
+        <tbody>
+          <% if (!deletedLogs.length) { %>
+            <tr><td colspan="5" class="muted">No deleted events.</td></tr>
+          <% } %>
+          <% deletedLogs.forEach(ev => { %>
+            <tr>
+              <td><%= ev.event_date %></td>
+              <td><%= ev.end_date %></td>
+              <td><%= ev.title %></td>
+              <td><%= ev.deleted_by_name || 'Unknown' %></td>
+              <td><%= ev.deleted_at || '-' %></td>
+            </tr>
+          <% }) %>
+        </tbody>
+      </table>
+    <% } %>
   </main>
 
     <script>
