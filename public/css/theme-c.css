@@ -1294,8 +1294,21 @@ body.information-explorer-page .container { max-width: 1380px; }
 }
 .information-tree .info-folder-head:hover { background: #f5f8fb; }
 .information-folder-identity { display: flex; align-items: center; gap: 10px; min-width: 0; }
-.information-folder-identity > div { min-width: 0; }
-.information-folder-identity h3 { overflow: hidden; color: #26333d; font-size: .93rem; font-weight: 650; text-overflow: ellipsis; white-space: nowrap; }
+.information-folder-toggle {
+  width: 100%;
+  padding: 5px;
+  color: inherit;
+  background: transparent;
+  border: 0;
+  border-radius: 8px;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+.information-folder-toggle:hover { background: rgba(0,122,255,.06); }
+.information-folder-toggle:focus-visible { outline: 3px solid rgba(0,122,255,.28); outline-offset: 2px; }
+.information-folder-copy { display: grid; min-width: 0; }
+.information-folder-title { overflow: hidden; color: #26333d; font-size: .93rem; font-weight: 650; text-overflow: ellipsis; white-space: nowrap; }
 .information-folder-identity .muted { color: #7b8790; font-size: .7rem; }
 .information-disclosure { width: 13px; color: #75818a; font-size: 1.4rem; line-height: 1; transition: transform .18s ease; }
 .info-folder-group[aria-expanded="true"] .information-disclosure { transform: rotate(90deg); }
@@ -1319,7 +1332,6 @@ body.information-explorer-page .container { max-width: 1380px; }
   border-radius: 4px 4px 0 0;
 }
 .information-folder-actions { flex-wrap: nowrap; }
-.information-folder-view { min-width: 76px; }
 .information-tree-children {
   position: relative;
   grid-template-columns: 1fr;
@@ -2359,7 +2371,7 @@ body.landing-home .portal-sidebar h1::before {
 }
 
 .command-alert {
-  width: 100%;
+  flex: 1 1 auto;
   display: flex;
   flex-direction: column;
   gap: 3px;

@@ -74,14 +74,14 @@
           <% groupedFiles.forEach((group, idx) => { %>
             <section class="info-folder-group" role="treeitem" aria-expanded="false" data-folder-node="folder-<%= idx %>">
               <div class="info-folder-head">
-                <div class="information-folder-identity">
+                <button class="information-folder-identity information-folder-toggle" type="button" data-folder-toggle="folder-<%= idx %>" aria-controls="folder-<%= idx %>" aria-expanded="false" aria-label="Expand <%= group.groupLabel %> folder">
                   <span class="information-disclosure" aria-hidden="true">›</span>
                   <span class="information-folder-icon" aria-hidden="true"></span>
-                  <div>
-                    <h3><%= group.groupLabel %></h3>
+                  <span class="information-folder-copy">
+                    <span class="information-folder-title"><%= group.groupLabel %></span>
                     <span class="muted"><%= group.items.length %> file<%= group.items.length === 1 ? '' : 's' %></span>
-                  </div>
-                </div>
+                  </span>
+                </button>
                 <div class="inline-filters information-folder-actions">
                   <% if (user && user.role === 'admin' && group.folderId) { %>
                     <form method="post" action="/informations/folders/<%= group.folderId %>/move" class="inline-filters info-folder-order-form">
@@ -93,8 +93,6 @@
                       <button class="btn secondary" type="submit">Down</button>
                     </form>
                   <% } %>
-                  <button class="btn information-folder-view" type="button" data-folder-toggle="folder-<%= idx %>">View</button>
-                  <button class="btn secondary information-folder-view" type="button" data-folder-hide="folder-<%= idx %>" style="display:none;">Collapse</button>
                 </div>
               </div>
               <% if (user && user.role === 'admin' && group.folderId) { %>
@@ -164,13 +162,14 @@
 
       function toggleFolder(id, show) {
         var wrap = document.getElementById(id);
-        var showBtn = document.querySelector('[data-folder-toggle="' + id + '"]');
-        var hideBtn = document.querySelector('[data-folder-hide="' + id + '"]');
+        var toggleBtn = document.querySelector('[data-folder-toggle="' + id + '"]');
         var node = document.querySelector('[data-folder-node="' + id + '"]');
         if (wrap) wrap.style.display = show ? 'grid' : 'none';
-        if (showBtn) showBtn.style.display = show ? 'none' : 'inline-flex';
-        if (hideBtn) hideBtn.style.display = show ? 'inline-flex' : 'none';
         if (node) node.setAttribute('aria-expanded', show ? 'true' : 'false');
+        if (toggleBtn) {
+          toggleBtn.setAttribute('aria-expanded', show ? 'true' : 'false');
+          toggleBtn.setAttribute('aria-label', (show ? 'Collapse ' : 'Expand ') + toggleBtn.querySelector('.information-folder-title').textContent + ' folder');
+        }
       }
 
       function toggleUpload(show) {
@@ -229,13 +228,7 @@
 
       document.querySelectorAll('[data-folder-toggle]').forEach(function (btn) {
         btn.addEventListener('click', function () {
-          toggleFolder(btn.getAttribute('data-folder-toggle'), true);
-        });
-      });
-
-      document.querySelectorAll('[data-folder-hide]').forEach(function (btn) {
-        btn.addEventListener('click', function () {
-          toggleFolder(btn.getAttribute('data-folder-hide'), false);
+          toggleFolder(btn.getAttribute('data-folder-toggle'), btn.getAttribute('aria-expanded') !== 'true');
         });
       });
     })();
