@@ -6,7 +6,7 @@
   <title>Calendar</title>
   <link rel="stylesheet" href="/css/theme-c.css" />
 </head>
-<body class="calendar-ref-dark calendar-apple">
+<body class="calendar-ref-dark calendar-apple calendar-ical-reference">
   <%- include('partials/teacher-nav') %>
   <%
     function formatTaggedUsersDisplay(tagScope, taggedUsers) {
@@ -54,13 +54,13 @@
     <div class="calendar-page-header">
       <div class="calendar-page-title">
         <span class="calendar-eyebrow">School Calendar</span>
-        <h2>Calendar</h2>
+        <h2><%= calendarMonthLabel %></h2>
         <p>Events, activities and important dates</p>
       </div>
       <div class="calendar-page-actions">
         <a class="btn secondary calendar-nav-btn" href="/teacher/calendar?month=<%= previousMonthKey %><%= selectedLabelQuery ? '&' + selectedLabelQuery : '' %>" aria-label="Previous month">&#8249;</a>
-        <a class="btn secondary calendar-nav-btn" href="/teacher/calendar?month=<%= nextMonthKey %><%= selectedLabelQuery ? '&' + selectedLabelQuery : '' %>" aria-label="Next month">&#8250;</a>
         <a class="btn secondary calendar-today-btn" href="/teacher/calendar"><span aria-hidden="true"></span>Today</a>
+        <a class="btn secondary calendar-nav-btn" href="/teacher/calendar?month=<%= nextMonthKey %><%= selectedLabelQuery ? '&' + selectedLabelQuery : '' %>" aria-label="Next month">&#8250;</a>
         <a class="btn calendar-add-btn" href="#calendarAddEvent"><span aria-hidden="true">+</span>Add Event</a>
       </div>
       <form method="get" action="/teacher/calendar" class="calendar-month-picker-form" id="calendarMonthPickerForm">

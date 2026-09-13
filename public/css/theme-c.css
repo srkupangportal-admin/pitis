@@ -1221,6 +1221,129 @@ body.calendar-apple .calendar-event-modal-card { background: rgba(255,255,255,.9
   body.calendar-apple .calendar-board { min-width: 700px; }
 }
 
+/* Main calendar: close visual match to the supplied classic iCal month view. */
+body.calendar-ical-reference { background: #fff !important; }
+body.calendar-ical-reference .container { max-width: none; margin: 16px clamp(10px, 1.5vw, 22px); }
+body.calendar-ical-reference .calendar-page-header {
+  grid-template-columns: minmax(240px, 1fr) auto;
+  grid-template-areas: "title actions" "picker picker";
+  min-height: 50px;
+  margin: 0;
+  padding: 0 2px 8px;
+}
+body.calendar-ical-reference .calendar-eyebrow,
+body.calendar-ical-reference .calendar-page-title p { display: none; }
+body.calendar-ical-reference .calendar-page-title h2 {
+  color: #202124;
+  font-size: clamp(1.7rem, 3vw, 2.35rem);
+  font-weight: 300;
+  letter-spacing: -.045em;
+}
+body.calendar-ical-reference .calendar-page-actions { align-self: start; flex-wrap: nowrap; gap: 0; }
+body.calendar-ical-reference .calendar-page-actions .btn {
+  min-height: 28px;
+  padding: 3px 10px;
+  color: #333;
+  background: linear-gradient(#fff, #f6f6f6);
+  border-color: #d8d8d8;
+  border-radius: 0;
+  box-shadow: 0 1px 2px rgba(0,0,0,.06);
+  font-size: .72rem;
+  font-weight: 500;
+}
+body.calendar-ical-reference .calendar-page-actions .calendar-nav-btn { width: 28px; padding: 0; color: #6d6d6d; font-size: 1.05rem; }
+body.calendar-ical-reference .calendar-page-actions > :first-child { border-radius: 5px 0 0 5px; }
+body.calendar-ical-reference .calendar-page-actions .calendar-nav-btn:nth-of-type(3) { border-radius: 0 5px 5px 0; }
+body.calendar-ical-reference .calendar-today-btn span { display: none; }
+body.calendar-ical-reference .calendar-page-actions .calendar-add-btn {
+  margin-left: 8px;
+  color: #fff;
+  background: #ff3b30;
+  border-color: #ff3b30;
+  border-radius: 5px;
+}
+body.calendar-ical-reference .calendar-month-picker-form { justify-self: end; margin-top: -2px; }
+body.calendar-ical-reference .calendar-month-picker-label > span { display: none; }
+body.calendar-ical-reference .calendar-month-picker-input { min-height: 27px; padding: 2px 6px; font-size: .7rem; }
+body.calendar-ical-reference .calendar-workspace { display: block; }
+body.calendar-ical-reference .calendar-board {
+  width: 100%;
+  border: 0 !important;
+  border-top: 1px solid #dedede !important;
+  border-radius: 0;
+  box-shadow: none;
+}
+body.calendar-ical-reference .calendar-board-title { display: none; }
+body.calendar-ical-reference .calendar-grid-header > div {
+  padding: 7px 5px;
+  color: #333;
+  background: #fff;
+  border-right: 0 !important;
+  border-bottom: 1px solid #dedede !important;
+  font-size: .76rem;
+  font-weight: 400;
+  letter-spacing: 0;
+  text-transform: none;
+}
+body.calendar-ical-reference .calendar-grid-header > div:first-child,
+body.calendar-ical-reference .calendar-grid-header > div:last-child { color: #aaa; }
+body.calendar-ical-reference .calendar-week-block { border-bottom: 1px solid #dedede !important; }
+body.calendar-ical-reference .calendar-day {
+  min-height: clamp(62px, 8.8vw, 112px);
+  padding: 6px 8px;
+  background: #fff;
+  border-right: 1px solid #e4e4e4 !important;
+  border-bottom: 0 !important;
+}
+body.calendar-ical-reference .calendar-day.out-month { color: #c5c5c5; background: #f7f7f7; }
+body.calendar-ical-reference .calendar-day.today { background: #fff; box-shadow: none; }
+body.calendar-ical-reference .day-num {
+  justify-self: end;
+  width: 25px;
+  height: 25px;
+  color: #303030;
+  font-size: .76rem;
+  font-weight: 400;
+}
+body.calendar-ical-reference .calendar-day.out-month .day-num { color: #c5c5c5; }
+body.calendar-ical-reference .calendar-day.today .day-num { color: #fff; background: #ff3b30; font-weight: 600; }
+body.calendar-ical-reference .calendar-spans {
+  min-height: calc(var(--lanes) * 22px + 4px);
+  padding: 0 0 4px;
+  background: #fff;
+  background-image: linear-gradient(to right, #e4e4e4 1px, transparent 1px);
+}
+body.calendar-ical-reference .event-span {
+  min-height: 18px;
+  margin: 1px 5px;
+  padding: 1px 5px;
+  border: 0 !important;
+  border-radius: 0;
+  box-shadow: none;
+  font-size: .63rem;
+  font-weight: 500;
+}
+body.calendar-ical-reference .calendar-side-column {
+  display: grid;
+  grid-template-columns: minmax(250px, .7fr) minmax(320px, 1.3fr);
+  gap: 12px;
+  margin-top: 14px;
+}
+body.calendar-ical-reference .calendar-side-column .calendar-add-form { border-radius: 8px; box-shadow: none; }
+
+@media (max-width: 860px) {
+  body.calendar-ical-reference .calendar-page-header { grid-template-columns: 1fr auto; grid-template-areas: "title actions" "picker picker"; }
+  body.calendar-ical-reference .calendar-side-column { grid-template-columns: 1fr; }
+}
+@media (max-width: 640px) {
+  body.calendar-ical-reference .container { margin: 8px; }
+  body.calendar-ical-reference .calendar-page-header { grid-template-columns: 1fr; grid-template-areas: "title" "actions" "picker"; gap: 7px; }
+  body.calendar-ical-reference .calendar-page-actions { justify-content: flex-start; }
+  body.calendar-ical-reference .calendar-month-picker-form { justify-self: start; }
+  body.calendar-ical-reference .calendar-board { min-width: 680px; }
+  body.calendar-ical-reference .calendar-day { min-height: 64px; }
+}
+
 /* Informations: Finder/File Explorer-inspired directory tree. */
 html body.information-explorer-page { background: #f3f5f7; }
 body.information-explorer-page .container { max-width: 1380px; }

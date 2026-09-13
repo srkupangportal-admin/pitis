@@ -60,7 +60,7 @@ function getServerConfig() {
     sessionSecret: String(process.env.SESSION_SECRET || "").trim(),
     trustProxy: toBool(process.env.TRUST_PROXY, false),
     secureCookies: toBool(process.env.SECURE_COOKIES, httpsEnabled),
-    classCompassUrl: String(process.env.CLASS_COMPASS_URL || '').trim()
+    classCompassUrl: String(process.env.CLASS_COMPASS_URL || 'https://classcompass.srkupang.com').trim()
   };
 }
 
