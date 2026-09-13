@@ -1077,6 +1077,150 @@ body.calendar-ref-dark::after { display: none !important; }
   .calendar-upcoming-list { max-height: none; }
 }
 
+/* Calendar: Apple Calendar-inspired light workspace. Presentation only. */
+html body.calendar-apple {
+  --calendar-red: #ff3b30;
+  --calendar-blue: #007aff;
+  --calendar-label: #1d1d1f;
+  --calendar-secondary: #6e6e73;
+  --calendar-line: rgba(60, 60, 67, .14);
+  color: var(--calendar-label) !important;
+  background: #f5f5f7 !important;
+  font-family: -apple-system, BlinkMacSystemFont, "SF Pro Display", "Segoe UI", sans-serif;
+}
+body.calendar-apple .container { max-width: 1600px; margin-top: 18px; }
+body.calendar-apple .calendar-page-header {
+  gap: 6px 20px;
+  margin-bottom: 14px;
+  padding: 4px 2px;
+}
+body.calendar-apple .calendar-page-title h2 {
+  margin: 0;
+  color: var(--calendar-label);
+  font-size: clamp(2rem, 3vw, 2.75rem);
+  font-weight: 700;
+  letter-spacing: -.035em;
+}
+body.calendar-apple .calendar-page-title p { color: var(--calendar-secondary); font-size: .9rem; }
+body.calendar-apple .calendar-eyebrow {
+  color: var(--calendar-red);
+  font-size: .7rem;
+  font-weight: 700;
+  letter-spacing: .08em;
+}
+body.calendar-apple .calendar-page-actions { gap: 6px; }
+body.calendar-apple .calendar-page-actions .btn {
+  min-height: 36px;
+  padding: 7px 13px;
+  color: var(--calendar-blue);
+  background: rgba(255, 255, 255, .88);
+  border: 1px solid var(--calendar-line);
+  border-radius: 9px;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, .04);
+  font-size: .82rem;
+  font-weight: 600;
+}
+body.calendar-apple .calendar-page-actions .btn:hover { background: #fff; border-color: rgba(0, 122, 255, .28); }
+body.calendar-apple .calendar-page-actions .calendar-nav-btn {
+  width: 36px;
+  padding: 3px;
+  color: var(--calendar-red);
+  font-size: 1.5rem;
+  line-height: 1;
+}
+body.calendar-apple .calendar-page-actions .calendar-add-btn { color: #fff; background: var(--calendar-red); border-color: var(--calendar-red); }
+body.calendar-apple .calendar-add-btn span { margin-right: 5px; font-size: 1.15rem; font-weight: 400; }
+body.calendar-apple .calendar-today-btn span { width: 7px; height: 7px; margin-right: 7px; background: var(--calendar-red); border-radius: 50%; }
+body.calendar-apple .calendar-month-picker-label > span { color: var(--calendar-secondary); font-size: .74rem; }
+body.calendar-apple .calendar-month-picker-input {
+  min-height: 34px;
+  color: var(--calendar-label);
+  background: rgba(255,255,255,.88);
+  border-color: var(--calendar-line);
+  border-radius: 8px;
+}
+body.calendar-apple .calendar-workspace { grid-template-columns: minmax(0, 3fr) minmax(270px, .86fr); gap: 14px; }
+body.calendar-apple .calendar-board {
+  background: #fff;
+  border-color: var(--calendar-line) !important;
+  border-radius: 13px;
+  box-shadow: 0 1px 3px rgba(0,0,0,.04), 0 12px 32px rgba(0,0,0,.035);
+}
+body.calendar-apple .calendar-board-title {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  padding: 15px 18px 12px;
+  border-color: var(--calendar-line);
+}
+body.calendar-apple .calendar-board-title h3 { color: var(--calendar-label); font-size: 1.35rem; font-weight: 700; letter-spacing: -.025em; }
+body.calendar-apple .calendar-board-title > span { color: var(--calendar-secondary); font-size: .72rem; font-weight: 600; }
+body.calendar-apple .calendar-grid-header > div {
+  padding: 8px 7px;
+  color: var(--calendar-secondary);
+  background: #fbfbfd;
+  border-color: var(--calendar-line) !important;
+  font-size: .66rem;
+  font-weight: 600;
+  letter-spacing: .02em;
+}
+body.calendar-apple .calendar-week-block { border-color: var(--calendar-line) !important; }
+body.calendar-apple .calendar-day {
+  min-height: 62px;
+  padding: 7px 9px;
+  background: #fff;
+  border-color: var(--calendar-line) !important;
+}
+body.calendar-apple .calendar-day.out-month { color: #b7b7bc; background: #fafafa; }
+body.calendar-apple .calendar-day.today { background: #fff; box-shadow: inset 0 0 0 2px rgba(255,59,48,.12); }
+body.calendar-apple .day-num { width: 25px; height: 25px; color: var(--calendar-label); font-size: .76rem; font-weight: 500; }
+body.calendar-apple .calendar-day.today .day-num { color: #fff; background: var(--calendar-red); font-weight: 700; }
+body.calendar-apple .calendar-spans {
+  min-height: calc(var(--lanes) * 25px + 8px);
+  background: #fff;
+  background-image: linear-gradient(to right, var(--calendar-line) 1px, transparent 1px);
+}
+body.calendar-apple .event-span {
+  min-height: 21px;
+  margin: 2px 4px;
+  padding: 2px 7px;
+  border: 0 !important;
+  border-radius: 5px;
+  box-shadow: inset 3px 0 rgba(0,0,0,.16);
+  font-size: .69rem;
+  font-weight: 600;
+}
+body.calendar-apple .calendar-side-column { gap: 12px; }
+body.calendar-apple .calendar-side-column .calendar-add-form {
+  padding: 16px;
+  background: rgba(255,255,255,.9);
+  border: 1px solid var(--calendar-line);
+  border-radius: 13px;
+  box-shadow: 0 1px 3px rgba(0,0,0,.035);
+}
+body.calendar-apple .calendar-category-summary::after { color: var(--calendar-red); background: rgba(255,59,48,.09); }
+body.calendar-apple .calendar-label-option { border-color: transparent; border-radius: 8px; background: #f5f5f7; }
+body.calendar-apple .calendar-upcoming-item { padding: 10px; background: #fff; border-color: var(--calendar-line); border-radius: 10px; }
+body.calendar-apple .calendar-upcoming-date { color: var(--calendar-red); background: rgba(255,59,48,.08); border-radius: 8px; }
+body.calendar-apple .calendar-upcoming-content h4 { color: var(--calendar-label); font-weight: 650; }
+body.calendar-apple .calendar-upcoming-content p { color: var(--calendar-secondary); }
+body.calendar-apple .calendar-event-modal { backdrop-filter: blur(14px); background: rgba(0,0,0,.24); }
+body.calendar-apple .calendar-event-modal-card { background: rgba(255,255,255,.98); border: 1px solid rgba(255,255,255,.75); border-radius: 16px; box-shadow: 0 24px 70px rgba(0,0,0,.22); }
+
+@media (max-width: 1120px) {
+  body.calendar-apple .calendar-workspace { grid-template-columns: minmax(0, 1fr) 270px; }
+}
+@media (max-width: 860px) {
+  body.calendar-apple .calendar-workspace { grid-template-columns: 1fr; }
+}
+@media (max-width: 640px) {
+  body.calendar-apple .container { margin: 10px; }
+  body.calendar-apple .calendar-page-title h2 { font-size: 2rem; }
+  body.calendar-apple .calendar-page-actions { display: grid; grid-template-columns: 38px 38px 1fr 1fr; width: 100%; }
+  body.calendar-apple .calendar-page-actions .btn { width: auto; min-width: 0; }
+  body.calendar-apple .calendar-board { min-width: 700px; }
+}
+
 /* Shared sidebar branding lock: page themes must never restyle school identity. */
 body .portal-sidebar h1,
 body.calendar-ref-dark .portal-sidebar h1,

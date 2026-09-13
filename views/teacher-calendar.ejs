@@ -6,7 +6,7 @@
   <title>Calendar</title>
   <link rel="stylesheet" href="/css/theme-c.css" />
 </head>
-<body class="calendar-ref-dark">
+<body class="calendar-ref-dark calendar-apple">
   <%- include('partials/teacher-nav') %>
   <%
     function formatTaggedUsersDisplay(tagScope, taggedUsers) {
@@ -53,15 +53,15 @@
 
     <div class="calendar-page-header">
       <div class="calendar-page-title">
-        <span class="calendar-eyebrow">Academic planning</span>
-        <h2>School Calendar</h2>
+        <span class="calendar-eyebrow">School Calendar</span>
+        <h2>Calendar</h2>
         <p>Events, activities and important dates</p>
       </div>
       <div class="calendar-page-actions">
         <a class="btn secondary calendar-nav-btn" href="/teacher/calendar?month=<%= previousMonthKey %><%= selectedLabelQuery ? '&' + selectedLabelQuery : '' %>" aria-label="Previous month">&#8249;</a>
         <a class="btn secondary calendar-nav-btn" href="/teacher/calendar?month=<%= nextMonthKey %><%= selectedLabelQuery ? '&' + selectedLabelQuery : '' %>" aria-label="Next month">&#8250;</a>
-        <a class="btn secondary" href="/teacher/calendar">Today</a>
-        <a class="btn" href="#calendarAddEvent">Add Event</a>
+        <a class="btn secondary calendar-today-btn" href="/teacher/calendar"><span aria-hidden="true"></span>Today</a>
+        <a class="btn calendar-add-btn" href="#calendarAddEvent"><span aria-hidden="true">+</span>Add Event</a>
       </div>
       <form method="get" action="/teacher/calendar" class="calendar-month-picker-form" id="calendarMonthPickerForm">
         <% (selectedLabelIds || []).forEach(function (id) { %>
@@ -77,7 +77,7 @@
     <div class="calendar-workspace">
       <div class="calendar-main-column">
         <section class="calendar-board">
-          <div class="calendar-board-title"><h3><%= calendarMonthLabel %></h3></div>
+          <div class="calendar-board-title"><h3><%= calendarMonthLabel %></h3><span>Month</span></div>
       <div class="calendar-grid-header">
         <div>Monday</div>
         <div>Tuesday</div>

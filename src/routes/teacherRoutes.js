@@ -2071,11 +2071,18 @@ router.post("/reward/award", async (req, res) => {
      VALUES (?, ?, ?, ?, ?, ?)`
   );
 
-  let firstPointLogId = null;
+  const progressUser = db.prepare("SELECT id,role,user_type FROM users WHERE id=?").get(awardedByUserId);
+  const canReportProgress = action === "award" && isTeacherUser(progressUser);
+  const positiveAwardsBefore = canReportProgress
+    ? Number(db.prepare("SELECT COUNT(*) AS total FROM point_logs WHERE awarded_by=? AND points>0 AND date(awarded_at)=date(?)").get(awardedByUserId, now).total || 0)
+    : 0;
+  const progressBefore = canReportProgress
+    ? buildTeacherProgressSummary(awardedByUserId, { asOf: awardDate }).currentTeacher
+    : null;
+
   db.transaction(() => {
     students.forEach((student) => {
-      const result = insertPointLog.run(student.id, Number(student.class_id), points, reason, awardedByUserId, now);
-      if (!firstPointLogId) firstPointLogId = Number(result.lastInsertRowid);
+      insertPointLog.run(student.id, Number(student.class_id), points, reason, awardedByUserId, now);
       updateDailySnapshot(student.id);
     });
   })();
@@ -2085,26 +2092,29 @@ router.post("/reward/award", async (req, res) => {
     ? ` on behalf of ${awardedByUser.display_name || awardedByUser.username} for ${awardDate}`
     : "";
   let progressMessage = "";
-  const progressUser = db.prepare("SELECT id,role,user_type FROM users WHERE id=?").get(awardedByUserId);
-  if (isTeacherUser(progressUser)) {
-    const summary = buildTeacherProgressSummary(awardedByUserId);
+  if (canReportProgress) {
+    const summary = buildTeacherProgressSummary(awardedByUserId, { asOf: awardDate });
     const progress = summary.currentTeacher;
-    if (progress) {
+    const targetWasMet = Boolean(progressBefore && progressBefore.requiredDays > 0 && progressBefore.activeDays >= progressBefore.requiredDays);
+    const targetIsNowMet = Boolean(progress && progress.requiredDays > 0 && progress.activeDays >= progress.requiredDays);
+    const targetJustMet = !targetWasMet && targetIsNowMet;
+    const showDetailedProgress = positiveAwardsBefore === 0 || targetJustMet;
+    if (progress && showDetailedProgress) {
       const remaining = Math.max(0, progress.requiredDays - progress.activeDays);
       progressMessage = progress.requiredDays > 0
         ? ` This week: ${progress.activeDays} of ${progress.requiredDays} target days (${progress.percentage}%).${remaining ? ` ${remaining} more active day${remaining === 1 ? "" : "s"} needed.` : " Weekly target met."}`
         : " PITIS activity recorded; there is no active weekly target today.";
       await notifyUser(awardedByUserId, {
         type: "pitis_progress",
-        title: action === "deduct" ? "PITIS activity recorded" : "PITIS progress updated",
+        title: targetJustMet ? "Weekly PITIS target met" : "Today's PITIS progress",
         message: progress.requiredDays > 0
           ? `${actionLabel} ${Math.abs(points)} PITIS for ${students.length} student${students.length === 1 ? "" : "s"}. Week ${summary.weekNumber}: ${progress.activeDays} of ${progress.requiredDays} target days (${progress.percentage}%).`
           : `${actionLabel} ${Math.abs(points)} PITIS for ${students.length} student${students.length === 1 ? "" : "s"}. No weekly target is active today.`,
         url: "/teacher/dashboard#pitis-progress",
-        entityType: "pitis_award_batch",
-        entityId: firstPointLogId,
+        entityType: "pitis_progress_day",
+        entityId: Number(awardDate.replace(/-/g, "")),
         preferenceKey: "pitis_progress"
-      }, { dedupe: false });
+      });
     }
   }
   const message = `${actionLabel} ${Math.abs(points)} pitis for ${students.length} student${students.length === 1 ? "" : "s"}${attribution}.${progressMessage}`;
