@@ -1560,6 +1560,22 @@ body.teacher-progress-open { overflow: hidden; }
   box-shadow: 0 -10px 24px rgba(23, 63, 50, .08);
 }
 @keyframes teacher-progress-fade-in { from { opacity: 0; } }
+
+.dashboard-pitis-card { margin-bottom: 20px; border: 1px solid #cbded5; background: linear-gradient(135deg, #fff 0%, #f1f8f4 100%); }
+.dashboard-pitis-heading { display: flex; align-items: center; justify-content: space-between; gap: 20px; }
+.dashboard-pitis-heading h2 { margin: 4px 0; color: #174d3b; }
+.dashboard-pitis-ring { flex: 0 0 auto; width: 96px; }
+.dashboard-pitis-stats { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 10px; margin: 18px 0; }
+.dashboard-pitis-stats div { display: grid; gap: 2px; padding: 12px; border: 1px solid #d9e7df; border-radius: 12px; background: #fff; }
+.dashboard-pitis-stats strong { color: #28644f; font-size: 1.2rem; }
+.dashboard-pitis-stats span { color: #60756c; font-size: .78rem; }
+.dashboard-pitis-actions { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-top: 16px; }
+
+@media (max-width: 700px) {
+  .dashboard-pitis-stats { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .dashboard-pitis-actions { align-items: stretch; flex-direction: column; }
+  .dashboard-pitis-actions .btn { text-align: center; }
+}
 @keyframes teacher-progress-rise { from { transform: translateY(14px) scale(.985); opacity: 0; } }
 
 @media (max-width: 640px) {

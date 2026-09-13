@@ -71,10 +71,6 @@ function authenticateAndRoute(req, res) {
       userType: user.user_type || user.role,
       mustChangePassword: user.role !== "admin" && Number(user.must_change_password || 0) === 1
     };
-    req.session.showTeacherProgressWelcome = (
-      String(req.session.user.role || "").toLowerCase() === "teacher"
-      && String(req.session.user.userType || "").toLowerCase() === "teacher"
-    );
     recordUserLogin(req, user);
 
     req.session.save((saveErr) => {

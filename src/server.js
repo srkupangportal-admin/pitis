@@ -27,6 +27,7 @@ const inventoryRoutes = require("./routes/inventoryRoutes");
 const rewardGalleryRoutes = require("./routes/rewardGalleryRoutes");
 const notificationRoutes = require("./routes/notificationRoutes");
 const { initializeNotificationTables, initializeNotificationScheduler } = require("./services/notificationService");
+const { initializePitisProgressTables } = require("./services/pitisProgressService");
 const { initializeBackupScheduler } = require("./services/backupService");
 const { initializeTeacherUsageAuditScheduler } = require("./services/teacherUsageAuditService");
 const { seedOfficialSchoolCalendar2026 } = require("./services/schoolCalendarService");
@@ -41,6 +42,7 @@ const serverConfig = getServerConfig();
 
 initializeDatabase();
 initializeNotificationTables();
+initializePitisProgressTables();
 initializeNotificationScheduler();
 seedOfficialSchoolCalendar2026();
 initializeBackupScheduler();
@@ -158,13 +160,14 @@ function createApp(config) {
       secret: config.sessionSecret,
       resave: false,
       saveUninitialized: false,
+      rolling: true,
       cookie: {
         httpOnly: true,
         sameSite: "lax",
         secure: config.httpsEnabled && !config.redirectHttpToHttps ? "auto" : config.secureCookies,
-        // Keep authentication in a browser-session cookie. No Expires or
-        // Max-Age attribute is sent, so it is not a persistent login cookie.
-        maxAge: null
+        // Keep trusted mobile browsers signed in. Explicit logout still
+        // destroys both the browser cookie and its server-side session.
+        maxAge: 30 * 24 * 60 * 60 * 1000
       }
     })
   );

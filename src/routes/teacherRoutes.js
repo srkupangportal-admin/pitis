@@ -8,6 +8,7 @@ const QRCode = require("qrcode");
 const { db, updateDailySnapshot } = require("../db/init");
 const { requireRole } = require("../middleware/auth");
 const { notifyUser, scheduleEvent } = require("../services/notificationService");
+const { isTeacherUser, buildTeacherProgressSummary } = require("../services/pitisProgressService");
 const { buildStudentQrPayload, generateStudentQrDataUrl, parseStudentQrPayload } = require("../services/qrCodeService");
 const {
   getLatestTeacherUsageAudit,
@@ -1372,7 +1373,10 @@ function gradeQrQuizResponse({ quiz, student, selectedAnswers, awardedBy }) {
 }
 
 router.get("/dashboard", (req, res) => {
-  res.render("teacher-dashboard", { user: req.session.user });
+  const pitisProgress = isTeacherUser(req.session.user)
+    ? buildTeacherProgressSummary(req.session.user.id)
+    : null;
+  res.render("teacher-dashboard", { user: req.session.user, pitisProgress });
 });
 router.get("/tools", (req, res) => {
   res.render("teacher-tools", {
@@ -1966,7 +1970,7 @@ router.get("/reward/:classId", (req, res) => {
   });
 });
 
-router.post("/reward/award", (req, res) => {
+router.post("/reward/award", async (req, res) => {
   const pickLast = (v) => (Array.isArray(v) ? v[v.length - 1] : v);
   const normalizeStudentIds = (value) => {
     const rawValues = Array.isArray(value) ? value : [value];
@@ -2067,9 +2071,11 @@ router.post("/reward/award", (req, res) => {
      VALUES (?, ?, ?, ?, ?, ?)`
   );
 
+  let firstPointLogId = null;
   db.transaction(() => {
     students.forEach((student) => {
-      insertPointLog.run(student.id, Number(student.class_id), points, reason, awardedByUserId, now);
+      const result = insertPointLog.run(student.id, Number(student.class_id), points, reason, awardedByUserId, now);
+      if (!firstPointLogId) firstPointLogId = Number(result.lastInsertRowid);
       updateDailySnapshot(student.id);
     });
   })();
@@ -2078,7 +2084,30 @@ router.post("/reward/award", (req, res) => {
   const attribution = req.session.user.role === "admin"
     ? ` on behalf of ${awardedByUser.display_name || awardedByUser.username} for ${awardDate}`
     : "";
-  const message = `${actionLabel} ${Math.abs(points)} pitis for ${students.length} student${students.length === 1 ? "" : "s"}${attribution}`;
+  let progressMessage = "";
+  const progressUser = db.prepare("SELECT id,role,user_type FROM users WHERE id=?").get(awardedByUserId);
+  if (isTeacherUser(progressUser)) {
+    const summary = buildTeacherProgressSummary(awardedByUserId);
+    const progress = summary.currentTeacher;
+    if (progress) {
+      const remaining = Math.max(0, progress.requiredDays - progress.activeDays);
+      progressMessage = progress.requiredDays > 0
+        ? ` This week: ${progress.activeDays} of ${progress.requiredDays} target days (${progress.percentage}%).${remaining ? ` ${remaining} more active day${remaining === 1 ? "" : "s"} needed.` : " Weekly target met."}`
+        : " PITIS activity recorded; there is no active weekly target today.";
+      await notifyUser(awardedByUserId, {
+        type: "pitis_progress",
+        title: action === "deduct" ? "PITIS activity recorded" : "PITIS progress updated",
+        message: progress.requiredDays > 0
+          ? `${actionLabel} ${Math.abs(points)} PITIS for ${students.length} student${students.length === 1 ? "" : "s"}. Week ${summary.weekNumber}: ${progress.activeDays} of ${progress.requiredDays} target days (${progress.percentage}%).`
+          : `${actionLabel} ${Math.abs(points)} PITIS for ${students.length} student${students.length === 1 ? "" : "s"}. No weekly target is active today.`,
+        url: "/teacher/dashboard#pitis-progress",
+        entityType: "pitis_award_batch",
+        entityId: firstPointLogId,
+        preferenceKey: "pitis_progress"
+      }, { dedupe: false });
+    }
+  }
+  const message = `${actionLabel} ${Math.abs(points)} pitis for ${students.length} student${students.length === 1 ? "" : "s"}${attribution}.${progressMessage}`;
   res.redirect(`/teacher/reward/${classId}?success=${encodeURIComponent(message)}`);
 });
 

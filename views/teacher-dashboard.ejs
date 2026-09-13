@@ -13,6 +13,39 @@
   </header>
   <%- include('partials/teacher-nav') %>
   <main class="container">
+    <% if (pitisProgress && pitisProgress.currentTeacher) { const progress = pitisProgress.currentTeacher; %>
+      <section class="card dashboard-pitis-card" id="pitis-progress" aria-labelledby="pitisProgressTitle">
+        <div class="dashboard-pitis-heading">
+          <div>
+            <span class="teacher-progress-kicker"><%= pitisProgress.weekNumber ? ('Week ' + pitisProgress.weekNumber + ' · Term ' + pitisProgress.term) : ('Term ' + pitisProgress.term) %></span>
+            <h2 id="pitisProgressTitle">Your PITIS progress</h2>
+            <p class="muted"><%= pitisProgress.weekRange %></p>
+          </div>
+          <div class="teacher-progress-ring dashboard-pitis-ring" style="--progress: <%= Math.max(0, Math.min(100, progress.percentage)) %>">
+            <strong><%= progress.percentage %>%</strong><span>weekly target</span>
+          </div>
+        </div>
+        <div class="dashboard-pitis-stats">
+          <div><strong><%= progress.activeDays %>/<%= progress.requiredDays %></strong><span>target days</span></div>
+          <div><strong><%= progress.pointsAwarded %></strong><span>PITIS awarded</span></div>
+          <div><strong>#<%= progress.rank %></strong><span>of <%= pitisProgress.teachers.length %> teachers</span></div>
+          <div><strong><%= pitisProgress.schoolConsistency %>%</strong><span>school consistency</span></div>
+        </div>
+        <div class="teacher-progress-weekdays" aria-label="Your PITIS activity by school day">
+          <% progress.days.forEach(function(day) { const state = day.counted ? 'met' : (day.type !== 'school_day' ? 'excluded' : (day.isFuture ? 'future' : 'not-met')); %>
+            <div class="teacher-progress-day is-<%= state %> <%= day.isToday ? 'is-today' : '' %>">
+              <span class="teacher-progress-day-name"><%= day.shortLabel %></span>
+              <span class="teacher-progress-day-check" aria-hidden="true"><%= day.counted ? '✓' : (day.type !== 'school_day' ? '—' : '○') %></span>
+              <small><%= day.counted ? 'Done' : (day.type !== 'school_day' ? 'Excluded' : (day.isFuture ? 'Upcoming' : 'Not yet')) %></small>
+            </div>
+          <% }) %>
+        </div>
+        <div class="dashboard-pitis-actions">
+          <strong><%= progress.requiredDays <= 0 ? 'No weekly target is active today.' : (progress.activeDays >= progress.requiredDays ? 'Weekly target met.' : (Math.max(0, progress.requiredDays - progress.activeDays) + ' more active day' + (Math.max(0, progress.requiredDays - progress.activeDays) === 1 ? '' : 's') + ' needed this week.')) %></strong>
+          <a class="btn" href="/teacher/reporting-tool/sip-pitis?term=<%= pitisProgress.term %>">View full progress</a>
+        </div>
+      </section>
+    <% } %>
     <div class="cards-3">
       <a class="card action-card" href="/">Home</a>
       <a class="card action-card" href="/teacher/reward">P.I.T.I.S</a>

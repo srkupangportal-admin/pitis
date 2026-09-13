@@ -1,5 +1,4 @@
 (function () {
-  // Sessions now stay active for the lifetime of the browser session.
-  // The Express session cookie already expires when the browser is closed,
-  // so there is no client-side inactivity logout timer here.
+  // Sessions remain active on this device after the browser closes. The
+  // header's Log Out action remains the explicit way to end authentication.
 })();

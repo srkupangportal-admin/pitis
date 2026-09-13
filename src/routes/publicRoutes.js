@@ -11,6 +11,12 @@ const {
   getLeaderboardSlideshowStudentCount
 } = require("../services/portalSettingsService");
 const { buildSipPitisDashboard } = require("../services/sipPitisDashboardService");
+const {
+  isTeacherUser,
+  buildTeacherProgressSummary,
+  shouldShowDailySummary,
+  markDailySummaryShown
+} = require("../services/pitisProgressService");
 
 const router = express.Router();
 const serverConfig = getServerConfig();
@@ -152,57 +158,13 @@ router.get("/", (req, res) => {
   const totalStudents = Number(db.prepare("SELECT COUNT(*) AS total FROM students").get().total || 0);
   const sipPitisDashboard = buildSipPitisDashboard({});
   const currentUser = req.session.user || null;
-  const showTeacherProgressWelcome = Boolean(
-    req.session.showTeacherProgressWelcome
-    && currentUser
-    && String(currentUser.role || "").toLowerCase() === "teacher"
-    && String(currentUser.userType || "").toLowerCase() === "teacher"
-  );
+  const showTeacherProgressWelcome = isTeacherUser(currentUser)
+    && shouldShowDailySummary(currentUser.id, today);
   let teacherProgressWelcome = null;
 
   if (showTeacherProgressWelcome) {
-    const progressDashboard = buildSipPitisDashboard({ includeAllTeachers: true });
-    const currentWeekKey = progressDashboard.currentWeek ? progressDashboard.currentWeek.weekKey : "";
-    const sortedTeachers = progressDashboard.allTeacherReports
-      .map((teacher) => {
-        const week = teacher.weeks.find((item) => item.weekKey === currentWeekKey) || null;
-        return {
-          id: Number(teacher.id),
-          displayName: teacher.display_name || teacher.username || "Teacher",
-          activeDays: week ? Number(week.activeDays || 0) : 0,
-          requiredDays: week ? Number(week.requiredDays || 0) : 0,
-          availableSchoolDays: week ? Number(week.availableSchoolDays || 0) : 0,
-          percentage: week ? Number(week.achievementRate || 0) : 0,
-          status: week ? String(week.status || "") : "Outside Term",
-          days: week ? week.days.map((day) => ({
-            date: day.date,
-            label: day.label,
-            shortLabel: day.shortLabel,
-            type: day.type,
-            counted: Boolean(day.counted),
-            isFuture: Boolean(day.isFuture),
-            isToday: day.date === today,
-            exclusionReason: day.exclusionReason || "",
-            dailyStatus: day.dailyStatus || ""
-          })) : []
-        };
-      })
-      .sort((a, b) => (
-        b.percentage - a.percentage
-        || b.activeDays - a.activeDays
-        || a.displayName.localeCompare(b.displayName)
-      ))
-      .map((teacher, index) => ({ ...teacher, rank: index + 1 }));
-    const loggedInTeacher = sortedTeachers.find((teacher) => teacher.id === Number(currentUser.id)) || null;
-
-    teacherProgressWelcome = {
-      term: Number(progressDashboard.currentTerm || progressDashboard.filters.term || 1),
-      weekNumber: progressDashboard.currentWeek ? Number(progressDashboard.currentWeek.weekNumber || 0) : null,
-      weekRange: progressDashboard.currentWeek ? progressDashboard.currentWeek.rangeLabel : "Outside the school term",
-      teachers: sortedTeachers,
-      currentTeacher: loggedInTeacher
-    };
-    delete req.session.showTeacherProgressWelcome;
+    teacherProgressWelcome = buildTeacherProgressSummary(currentUser.id, { asOf: today });
+    if (teacherProgressWelcome.currentTeacher) markDailySummaryShown(currentUser.id, today);
   }
   const attendanceToday = db.prepare(
     `SELECT COUNT(DISTINCT CASE WHEN ar.is_present = 1 THEN ar.student_id END) AS present
