@@ -6,7 +6,7 @@
   <title>Informations</title>
   <link rel="stylesheet" href="/css/theme-c.css" />
 </head>
-<body>
+<body class="information-explorer-page">
   <% if (user && user.role === 'admin') { %>
     <%- include('partials/admin-nav') %>
   <% } else { %>
@@ -21,11 +21,12 @@
       <section class="card"><div><%= success %></div></section>
     <% } %>
 
-    <section class="card info-head-card">
+    <section class="card info-head-card information-explorer-toolbar">
       <div class="section-toggle-head">
         <div>
+          <span class="information-explorer-eyebrow">Shared documents</span>
           <h2>School Informations</h2>
-          <p class="muted">Open a PDF in the browser, or upload one or more PDFs into an existing category or a new category. Uploaded files automatically use their filename as the title.</p>
+          <p class="muted">Browse school documents by folder. Select View to open a folder and reveal its PDF files.</p>
         </div>
         <div class="inline-filters info-sort-actions">
           <a class="btn <%= sort === 'date' ? '' : 'secondary' %>" href="/informations?sort=date">Upload Date</a>
@@ -60,19 +61,28 @@
       </div>
     </section>
 
-    <section class="card">
+    <section class="card information-explorer-window">
+      <header class="information-explorer-windowbar">
+        <div class="information-window-controls" aria-hidden="true"><i></i><i></i><i></i></div>
+        <div class="information-location"><span aria-hidden="true">⌂</span><strong>School Informations</strong></div>
+        <span class="information-item-count"><%= groupedFiles.length %> folder<%= groupedFiles.length === 1 ? '' : 's' %></span>
+      </header>
       <% if (!groupedFiles.length) { %>
         <div class="muted">No information PDFs uploaded yet.</div>
       <% } else { %>
-        <div class="info-folder-list">
+        <div class="info-folder-list information-tree" role="tree" aria-label="School information folders">
           <% groupedFiles.forEach((group, idx) => { %>
-            <section class="info-folder-group">
+            <section class="info-folder-group" role="treeitem" aria-expanded="false" data-folder-node="folder-<%= idx %>">
               <div class="info-folder-head">
-                <div>
-                  <h3><%= group.groupLabel %></h3>
-                  <span class="muted"><%= group.items.length %> file(s)</span>
+                <div class="information-folder-identity">
+                  <span class="information-disclosure" aria-hidden="true">›</span>
+                  <span class="information-folder-icon" aria-hidden="true"></span>
+                  <div>
+                    <h3><%= group.groupLabel %></h3>
+                    <span class="muted"><%= group.items.length %> file<%= group.items.length === 1 ? '' : 's' %></span>
+                  </div>
                 </div>
-                <div class="inline-filters">
+                <div class="inline-filters information-folder-actions">
                   <% if (user && user.role === 'admin' && group.folderId) { %>
                     <form method="post" action="/informations/folders/<%= group.folderId %>/move" class="inline-filters info-folder-order-form">
                       <input type="hidden" name="direction" value="up" />
@@ -83,8 +93,8 @@
                       <button class="btn secondary" type="submit">Down</button>
                     </form>
                   <% } %>
-                  <button class="btn" type="button" data-folder-toggle="folder-<%= idx %>">View Files</button>
-                  <button class="btn secondary" type="button" data-folder-hide="folder-<%= idx %>" style="display:none;">Hide Files</button>
+                  <button class="btn information-folder-view" type="button" data-folder-toggle="folder-<%= idx %>">View</button>
+                  <button class="btn secondary information-folder-view" type="button" data-folder-hide="folder-<%= idx %>" style="display:none;">Collapse</button>
                 </div>
               </div>
               <% if (user && user.role === 'admin' && group.folderId) { %>
@@ -99,11 +109,17 @@
                   </form>
                 </div>
               <% } %>
-              <div class="info-file-list" id="folder-<%= idx %>" style="display:none;">
+              <div class="info-file-list information-tree-children" id="folder-<%= idx %>" role="group" style="display:none;">
                 <% group.items.forEach(file => { %>
-                  <article class="info-file-item">
+                  <article class="info-file-item" role="treeitem">
+                    <span class="information-tree-branch" aria-hidden="true"></span>
                     <a class="info-file-link" href="<%= file.file_path %>" target="_blank" rel="noopener noreferrer" title="<%= file.title %>">
-                      <span class="info-file-name"><%= file.title %></span>
+                      <span class="information-pdf-icon" aria-hidden="true">PDF</span>
+                      <span class="information-file-copy">
+                        <span class="info-file-name"><%= file.title %></span>
+                        <small><%= file.uploaded_by_name ? ('Uploaded by ' + file.uploaded_by_name) : 'School document' %></small>
+                      </span>
+                      <span class="information-open-file">Open</span>
                     </a>
                     <% if (user && user.role === 'admin') { %>
                       <form method="post" action="/informations/update-title/<%= file.id %>" class="inline-filters info-file-rename">
@@ -150,9 +166,11 @@
         var wrap = document.getElementById(id);
         var showBtn = document.querySelector('[data-folder-toggle="' + id + '"]');
         var hideBtn = document.querySelector('[data-folder-hide="' + id + '"]');
+        var node = document.querySelector('[data-folder-node="' + id + '"]');
         if (wrap) wrap.style.display = show ? 'grid' : 'none';
         if (showBtn) showBtn.style.display = show ? 'none' : 'inline-flex';
         if (hideBtn) hideBtn.style.display = show ? 'inline-flex' : 'none';
+        if (node) node.setAttribute('aria-expanded', show ? 'true' : 'false');
       }
 
       function toggleUpload(show) {

@@ -1221,6 +1221,183 @@ body.calendar-apple .calendar-event-modal-card { background: rgba(255,255,255,.9
   body.calendar-apple .calendar-board { min-width: 700px; }
 }
 
+/* Informations: Finder/File Explorer-inspired directory tree. */
+html body.information-explorer-page { background: #f3f5f7; }
+body.information-explorer-page .container { max-width: 1380px; }
+.information-explorer-toolbar {
+  overflow: hidden;
+  border: 1px solid #dfe4e8;
+  background: linear-gradient(135deg, #fff 0%, #f8fafb 100%);
+  box-shadow: 0 8px 28px rgba(31, 43, 51, .06);
+}
+.information-explorer-eyebrow {
+  display: block;
+  margin-bottom: 4px;
+  color: #3976c5;
+  font-size: .68rem;
+  font-weight: 800;
+  letter-spacing: .11em;
+  text-transform: uppercase;
+}
+.information-explorer-toolbar h2 { margin-bottom: 5px; color: #1d2730; letter-spacing: -.025em; }
+.information-explorer-window {
+  overflow: hidden;
+  padding: 0;
+  border: 1px solid #d8dee3;
+  border-radius: 15px;
+  background: #fff;
+  box-shadow: 0 16px 42px rgba(31,43,51,.09);
+}
+.information-explorer-windowbar {
+  display: grid;
+  grid-template-columns: 90px minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 12px;
+  min-height: 50px;
+  padding: 8px 15px;
+  color: #43505a;
+  background: linear-gradient(#fbfcfd, #f0f3f5);
+  border-bottom: 1px solid #d8dee3;
+}
+.information-window-controls { display: flex; gap: 7px; }
+.information-window-controls i { width: 11px; height: 11px; border-radius: 50%; background: #ff5f57; box-shadow: inset 0 0 0 1px rgba(0,0,0,.08); }
+.information-window-controls i:nth-child(2) { background: #febc2e; }
+.information-window-controls i:nth-child(3) { background: #28c840; }
+.information-location {
+  justify-self: center;
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  min-width: 0;
+  padding: 5px 14px;
+  background: rgba(255,255,255,.8);
+  border: 1px solid #dde2e6;
+  border-radius: 7px;
+  font-size: .78rem;
+}
+.information-location strong { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.information-item-count { color: #77818a; font-size: .7rem; }
+.information-tree { gap: 0; padding: 10px; }
+.information-tree .info-folder-group {
+  gap: 0;
+  padding: 0;
+  border: 0;
+  border-radius: 9px;
+  background: transparent;
+}
+.information-tree .info-folder-group + .info-folder-group { border-top: 1px solid #edf0f2; }
+.information-tree .info-folder-head {
+  min-height: 62px;
+  padding: 8px 10px;
+  border: 0;
+  border-radius: 9px;
+}
+.information-tree .info-folder-head:hover { background: #f5f8fb; }
+.information-folder-identity { display: flex; align-items: center; gap: 10px; min-width: 0; }
+.information-folder-identity > div { min-width: 0; }
+.information-folder-identity h3 { overflow: hidden; color: #26333d; font-size: .93rem; font-weight: 650; text-overflow: ellipsis; white-space: nowrap; }
+.information-folder-identity .muted { color: #7b8790; font-size: .7rem; }
+.information-disclosure { width: 13px; color: #75818a; font-size: 1.4rem; line-height: 1; transition: transform .18s ease; }
+.info-folder-group[aria-expanded="true"] .information-disclosure { transform: rotate(90deg); }
+.information-folder-icon {
+  position: relative;
+  width: 38px;
+  height: 28px;
+  flex: 0 0 auto;
+  background: linear-gradient(180deg, #65b8ff, #278ee6);
+  border-radius: 5px;
+  box-shadow: inset 0 1px rgba(255,255,255,.45), 0 2px 4px rgba(23,103,170,.18);
+}
+.information-folder-icon::before {
+  content: "";
+  position: absolute;
+  left: 2px;
+  top: -4px;
+  width: 16px;
+  height: 8px;
+  background: #58adf5;
+  border-radius: 4px 4px 0 0;
+}
+.information-folder-actions { flex-wrap: nowrap; }
+.information-folder-view { min-width: 76px; }
+.information-tree-children {
+  position: relative;
+  grid-template-columns: 1fr;
+  gap: 3px;
+  margin: 0 10px 9px 41px;
+  padding: 4px 0 4px 22px;
+  border-left: 1px solid #cfd7dd;
+}
+.information-tree .info-file-item {
+  position: relative;
+  gap: 7px;
+  padding: 7px 9px;
+  border: 1px solid transparent;
+  border-radius: 8px;
+  background: transparent;
+}
+.information-tree .info-file-item:hover { background: #f4f8fc; border-color: #dce8f3; }
+.information-tree-branch {
+  position: absolute;
+  left: -23px;
+  top: 25px;
+  width: 21px;
+  border-top: 1px solid #cfd7dd;
+}
+.information-tree .info-file-link {
+  display: grid;
+  grid-template-columns: 34px minmax(0,1fr) auto;
+  align-items: center;
+  gap: 10px;
+  color: #26333d;
+  text-decoration: none;
+}
+.information-pdf-icon {
+  display: grid;
+  place-items: end center;
+  width: 29px;
+  height: 35px;
+  padding-bottom: 3px;
+  color: #fff;
+  background: linear-gradient(145deg, #ff6259, #e33129);
+  border-radius: 3px 3px 5px 5px;
+  box-shadow: 0 2px 4px rgba(183,41,34,.2);
+  font-size: .48rem;
+  font-weight: 900;
+  letter-spacing: .03em;
+}
+.information-file-copy { display: grid; min-width: 0; }
+.information-file-copy .info-file-name { overflow: hidden; font-size: .84rem; font-weight: 600; text-overflow: ellipsis; white-space: nowrap; }
+.information-file-copy small { color: #7b8790; font-size: .66rem; }
+.information-open-file { padding: 5px 9px; color: #2676c5; background: #eaf4ff; border-radius: 6px; font-size: .68rem; font-weight: 700; }
+.information-tree .info-folder-admin-list {
+  margin: 0 12px 8px 72px;
+  padding: 9px;
+  background: #f7f9fa;
+  border: 1px solid #e4e9ed;
+  border-radius: 8px;
+}
+.information-tree .info-file-rename,
+.information-tree .info-file-move-form,
+.information-tree .info-file-delete-form { margin-left: 44px; }
+
+@media (max-width: 720px) {
+  .information-explorer-windowbar { grid-template-columns: 42px minmax(0,1fr); }
+  .information-window-controls i:nth-child(n+2), .information-item-count { display: none; }
+  .information-location { justify-self: stretch; justify-content: center; }
+  .information-tree { padding: 6px; }
+  .information-tree .info-folder-head { align-items: flex-start; }
+  .information-folder-actions { flex-wrap: wrap; justify-content: flex-end; }
+  .information-folder-actions .info-folder-order-form { display: none; }
+  .information-tree-children { margin-left: 24px; padding-left: 17px; }
+  .information-tree .info-file-link { grid-template-columns: 31px minmax(0,1fr); }
+  .information-open-file { display: none; }
+  .information-tree .info-folder-admin-list,
+  .information-tree .info-file-rename,
+  .information-tree .info-file-move-form,
+  .information-tree .info-file-delete-form { margin-left: 0; }
+}
+
 /* Shared sidebar branding lock: page themes must never restyle school identity. */
 body .portal-sidebar h1,
 body.calendar-ref-dark .portal-sidebar h1,
