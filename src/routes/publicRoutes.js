@@ -13,9 +13,7 @@ const {
 const { buildSipPitisDashboard } = require("../services/sipPitisDashboardService");
 const {
   isTeacherUser,
-  buildTeacherProgressSummary,
-  shouldShowDailySummary,
-  markDailySummaryShown
+  buildTeacherProgressSummary
 } = require("../services/pitisProgressService");
 
 const router = express.Router();
@@ -162,11 +160,11 @@ router.get("/", (req, res) => {
     ? buildTeacherProgressSummary(currentUser.id, { asOf: today })
     : null;
   const showTeacherProgressWelcome = isTeacherUser(currentUser)
-    && shouldShowDailySummary(currentUser.id, today);
+    && req.session.showTeacherProgressWelcome === true;
   const teacherProgressWelcome = showTeacherProgressWelcome ? teacherProgressSummary : null;
 
   if (teacherProgressWelcome && teacherProgressWelcome.currentTeacher) {
-    markDailySummaryShown(currentUser.id, today);
+    delete req.session.showTeacherProgressWelcome;
   }
   const attendanceToday = db.prepare(
     `SELECT COUNT(DISTINCT CASE WHEN ar.is_present = 1 THEN ar.student_id END) AS present
