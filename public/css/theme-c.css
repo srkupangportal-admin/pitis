@@ -1865,9 +1865,17 @@ body.calendar-ref-dark .portal-sidebar h1::before {
   font-weight: 700;
 }
 
+.leaderboard-export-buttons {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  justify-content: flex-end;
+}
+
 @media (max-width: 600px) {
   .leaderboard-export-class-grid { grid-template-columns: 1fr; }
   .leaderboard-export-footer { align-items: stretch; flex-direction: column; }
+  .leaderboard-export-buttons { display: grid; grid-template-columns: 1fr; width: 100%; }
   .leaderboard-export-footer .btn { width: 100%; }
 }
 
