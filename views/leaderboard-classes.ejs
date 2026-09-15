@@ -180,6 +180,7 @@
 
   <script id="leaderboardSchoolRows" type="application/json"><%- JSON.stringify(schoolRows || []) %></script>
   <script id="leaderboardSchoolSpotlightRows" type="application/json"><%- JSON.stringify(schoolSpotlightRows || []) %></script>
+  <script src="/js/leaderboard-pdf.js?v=20260916-noticeboard-1"></script>
   <script>
     (function () {
       var scopeSelect = document.getElementById('leaderboardScopeSelect');
@@ -568,52 +569,11 @@
       function exportLeaderboardPdf() {
         var sections = selectedExportSections();
         if (!sections.length) return;
-
-        var printWindow = window.open('', '_blank');
-        if (!printWindow) {
+        if (!window.PitisLeaderboardPdf || !window.PitisLeaderboardPdf.export({ sections: sections })) {
           if (exportStatus) exportStatus.textContent = 'Allow pop-ups for this site to export the PDF.';
           return;
         }
-
-        var generatedAt = new Date();
-        var reportHtml = sections.map(function (section) {
-          var rowsHtml = section.rows.map(function (row) {
-            var tier = row.tier || tierFor(row.total_points);
-            return '<tr>'
-              + '<td>' + escapeHtml(row.rank) + '</td>'
-              + '<td>' + escapeHtml(row.nickname) + '</td>'
-              + '<td>' + escapeHtml(row.class_name) + '</td>'
-              + '<td class="number">' + escapeHtml(Number(row.total_points || 0).toLocaleString()) + '</td>'
-              + '<td class="number">' + escapeHtml(Number(row.weekly_points || 0).toLocaleString()) + '</td>'
-              + '<td>' + escapeHtml(tier.label) + '</td>'
-              + '<td>' + escapeHtml(row.last_reason || '-') + '</td>'
-              + '</tr>';
-          }).join('');
-          if (!rowsHtml) rowsHtml = '<tr><td colspan="7" class="empty">No leaderboard records.</td></tr>';
-          return '<section class="report-section">'
-            + '<h2>' + escapeHtml(section.name) + '</h2>'
-            + '<div class="summary">' + section.rows.length + ' student' + (section.rows.length === 1 ? '' : 's') + '</div>'
-            + '<table><thead><tr><th>Rank</th><th>Student</th><th>Class</th><th>Total PITIS</th><th>Weekly PITIS</th><th>Tier</th><th>Latest Reason</th></tr></thead>'
-            + '<tbody>' + rowsHtml + '</tbody></table></section>';
-        }).join('');
-
-        printWindow.document.open();
-        printWindow.document.write('<!DOCTYPE html><html><head><meta charset="UTF-8"><title>PITIS Leaderboard</title>'
-          + '<style>'
-          + '@page{size:A4 landscape;margin:12mm}*{box-sizing:border-box}body{font-family:Arial,sans-serif;color:#173c2d;margin:0}'
-          + 'header{border-bottom:3px solid #caa43b;margin-bottom:18px;padding-bottom:10px}h1{font-size:22px;margin:0 0 4px}h2{font-size:17px;margin:0}'
-          + '.meta,.summary{color:#52665d;font-size:11px}.summary{margin:4px 0 8px}.report-section{break-after:page}.report-section:last-child{break-after:auto}'
-          + 'table{border-collapse:collapse;width:100%;font-size:10px}thead{display:table-header-group}tr{break-inside:avoid}th{background:#1f5b43;color:#fff;text-align:left}'
-          + 'th,td{border:1px solid #cfd9d4;padding:5px 6px;vertical-align:top}.number{text-align:right}.empty{text-align:center;padding:18px}'
-          + 'tbody tr:nth-child(even){background:#f3f7f5}</style></head><body>'
-          + '<header><h1>SR Kupang P.I.T.I.S Leaderboard</h1><div class="meta">Generated ' + escapeHtml(generatedAt.toLocaleString()) + '</div></header>'
-          + reportHtml + '</body></html>');
-        printWindow.document.close();
         closeExportModal();
-        window.setTimeout(function () {
-          printWindow.focus();
-          printWindow.print();
-        }, 250);
       }
 
       function loadAndPlaySelection() {
