@@ -2300,7 +2300,7 @@ function fetchRewardReportRows(classId, dateFrom, dateTo, allTime) {
 }
 
 function fetchStudentPitisTotalRows(classId, dateFrom, dateTo, allTime) {
-  const logDateFilter = allTime ? "" : "AND date(pl.awarded_at) BETWEEN ? AND ?";
+  const logDateFilter = allTime ? "" : "AND date(pl.awarded_at, '+8 hours') BETWEEN ? AND ?";
   const classFilter = classId === "all" ? "" : "WHERE s.class_id = ?";
   const params = [];
 
