@@ -9,7 +9,7 @@
 </head>
 <body class="leaderboard-bg">
   <%- include('partials/main-header-card') %>
-  <main class="leaderboard-screen leaderboard-v2 leaderboard-ref" id="leaderboardTable" data-class-id="<%= cls.id %>" data-slideshow-duration-ms="<%= slideshowDurationMs || 4000 %>" data-slideshow-mode="<%= slideshowMode || 'points' %>" data-slideshow-student-count="<%= slideshowStudentCount || 8 %>">
+  <main class="leaderboard-screen leaderboard-v2 leaderboard-ref" id="leaderboardTable" data-class-id="<%= cls.id %>" data-class-name="<%= cls.name %>" data-slideshow-duration-ms="<%= slideshowDurationMs || 4000 %>" data-slideshow-mode="<%= slideshowMode || 'points' %>" data-slideshow-student-count="<%= slideshowStudentCount || 8 %>">
     <header class="leaderboard-titlebar">
       <span class="title-icon ring"></span>
       <h1>P.I.T.I.S Leaders</h1>
@@ -35,6 +35,7 @@
       <button type="button" class="menu-item active" data-sort-mode="desc">Sort: Descending</button>
       <button type="button" class="menu-item" data-sort-mode="asc">Sort: Ascending</button>
       <button type="button" class="menu-item" id="leaderboardSlideshowMenuBtn">Play as Slideshow</button>
+      <button type="button" class="menu-item" id="leaderboardPdfMenuBtn">Export PDF</button>
       <a class="menu-link" href="/leaderboard">All Classes</a>
       <a class="menu-link" href="/">Home</a>
     </div>
@@ -43,6 +44,7 @@
       <div class="leaderboard-kiosk-actions">
         <button type="button" class="btn" id="leaderboardSlideshowBtn">Play as Slideshow</button>
         <button type="button" class="btn secondary" id="leaderboardMountainBtn">Mountain Path</button>
+        <button type="button" class="btn secondary" id="leaderboardPdfBtn">Export PDF</button>
         <a class="btn" href="<%= classCompassUrl %>">Class Compass</a>
       </div>
       <section class="leaderboard-daily-spotlight" id="leaderboardDailySpotlight" aria-label="Daily student spotlight"></section>
@@ -104,6 +106,6 @@
 
   <script id="leaderboardInitialRows" type="application/json"><%- JSON.stringify(rows) %></script>
   <script id="leaderboardSpotlightRows" type="application/json"><%- JSON.stringify(spotlightRows || []) %></script>
-  <script src="/js/leaderboard.js?v=20260912-photo-fallback-1"></script>
+  <script src="/js/leaderboard.js?v=20260916-pdf-export-1"></script>
 </body>
 </html>

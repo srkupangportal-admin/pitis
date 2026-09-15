@@ -16,6 +16,8 @@
   var sortMenuItems = Array.prototype.slice.call(document.querySelectorAll("[data-sort-mode]"));
   var slideshowBtn = document.getElementById("leaderboardSlideshowBtn");
   var slideshowMenuBtn = document.getElementById("leaderboardSlideshowMenuBtn");
+  var pdfBtn = document.getElementById("leaderboardPdfBtn");
+  var pdfMenuBtn = document.getElementById("leaderboardPdfMenuBtn");
   var slideshowModal = document.getElementById("leaderboardSlideshowModal");
   var slideshowCloseBtn = document.getElementById("leaderboardSlideshowCloseBtn");
   var slideshowFullscreenBtn = document.getElementById("leaderboardSlideshowFullscreenBtn");
@@ -46,6 +48,7 @@
   var slideshowDurationMs = Math.max(1500, Math.min(30000, Number(table.getAttribute("data-slideshow-duration-ms") || 4000)));
   var slideshowMode = String(table.getAttribute("data-slideshow-mode") || "points");
   var configuredSlideshowStudentCount = Math.max(1, Math.min(12, Number(table.getAttribute("data-slideshow-student-count") || 8)));
+  var className = String(table.getAttribute("data-class-name") || "Class");
 
   function parseInitialRows() {
     if (!initialRowsEl) return [];
@@ -160,6 +163,56 @@
   function tierBadge(row) {
     var tier = row.tier || tierFor(row.total_points);
     return '<span class="pitis-tier pitis-tier-' + escapeHtml(tier.key) + '" title="' + escapeHtml(tier.range) + ' P.I.T.I.S.">' + escapeHtml(tier.label) + ' tier</span>';
+  }
+
+  function exportClassLeaderboardPdf() {
+    var printWindow = window.open("", "_blank");
+    if (!printWindow) {
+      window.alert("Allow pop-ups for this site to export the leaderboard PDF.");
+      return;
+    }
+
+    var rows = latestRankedRows.slice().sort(function (a, b) {
+      var pointDifference = Number(b.total_points || 0) - Number(a.total_points || 0);
+      if (pointDifference) return pointDifference;
+      return String(a.nickname || "").localeCompare(String(b.nickname || ""));
+    });
+    rows = withRanks(rows, "total_points");
+
+    var rowsHtml = rows.map(function (row) {
+      var tier = row.tier || tierFor(row.total_points);
+      return '<tr>'
+        + '<td>' + escapeHtml(row.rank) + '</td>'
+        + '<td>' + escapeHtml(row.nickname) + '</td>'
+        + '<td>' + escapeHtml(row.class_name || className) + '</td>'
+        + '<td class="number">' + escapeHtml(Number(row.total_points || 0).toLocaleString()) + '</td>'
+        + '<td class="number">' + escapeHtml(Number(row.weekly_points || 0).toLocaleString()) + '</td>'
+        + '<td>' + escapeHtml(tier.label) + '</td>'
+        + '<td>' + escapeHtml(safeReason(row.last_reason)) + '</td>'
+        + '</tr>';
+    }).join("");
+    if (!rowsHtml) rowsHtml = '<tr><td colspan="7" class="empty">No leaderboard records.</td></tr>';
+
+    printWindow.document.open();
+    printWindow.document.write('<!DOCTYPE html><html><head><meta charset="UTF-8"><title>' + escapeHtml(className) + ' PITIS Leaderboard</title>'
+      + '<style>'
+      + '@page{size:A4 landscape;margin:12mm}*{box-sizing:border-box}body{font-family:Arial,sans-serif;color:#173c2d;margin:0}'
+      + 'header{border-bottom:3px solid #caa43b;margin-bottom:18px;padding-bottom:10px}h1{font-size:22px;margin:0 0 4px}h2{font-size:17px;margin:0}'
+      + '.meta,.summary{color:#52665d;font-size:11px}.summary{margin:4px 0 8px}'
+      + 'table{border-collapse:collapse;width:100%;font-size:10px}thead{display:table-header-group}tr{break-inside:avoid}th{background:#1f5b43;color:#fff;text-align:left}'
+      + 'th,td{border:1px solid #cfd9d4;padding:5px 6px;vertical-align:top}.number{text-align:right}.empty{text-align:center;padding:18px}'
+      + 'tbody tr:nth-child(even){background:#f3f7f5}</style></head><body>'
+      + '<header><h1>SR Kupang P.I.T.I.S Leaderboard</h1><h2>' + escapeHtml(className) + '</h2><div class="meta">Generated ' + escapeHtml(new Date().toLocaleString()) + '</div></header>'
+      + '<div class="summary">' + rows.length + ' student' + (rows.length === 1 ? '' : 's') + '</div>'
+      + '<table><thead><tr><th>Rank</th><th>Student</th><th>Class</th><th>Total PITIS</th><th>Weekly PITIS</th><th>Tier</th><th>Latest Reason</th></tr></thead>'
+      + '<tbody>' + rowsHtml + '</tbody></table></body></html>');
+    printWindow.document.close();
+    if (menuPanel) menuPanel.classList.add("hidden");
+    if (menuBtn) menuBtn.setAttribute("aria-expanded", "false");
+    window.setTimeout(function () {
+      printWindow.focus();
+      printWindow.print();
+    }, 250);
   }
 
   function studentDetailHref(row) {
@@ -592,6 +645,8 @@
   if (slideshowFullscreenBtn) {
     slideshowFullscreenBtn.addEventListener("click", toggleSlideshowFullscreen);
   }
+  if (pdfBtn) pdfBtn.addEventListener("click", exportClassLeaderboardPdf);
+  if (pdfMenuBtn) pdfMenuBtn.addEventListener("click", exportClassLeaderboardPdf);
   if (mountainBtn) mountainBtn.addEventListener("click", startMountainPath);
   if (mountainReplayBtn) mountainReplayBtn.addEventListener("click", playMountainPath);
   if (mountainCloseBtn) mountainCloseBtn.addEventListener("click", stopMountainPath);
