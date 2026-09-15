@@ -79,6 +79,32 @@ const schoolLeaderboardQuery = `
   ORDER BY total_points DESC, c.name ASC, COALESCE(NULLIF(s.name, ''), s.full_name) ASC
 `;
 
+const datedSchoolLeaderboardQuery = `
+  SELECT
+    s.id,
+    s.class_id,
+    c.name AS class_name,
+    COALESCE(NULLIF(s.name, ''), s.full_name) AS nickname,
+    NULLIF(s.photo_path, '') AS photo_url,
+    COALESCE(SUM(CASE WHEN date(pl.awarded_at, '+8 hours') <= date(?) THEN pl.points ELSE 0 END), 0) AS total_points,
+    COALESCE(SUM(CASE WHEN pl.points > 0 AND date(pl.awarded_at, '+8 hours') BETWEEN date(?) AND date(?) THEN pl.points ELSE 0 END), 0) AS weekly_points,
+    (
+      SELECT x.awarded_at FROM point_logs x
+      WHERE x.student_id = s.id AND x.points > 0 AND date(x.awarded_at, '+8 hours') <= date(?)
+      ORDER BY x.awarded_at DESC LIMIT 1
+    ) AS last_awarded_at,
+    (
+      SELECT x.reason FROM point_logs x
+      WHERE x.student_id = s.id AND x.points > 0 AND date(x.awarded_at, '+8 hours') <= date(?)
+      ORDER BY x.awarded_at DESC LIMIT 1
+    ) AS last_reason
+  FROM students s
+  JOIN classes c ON c.id = s.class_id
+  LEFT JOIN point_logs pl ON pl.student_id = s.id
+  GROUP BY s.id, s.class_id, c.name, s.name, s.full_name, s.photo_path
+  ORDER BY total_points DESC, c.name ASC, COALESCE(NULLIF(s.name, ''), s.full_name) ASC
+`;
+
 function pitisTier(totalPoints) {
   const points = Number(totalPoints || 0);
   if (points >= 320) return { key: "gold", label: "Gold", range: "320+" };
@@ -517,6 +543,29 @@ router.get("/leaderboard/:classId", (req, res) => {
     slideshowMode: getLeaderboardSlideshowMode(),
     slideshowStudentCount: getLeaderboardSlideshowStudentCount()
   });
+});
+
+router.get("/api/leaderboard-export", (req, res) => {
+  const rawDate = String(req.query.to || "").trim();
+  const toDate = /^\d{4}-\d{2}-\d{2}$/.test(rawDate) && dayjs(rawDate).isValid()
+    ? dayjs(rawDate).format("YYYY-MM-DD")
+    : dayjs().format("YYYY-MM-DD");
+  const weekStart = dayjs(toDate).subtract((dayjs(toDate).day() + 6) % 7, "day").format("YYYY-MM-DD");
+  const requestedClassIds = new Set(String(req.query.classIds || "")
+    .split(",")
+    .map((value) => Number(value.trim()))
+    .filter((value) => Number.isInteger(value) && value > 0));
+  let rows = addPitisTiers(db.prepare(datedSchoolLeaderboardQuery).all(
+    toDate,
+    weekStart,
+    toDate,
+    toDate,
+    toDate
+  ));
+  if (requestedClassIds.size) {
+    rows = rows.filter((row) => requestedClassIds.has(Number(row.class_id)));
+  }
+  res.json({ rows, toDate, weekStart, timestamp: dayjs().toISOString() });
 });
 
 router.get("/api/leaderboard/:classId", (req, res) => {

@@ -159,6 +159,9 @@
         </div>
       </div>
       <div class="leaderboard-export-footer">
+        <label class="leaderboard-export-date">Leaderboard up to
+          <input type="date" id="leaderboardExportToDate" />
+        </label>
         <div class="leaderboard-export-status" id="leaderboardExportStatus" role="status" aria-live="polite"></div>
         <div class="leaderboard-export-buttons">
           <button type="button" class="btn subtle secondary" id="leaderboardExportDownloadBtn">Download CSV</button>
@@ -198,6 +201,7 @@
       var exportCloseBtn = document.getElementById('leaderboardExportCloseBtn');
       var exportDownloadBtn = document.getElementById('leaderboardExportDownloadBtn');
       var exportPdfBtn = document.getElementById('leaderboardExportPdfBtn');
+      var exportToDate = document.getElementById('leaderboardExportToDate');
       var exportOptions = document.getElementById('leaderboardExportOptions');
       var exportStatus = document.getElementById('leaderboardExportStatus');
       var photoModal = document.getElementById('leaderboardPhotoModal');
@@ -514,14 +518,14 @@
         return withRanks(ordered);
       }
 
-      function selectedExportSections() {
+      function selectedExportSections(sourceRows) {
         var selected = exportCheckboxes().filter(function (checkbox) { return checkbox.checked; });
         if (!selected.length) {
           if (exportStatus) exportStatus.textContent = 'Select Whole School or at least one class.';
           return [];
         }
 
-        var allRows = parseRows();
+        var allRows = Array.isArray(sourceRows) ? sourceRows : parseRows();
         return selected.map(function (checkbox) {
           var isSchool = checkbox.value === 'school';
           var foundClass = classes.find(function (item) { return String(item.id) === checkbox.value; });
@@ -569,11 +573,37 @@
       function exportLeaderboardPdf() {
         var sections = selectedExportSections();
         if (!sections.length) return;
-        if (!window.PitisLeaderboardPdf || !window.PitisLeaderboardPdf.export({ sections: sections })) {
+        var reservedWindow = window.open('', '_blank');
+        if (!reservedWindow) {
           if (exportStatus) exportStatus.textContent = 'Allow pop-ups for this site to export the PDF.';
           return;
         }
-        closeExportModal();
+        var toDate = exportToDate ? exportToDate.value : '';
+        var selectedClassIds = exportCheckboxes()
+          .filter(function (checkbox) { return checkbox.checked && checkbox.value !== 'school'; })
+          .map(function (checkbox) { return checkbox.value; });
+        var query = new URLSearchParams();
+        if (toDate) query.set('to', toDate);
+        if (selectedClassIds.length) query.set('classIds', selectedClassIds.join(','));
+        fetch('/api/leaderboard-export?' + query.toString())
+          .then(function (response) {
+            if (!response.ok) throw new Error('Unable to generate dated leaderboard.');
+            return response.json();
+          })
+          .then(function (data) {
+            var datedSections = selectedExportSections(data.rows || []);
+            var opened = window.PitisLeaderboardPdf && window.PitisLeaderboardPdf.export({
+              sections: datedSections,
+              reportDate: data.toDate,
+              printWindow: reservedWindow
+            });
+            if (!opened) throw new Error('Allow pop-ups for this site to export the PDF.');
+            closeExportModal();
+          })
+          .catch(function (error) {
+            reservedWindow.close();
+            if (exportStatus) exportStatus.textContent = error.message || 'Unable to export PDF.';
+          });
       }
 
       function loadAndPlaySelection() {
@@ -597,6 +627,12 @@
       if (exportCloseBtn) exportCloseBtn.addEventListener('click', closeExportModal);
       if (exportDownloadBtn) exportDownloadBtn.addEventListener('click', exportLeaderboard);
       if (exportPdfBtn) exportPdfBtn.addEventListener('click', exportLeaderboardPdf);
+      if (exportToDate && !exportToDate.value) {
+        var localToday = new Date();
+        localToday.setMinutes(localToday.getMinutes() - localToday.getTimezoneOffset());
+        exportToDate.value = localToday.toISOString().slice(0, 10);
+        exportToDate.max = exportToDate.value;
+      }
       if (exportOptions) {
         exportOptions.addEventListener('change', function (event) {
           if (event.target && event.target.hasAttribute('data-export-scope')) syncExportSelection(event.target);

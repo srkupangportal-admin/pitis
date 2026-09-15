@@ -1865,6 +1865,18 @@ body.calendar-ref-dark .portal-sidebar h1::before {
   font-weight: 700;
 }
 
+.leaderboard-export-date {
+  display: grid;
+  gap: 6px;
+  margin-top: 18px;
+  color: var(--c-ink);
+  font-weight: 800;
+}
+
+.leaderboard-export-date input {
+  width: min(260px, 100%);
+}
+
 .leaderboard-export-buttons {
   display: flex;
   flex-wrap: wrap;

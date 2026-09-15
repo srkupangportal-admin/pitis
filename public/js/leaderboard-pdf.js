@@ -43,7 +43,7 @@
       + '</article>';
   }
 
-  function sectionHtml(section) {
+  function sectionHtml(section, reportDate) {
     var rows = Array.isArray(section.rows) ? section.rows : [];
     var podium = rows.slice(0, 3).map(function (row, index) {
       return studentCard(row, index + 1);
@@ -53,7 +53,7 @@
     return '<section class="leaderboard-poster">'
       + '<header><div class="school-mark">SRK</div><div><small>SEKOLAH RENDAH O.K.A.W.S.D KUPANG</small>'
       + '<h1>P.I.T.I.S LEADERS</h1><h2>' + escapeHtml(section.name || "Leaderboard") + '</h2></div>'
-      + '<div class="generated">Noticeboard Edition<br>' + escapeHtml(new Date().toLocaleDateString()) + '</div></header>'
+      + '<div class="generated">Noticeboard Edition<br>Leaderboard up to ' + escapeHtml(reportDate || new Date().toLocaleDateString()) + '</div></header>'
       + (podium ? '<div class="podium-grid">' + podium + '</div>' : '')
       + (remaining ? '<div class="student-grid">' + remaining + '</div>' : '')
       + '<footer>Positive Individuals That Inspire Society · Celebrate effort, growth and good choices</footer>'
@@ -90,11 +90,13 @@
   function exportPdf(options) {
     var sections = options && Array.isArray(options.sections) ? options.sections : [];
     if (!sections.length) return false;
-    var printWindow = window.open("", "_blank");
+    var printWindow = options.printWindow || window.open("", "_blank");
     if (!printWindow) return false;
     printWindow.document.open();
     printWindow.document.write('<!DOCTYPE html><html><head><meta charset="UTF-8"><title>PITIS Leaderboard Noticeboard</title><style>'
-      + stylesheet() + '</style></head><body>' + sections.map(sectionHtml).join("") + '</body></html>');
+      + stylesheet() + '</style></head><body>' + sections.map(function (section) {
+        return sectionHtml(section, options.reportDate);
+      }).join("") + '</body></html>');
     printWindow.document.close();
     waitForImages(printWindow).then(function () {
       window.setTimeout(function () {

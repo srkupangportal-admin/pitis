@@ -78,6 +78,25 @@
     </div>
   </div>
 
+  <div id="leaderboardPdfModal" class="reward-modal hidden leaderboard-export-modal" aria-hidden="true">
+    <div class="reward-modal-card leaderboard-export-card" role="dialog" aria-modal="true" aria-labelledby="leaderboardPdfTitle">
+      <div class="reward-photo-modal-head">
+        <div>
+          <h3 id="leaderboardPdfTitle">Print <%= cls.name %> Leaderboard</h3>
+          <p class="leaderboard-export-help">Choose the final date to include, then create a noticeboard-ready leaderboard.</p>
+        </div>
+        <button type="button" class="btn subtle secondary" id="leaderboardPdfCloseBtn">Close</button>
+      </div>
+      <label class="leaderboard-export-date">Leaderboard up to
+        <input type="date" id="leaderboardPdfToDate" />
+      </label>
+      <div class="leaderboard-export-footer">
+        <div class="leaderboard-export-status" id="leaderboardPdfStatus" role="status" aria-live="polite"></div>
+        <button type="button" class="btn" id="leaderboardPdfGenerateBtn">Create Printable Leaderboard</button>
+      </div>
+    </div>
+  </div>
+
   <div id="leaderboardMountainModal" class="reward-modal hidden leaderboard-mountain-modal" aria-hidden="true">
     <div class="leaderboard-mountain-screen">
       <div class="leaderboard-mountain-toolbar">

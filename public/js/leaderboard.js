@@ -18,6 +18,11 @@
   var slideshowMenuBtn = document.getElementById("leaderboardSlideshowMenuBtn");
   var pdfBtn = document.getElementById("leaderboardPdfBtn");
   var pdfMenuBtn = document.getElementById("leaderboardPdfMenuBtn");
+  var pdfModal = document.getElementById("leaderboardPdfModal");
+  var pdfCloseBtn = document.getElementById("leaderboardPdfCloseBtn");
+  var pdfGenerateBtn = document.getElementById("leaderboardPdfGenerateBtn");
+  var pdfToDate = document.getElementById("leaderboardPdfToDate");
+  var pdfStatus = document.getElementById("leaderboardPdfStatus");
   var slideshowModal = document.getElementById("leaderboardSlideshowModal");
   var slideshowCloseBtn = document.getElementById("leaderboardSlideshowCloseBtn");
   var slideshowFullscreenBtn = document.getElementById("leaderboardSlideshowFullscreenBtn");
@@ -166,20 +171,53 @@
   }
 
   function exportClassLeaderboardPdf() {
-    var rows = latestRankedRows.slice().sort(function (a, b) {
-      var pointDifference = Number(b.total_points || 0) - Number(a.total_points || 0);
-      if (pointDifference) return pointDifference;
-      return String(a.nickname || "").localeCompare(String(b.nickname || ""));
-    });
-    rows = withRanks(rows, "total_points");
-    if (!window.PitisLeaderboardPdf || !window.PitisLeaderboardPdf.export({
-      sections: [{ name: className, rows: rows }]
-    })) {
-      window.alert("Allow pop-ups for this site to export the leaderboard PDF.");
-      return;
-    }
+    if (!pdfModal) return;
+    if (pdfStatus) pdfStatus.textContent = "";
+    pdfModal.classList.remove("hidden");
+    pdfModal.setAttribute("aria-hidden", "false");
     if (menuPanel) menuPanel.classList.add("hidden");
     if (menuBtn) menuBtn.setAttribute("aria-expanded", "false");
+  }
+
+  function closeClassLeaderboardPdf() {
+    if (!pdfModal) return;
+    pdfModal.classList.add("hidden");
+    pdfModal.setAttribute("aria-hidden", "true");
+  }
+
+  function generateClassLeaderboardPdf() {
+    var toDate = pdfToDate ? pdfToDate.value : "";
+    var reservedWindow = window.open("", "_blank");
+    if (!reservedWindow) {
+      if (pdfStatus) pdfStatus.textContent = "Allow pop-ups for this site to export the PDF.";
+      return;
+    }
+    var query = new URLSearchParams({ classIds: classId });
+    if (toDate) query.set("to", toDate);
+    fetch("/api/leaderboard-export?" + query.toString())
+      .then(function (response) {
+        if (!response.ok) throw new Error("Unable to generate dated leaderboard.");
+        return response.json();
+      })
+      .then(function (data) {
+        var orderedRows = (data.rows || []).slice().sort(function (a, b) {
+          var pointDifference = Number(b.total_points || 0) - Number(a.total_points || 0);
+          if (pointDifference) return pointDifference;
+          return String(a.nickname || "").localeCompare(String(b.nickname || ""));
+        });
+        var rows = withRanks(orderedRows, "total_points");
+        var opened = window.PitisLeaderboardPdf && window.PitisLeaderboardPdf.export({
+          sections: [{ name: className, rows: rows }],
+          reportDate: data.toDate,
+          printWindow: reservedWindow
+        });
+        if (!opened) throw new Error("Unable to open the printable leaderboard.");
+        closeClassLeaderboardPdf();
+      })
+      .catch(function (error) {
+        reservedWindow.close();
+        if (pdfStatus) pdfStatus.textContent = error.message || "Unable to export PDF.";
+      });
   }
 
   function studentDetailHref(row) {
@@ -614,6 +652,17 @@
   }
   if (pdfBtn) pdfBtn.addEventListener("click", exportClassLeaderboardPdf);
   if (pdfMenuBtn) pdfMenuBtn.addEventListener("click", exportClassLeaderboardPdf);
+  if (pdfCloseBtn) pdfCloseBtn.addEventListener("click", closeClassLeaderboardPdf);
+  if (pdfGenerateBtn) pdfGenerateBtn.addEventListener("click", generateClassLeaderboardPdf);
+  if (pdfModal) pdfModal.addEventListener("click", function (event) {
+    if (event.target === pdfModal) closeClassLeaderboardPdf();
+  });
+  if (pdfToDate && !pdfToDate.value) {
+    var pdfLocalToday = new Date();
+    pdfLocalToday.setMinutes(pdfLocalToday.getMinutes() - pdfLocalToday.getTimezoneOffset());
+    pdfToDate.value = pdfLocalToday.toISOString().slice(0, 10);
+    pdfToDate.max = pdfToDate.value;
+  }
   if (mountainBtn) mountainBtn.addEventListener("click", startMountainPath);
   if (mountainReplayBtn) mountainReplayBtn.addEventListener("click", playMountainPath);
   if (mountainCloseBtn) mountainCloseBtn.addEventListener("click", stopMountainPath);
