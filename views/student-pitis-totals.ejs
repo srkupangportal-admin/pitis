@@ -1,0 +1,119 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Student PITIS Totals</title>
+  <link rel="stylesheet" href="/css/theme-c.css" />
+</head>
+<body>
+  <%- include('partials/teacher-nav') %>
+  <main class="container">
+    <div class="calendar-header-row report-header-row">
+      <div>
+        <h2>Student PITIS Totals</h2>
+        <p class="muted">See how much PITIS every student collected during a selected period.</p>
+      </div>
+      <div class="button-row">
+        <a class="btn secondary" href="/teacher/reporting-tool">Reporting Tool</a>
+        <a class="btn secondary" href="/teacher/report">Transaction Report</a>
+      </div>
+    </div>
+
+    <form class="card form calendar-add-form report-filter-card" method="get" action="/teacher/report/student-totals" id="studentTotalsForm">
+      <div class="inline-filters report-filter-grid">
+        <label>Class
+          <select name="classId" required>
+            <option value="">Select class</option>
+            <option value="all" <%= classId === 'all' ? 'selected' : '' %>>All Classes</option>
+            <% classes.forEach(c => { %>
+              <option value="<%= c.id %>" <%= Number(classId) === c.id ? 'selected' : '' %>><%= c.name %></option>
+            <% }) %>
+          </select>
+        </label>
+        <label class="report-all-time-toggle">
+          <span>Report Range</span>
+          <span class="report-toggle-check">
+            <input type="checkbox" name="allTime" id="studentTotalsAllTime" value="1" <%= allTime ? 'checked' : '' %> />
+            <span>All time</span>
+          </span>
+        </label>
+        <label id="studentTotalsFromWrap" class="report-date-field">From
+          <input type="date" name="from" id="studentTotalsFrom" value="<%= dateFrom %>" />
+        </label>
+        <label id="studentTotalsToWrap" class="report-date-field">To
+          <input type="date" name="to" id="studentTotalsTo" value="<%= dateTo %>" />
+        </label>
+      </div>
+      <div class="button-row report-filter-actions">
+        <button class="btn" type="submit">Generate Report</button>
+        <% if (hasFilters && !error) { %>
+          <a class="btn secondary" href="/teacher/report/student-totals/export?classId=<%= classId %><% if (allTime) { %>&allTime=1<% } else { %>&from=<%= dateFrom %>&to=<%= dateTo %><% } %>">Download CSV</a>
+        <% } %>
+      </div>
+    </form>
+
+    <% if (error) { %>
+      <div class="card"><p><%= error %></p></div>
+    <% } %>
+
+    <% if (hasFilters && !error) { %>
+      <section class="card">
+        <div class="calendar-header-row report-header-row">
+          <div>
+            <h3><%= allTime ? 'All-time totals' : `${dateFrom} to ${dateTo}` %></h3>
+            <p class="muted"><%= rows.length %> students shown. Students with no activity are included as zero.</p>
+          </div>
+        </div>
+        <table>
+          <thead>
+            <tr>
+              <th>Student</th>
+              <th>Full Name</th>
+              <th>Class</th>
+              <th>PITIS Collected</th>
+              <th>Deductions</th>
+              <th>Net PITIS</th>
+              <th>Transactions</th>
+            </tr>
+          </thead>
+          <tbody>
+            <% rows.forEach(r => { %>
+              <tr>
+                <td><%= r.name %></td>
+                <td><%= r.full_name %></td>
+                <td><%= r.class_name %></td>
+                <td><strong><%= r.pitis_collected %></strong></td>
+                <td><%= r.pitis_deducted %></td>
+                <td><%= r.net_pitis %></td>
+                <td><%= r.transactions %></td>
+              </tr>
+            <% }) %>
+          </tbody>
+        </table>
+      </section>
+    <% } %>
+  </main>
+  <script>
+    (function () {
+      var allTime = document.getElementById('studentTotalsAllTime');
+      var fromWrap = document.getElementById('studentTotalsFromWrap');
+      var toWrap = document.getElementById('studentTotalsToWrap');
+      var fromInput = document.getElementById('studentTotalsFrom');
+      var toInput = document.getElementById('studentTotalsTo');
+
+      function syncDateMode() {
+        var hideDates = !!(allTime && allTime.checked);
+        if (fromWrap) fromWrap.style.display = hideDates ? 'none' : 'grid';
+        if (toWrap) toWrap.style.display = hideDates ? 'none' : 'grid';
+        if (fromInput) fromInput.required = !hideDates;
+        if (toInput) toInput.required = !hideDates;
+      }
+
+      if (allTime) allTime.addEventListener('change', syncDateMode);
+      syncDateMode();
+    })();
+  </script>
+  <script src="/js/inactivity.js"></script>
+</body>
+</html>

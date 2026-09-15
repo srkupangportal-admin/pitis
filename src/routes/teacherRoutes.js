@@ -2299,6 +2299,43 @@ function fetchRewardReportRows(classId, dateFrom, dateTo, allTime) {
   return rows.map(normalizeRewardReportRow);
 }
 
+function fetchStudentPitisTotalRows(classId, dateFrom, dateTo, allTime) {
+  const logDateFilter = allTime ? "" : "AND date(pl.awarded_at) BETWEEN ? AND ?";
+  const classFilter = classId === "all" ? "" : "WHERE s.class_id = ?";
+  const params = [];
+
+  if (!allTime) params.push(dateFrom, dateTo);
+  if (classId !== "all") params.push(classId);
+
+  return db.prepare(`
+    SELECT s.id AS student_id,
+           COALESCE(NULLIF(s.name, ''), s.full_name) AS name,
+           s.full_name,
+           c.name AS class_name,
+           COALESCE(SUM(CASE WHEN pl.points > 0 THEN pl.points ELSE 0 END), 0) AS pitis_collected,
+           COALESCE(ABS(SUM(CASE WHEN pl.points < 0 THEN pl.points ELSE 0 END)), 0) AS pitis_deducted,
+           COALESCE(SUM(pl.points), 0) AS net_pitis,
+           COUNT(pl.id) AS transactions
+    FROM students s
+    JOIN classes c ON c.id = s.class_id
+    LEFT JOIN point_logs pl
+      ON pl.student_id = s.id
+     ${logDateFilter}
+    ${classFilter}
+    GROUP BY s.id, s.name, s.full_name, c.name
+    ORDER BY c.name ASC, COALESCE(NULLIF(s.name, ''), s.full_name) ASC
+  `).all(...params).map((row) => ({
+    student_id: Number(row.student_id),
+    name: String(row.name || "").trim(),
+    full_name: String(row.full_name || "").trim(),
+    class_name: String(row.class_name || "").trim(),
+    pitis_collected: Number(row.pitis_collected || 0),
+    pitis_deducted: Number(row.pitis_deducted || 0),
+    net_pitis: Number(row.net_pitis || 0),
+    transactions: Number(row.transactions || 0)
+  }));
+}
+
 function parseIsoDate(value) {
   const raw = String(value || "").trim();
   if (!/^\d{4}-\d{2}-\d{2}$/.test(raw)) return null;
@@ -4169,6 +4206,59 @@ router.get("/reporting-tool/teacher-usage-report", renderSipPitisDashboard);
 router.get("/reporting-tool/teacher-usage-report/export", exportSipPitisDashboard);
 router.get("/pitis-usage-report", renderSipPitisDashboard);
 router.get("/pitis-usage-report/export", exportSipPitisDashboard);
+
+function parseStudentTotalsFilters(query) {
+  const classIdRaw = String(query.classId || "").trim();
+  const classId = classIdRaw === "all" ? "all" : Number(classIdRaw || 0);
+  const dateFrom = String(query.from || "").trim();
+  const dateTo = String(query.to || "").trim();
+  const allTime = String(query.allTime || "") === "1";
+  const hasFilters = Boolean(classId) && (allTime || Boolean(dateFrom || dateTo));
+  let error = "";
+
+  if (hasFilters && !allTime) {
+    const from = parseIsoDate(dateFrom);
+    const to = parseIsoDate(dateTo);
+    if (!from || !to) error = "Choose a valid From and To date.";
+    else if (from.isAfter(to, "day")) error = "The From date must be on or before the To date.";
+  }
+
+  return { classId, dateFrom, dateTo, allTime, hasFilters, error };
+}
+
+router.get("/report/student-totals", (req, res) => {
+  const classes = db.prepare("SELECT id, name FROM classes ORDER BY name").all();
+  const filters = parseStudentTotalsFilters(req.query);
+  const rows = filters.hasFilters && !filters.error
+    ? fetchStudentPitisTotalRows(filters.classId, filters.dateFrom, filters.dateTo, filters.allTime)
+    : [];
+
+  res.render("student-pitis-totals", { classes, rows, ...filters });
+});
+
+router.get("/report/student-totals/export", (req, res) => {
+  const filters = parseStudentTotalsFilters(req.query);
+  if (!filters.hasFilters || filters.error) return res.status(400).send(filters.error || "Missing filters");
+
+  const rows = fetchStudentPitisTotalRows(filters.classId, filters.dateFrom, filters.dateTo, filters.allTime);
+  const csvEscape = (value) => `"${String(value ?? "").replace(/"/g, '""')}"`;
+  const header = "student,full_name,class,pitis_collected,deductions,net_pitis,transactions";
+  const csvRows = rows.map((row) => [
+    row.name,
+    row.full_name,
+    row.class_name,
+    row.pitis_collected,
+    row.pitis_deducted,
+    row.net_pitis,
+    row.transactions
+  ].map(csvEscape).join(","));
+  const reportLabel = filters.allTime ? "all-time" : `${filters.dateFrom}-to-${filters.dateTo}`;
+  const classLabel = filters.classId === "all" ? "all-classes" : filters.classId;
+
+  res.setHeader("Content-Type", "text/csv; charset=utf-8");
+  res.setHeader("Content-Disposition", `attachment; filename=student-pitis-totals-${classLabel}-${reportLabel}.csv`);
+  res.send([header, ...csvRows].join("\n"));
+});
 
 router.get("/report", (req, res) => {
   const classes = db.prepare("SELECT id, name FROM classes ORDER BY name").all();
