@@ -12,7 +12,7 @@
     <div class="calendar-header-row report-header-row print-hide">
       <div>
         <h2>SIP PITIS Dashboard</h2>
-        <p class="muted">Built from raw PITIS transactions and the official 2026 school calendar source.</p>
+        <p class="muted">Built from raw PITIS transactions and the maintained 2026 school calendar. Public holidays, examinations, and other unavailable days are excluded from the 60% calculation.</p>
       </div>
       <div class="report-actions">
         <a class="btn secondary" href="/teacher/reporting-tool">Reporting Tool</a>
@@ -160,7 +160,7 @@
               <tr>
                 <td><a href="/teacher/reporting-tool/sip-pitis/teacher/<%= teacher.id %>?term=<%= dashboard.filters.term %>&weeks=<%= dashboard.filters.weeks %>"><%= teacher.display_name %></a><br><span class="muted"><%= teacher.username %></span></td>
                 <% teacher.weeks.forEach(function(week) { %>
-                  <td><span class="sip-dot <%= week.status.toLowerCase().replace(/\s+/g, '-') %>" title="<%= week.status %>: <%= week.activeDays %>/<%= week.requiredDays %>"><%= week.status.charAt(0) %></span></td>
+                  <td><span class="sip-dot <%= week.status.toLowerCase().replace(/\s+/g, '-') %>" title="<%= week.status %>: <%= week.activeDays %>/<%= week.requiredDays %> counted days; <%= week.usageDays %> usage days; <%= week.totalTransactions %> transactions"><%= week.status.charAt(0) %></span></td>
                 <% }) %>
                 <td><strong><%= teacher.termPercentage %>%</strong></td>
                 <td><strong><%= Number(teacher.termPitisAwarded || 0).toLocaleString() %></strong></td>
@@ -171,6 +171,98 @@
           </tbody>
         </table>
       </div>
+    </section>
+
+    <section class="card sip-weekly-detail-wrap">
+      <div class="report-card-head">
+        <div>
+          <span class="reporting-tool-menu-kicker">Detailed Weekly Usage</span>
+          <h3>When and How Often Each Teacher Used PITIS</h3>
+          <p class="muted">All selected weeks are shown, including weeks where the teacher did not meet the 60% requirement.</p>
+        </div>
+      </div>
+      <div class="stack">
+        <% dashboard.teacherReports.forEach(function(teacher) { %>
+          <% var belowTargetWeeks = teacher.weeks.filter(function(week) { return week.status === 'Missed' || week.status === 'At Risk'; }).length; %>
+          <details class="sip-teacher-week-detail" <%= dashboard.teacherReports.length === 1 ? 'open' : '' %>>
+            <summary>
+              <span><strong><%= teacher.display_name %></strong> <span class="muted">(<%= teacher.username %>)</span></span>
+              <span><%= belowTargetWeeks %> week<%= belowTargetWeeks === 1 ? '' : 's' %> below target</span>
+            </summary>
+            <div class="table-scroll">
+              <table class="sip-weekly-detail-table">
+                <thead>
+                  <tr>
+                    <th>Week</th>
+                    <th>Status</th>
+                    <th>Counted Days</th>
+                    <th>PITIS Usage Days</th>
+                    <th>Transactions</th>
+                    <th>Student Recipients<br><small>(daily total)</small></th>
+                    <th>Points</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <% teacher.weeks.forEach(function(week) { %>
+                    <tr>
+                      <td><strong>W<%= week.weekNumber %></strong><br><span class="muted"><%= week.rangeLabel %></span></td>
+                      <td><span class="sip-status <%= week.status.toLowerCase().replace(/\s+/g, '-') %>"><%= week.status %></span></td>
+                      <td><strong><%= week.activeDays %>/<%= week.requiredDays %></strong><br><span class="muted"><%= week.availableSchoolDays %> available</span></td>
+                      <td>
+                        <strong><%= week.usageDays %> day<%= week.usageDays === 1 ? '' : 's' %></strong>
+                        <% if (week.usageDayDetails.length) { %>
+                          <ul class="sip-usage-day-list">
+                            <% week.usageDayDetails.forEach(function(day) { %>
+                              <li>
+                                <%= day.shortLabel %> <%= day.date %>: <%= day.transactionCount %> transaction<%= day.transactionCount === 1 ? '' : 's' %>
+                                <% if (!day.counted) { %><span class="muted">(excluded: <%= day.exclusionReason %>)</span><% } %>
+                              </li>
+                            <% }) %>
+                          </ul>
+                        <% } else { %>
+                          <span class="muted">No PITIS activity</span>
+                        <% } %>
+                      </td>
+                      <td><%= week.totalTransactions %></td>
+                      <td><%= week.totalStudentsRewarded %></td>
+                      <td><%= week.totalPointsAwarded %></td>
+                    </tr>
+                  <% }) %>
+                </tbody>
+              </table>
+            </div>
+          </details>
+        <% }) %>
+      </div>
+    </section>
+
+    <section class="card sip-calendar-exclusions">
+      <div class="report-card-head">
+        <div>
+          <span class="reporting-tool-menu-kicker">Calculation Exclusions</span>
+          <h3>Dates Not Counted Toward the 60% Requirement</h3>
+          <p class="muted"><%= dashboard.pdfInterpretation %></p>
+        </div>
+      </div>
+      <% if (dashboard.calendarExclusions.length) { %>
+        <div class="table-scroll">
+          <table>
+            <thead><tr><th>Date</th><th>Week</th><th>Type</th><th>Reason</th></tr></thead>
+            <tbody>
+              <% dashboard.calendarExclusions.forEach(function(day) { %>
+                <tr>
+                  <td><%= day.date %></td>
+                  <td>W<%= day.weekNumber %></td>
+                  <td><%= day.type.replace(/_/g, ' ') %></td>
+                  <td><%= day.reason %></td>
+                </tr>
+              <% }) %>
+            </tbody>
+          </table>
+        </div>
+      <% } else { %>
+        <p class="muted">No unavailable school dates fall inside the selected weeks.</p>
+      <% } %>
     </section>
   </main>
   <script>

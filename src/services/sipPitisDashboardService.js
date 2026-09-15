@@ -71,7 +71,7 @@ function normalizeIsoDate(value, fallback) {
 
 function getLatestLivePitisLogDate() {
   const row = db.prepare(`
-    SELECT MAX(date(awarded_at)) AS latest_date
+    SELECT MAX(date(awarded_at, '+8 hours')) AS latest_date
     FROM point_logs
     WHERE awarded_at IS NOT NULL
   `).get() || {};
@@ -105,6 +105,17 @@ function expandRanges(items) {
 const PUBLIC_HOLIDAY_DATES = expandRanges(PUBLIC_HOLIDAYS_2026);
 const TERM_HOLIDAY_DATES = expandRanges(TERM_HOLIDAYS_2026);
 
+function getSchoolCalendarDayMap() {
+  const rows = db.prepare(`
+    SELECT calendar_date, term_number, is_school_day, is_public_holiday,
+           is_term_holiday, is_available_for_pitis, event_type,
+           holiday_name, exclusion_reason, notes, source
+    FROM calendar_school_days
+    WHERE calendar_year = 2026
+  `).all();
+  return new Map(rows.map((row) => [String(row.calendar_date), row]));
+}
+
 function findTerm(dateValue) {
   return SCHOOL_TERMS_2026.find((term) => (
     !dayjs(dateValue).isBefore(dayjs(term.start), "day")
@@ -112,12 +123,20 @@ function findTerm(dateValue) {
   )) || null;
 }
 
-function classifyDate(dateValue, todayValue) {
+function classifyDate(dateValue, todayValue, schoolCalendarDays = null) {
   const date = dayjs(dateValue);
-  const term = findTerm(dateValue);
+  const calendarDay = schoolCalendarDays ? schoolCalendarDays.get(dateValue) : null;
+  const configuredTerm = Number(calendarDay && calendarDay.term_number ? calendarDay.term_number : 0);
+  const term = configuredTerm
+    ? SCHOOL_TERMS_2026.find((item) => Number(item.term) === configuredTerm)
+    : findTerm(dateValue);
   const dayNumber = date.day();
-  const publicHoliday = PUBLIC_HOLIDAY_DATES.get(dateValue);
-  const termHoliday = TERM_HOLIDAY_DATES.get(dateValue);
+  const publicHoliday = calendarDay && Number(calendarDay.is_public_holiday) === 1
+    ? (calendarDay.holiday_name || calendarDay.exclusion_reason || "Public Holiday")
+    : PUBLIC_HOLIDAY_DATES.get(dateValue);
+  const termHoliday = calendarDay && Number(calendarDay.is_term_holiday) === 1
+    ? (calendarDay.holiday_name || calendarDay.exclusion_reason || "Term Holiday")
+    : TERM_HOLIDAY_DATES.get(dateValue);
   let type = "non_school_day";
   let label = dayNumber === 5 ? "Friday" : dayNumber === 0 ? "Sunday" : "Outside Term";
   if (termHoliday) {
@@ -126,6 +145,12 @@ function classifyDate(dateValue, todayValue) {
   } else if (publicHoliday) {
     type = "public_holiday";
     label = publicHoliday;
+  } else if (calendarDay && Number(calendarDay.is_school_day) === 1 && Number(calendarDay.is_available_for_pitis) !== 1) {
+    label = String(calendarDay.exclusion_reason || calendarDay.notes || "Excluded school day").trim();
+    type = /exam|assessment/i.test(label) ? "exam_day" : "excluded_school_day";
+  } else if (calendarDay && Number(calendarDay.is_school_day) === 1 && Number(calendarDay.is_available_for_pitis) === 1) {
+    type = "school_day";
+    label = "Normal School Day";
   } else if (term && SCHOOL_DAY_NUMBERS.has(dayNumber)) {
     type = "school_day";
     label = "Normal School Day";
@@ -137,12 +162,14 @@ function classifyDate(dateValue, todayValue) {
     term: term ? Number(term.term) : null,
     type,
     exclusionReason: type === "school_day" ? "" : label,
+    calendarSource: calendarDay ? String(calendarDay.source || "school_calendar") : "official_fallback",
     isFuture: dayjs(dateValue).isAfter(dayjs(todayValue), "day")
   };
 }
 
 function buildOfficialWeeks(todayValue = dayjs().format("YYYY-MM-DD")) {
   const weekMap = new Map();
+  const schoolCalendarDays = getSchoolCalendarDayMap();
   SCHOOL_TERMS_2026.forEach((term) => {
     let cursor = dayjs(getMondayKey(term.start));
     const last = dayjs(getMondayKey(term.end));
@@ -158,7 +185,11 @@ function buildOfficialWeeks(todayValue = dayjs().format("YYYY-MM-DD")) {
         });
       }
       const week = weekMap.get(weekKey);
-      week.days = [0, 1, 2, 3, 5].map((offset) => classifyDate(cursor.add(offset, "day").format("YYYY-MM-DD"), todayValue));
+      week.days = [0, 1, 2, 3, 5].map((offset) => classifyDate(
+        cursor.add(offset, "day").format("YYYY-MM-DD"),
+        todayValue,
+        schoolCalendarDays
+      ));
       cursor = cursor.add(7, "day");
     }
   });
@@ -247,16 +278,16 @@ function fetchActivityRows(userIds, startDate, endDate) {
   const placeholders = userIds.map(() => "?").join(",");
   return db.prepare(`
     SELECT awarded_by AS user_id,
-           date(awarded_at) AS activity_date,
+           date(awarded_at, '+8 hours') AS activity_date,
            COUNT(*) AS transaction_count,
            COUNT(DISTINCT student_id) AS students_rewarded,
            COALESCE(SUM(points), 0) AS points_awarded,
            COALESCE(SUM(CASE WHEN points > 0 THEN points ELSE 0 END), 0) AS positive_points_awarded
     FROM point_logs
     WHERE awarded_by IN (${placeholders})
-      AND date(awarded_at) BETWEEN date(?) AND date(?)
-    GROUP BY awarded_by, date(awarded_at)
-    ORDER BY date(awarded_at) ASC
+      AND date(awarded_at, '+8 hours') BETWEEN date(?) AND date(?)
+    GROUP BY awarded_by, date(awarded_at, '+8 hours')
+    ORDER BY date(awarded_at, '+8 hours') ASC
   `).all(...userIds, startDate, endDate);
 }
 
@@ -321,11 +352,27 @@ function buildTeacherWeeks(teacher, weeks, activityByDate, todayValue) {
       };
     });
     const activeDays = days.filter((day) => day.counted).length;
+    const usageDayDetails = days.filter((day) => day.transactionCount > 0).map((day) => ({
+      date: day.date,
+      label: day.label,
+      shortLabel: day.shortLabel,
+      transactionCount: day.transactionCount,
+      studentsRewarded: day.studentsRewarded,
+      pointsAwarded: day.pointsAwarded,
+      counted: day.counted,
+      exclusionReason: day.counted ? "" : day.exclusionReason
+    }));
     const status = getWeeklyStatus(week, activeDays, todayValue);
     return {
       ...week,
       days,
       activeDays,
+      usageDays: usageDayDetails.length,
+      usageDayDetails,
+      totalTransactions: days.reduce((sum, day) => sum + day.transactionCount, 0),
+      totalStudentsRewarded: days.reduce((sum, day) => sum + day.studentsRewarded, 0),
+      totalPointsAwarded: days.reduce((sum, day) => sum + day.pointsAwarded, 0),
+      excludedUsageDays: usageDayDetails.filter((day) => !day.counted).length,
       status,
       achievementRate: week.requiredDays > 0 ? Math.min(100, Math.round((activeDays / week.requiredDays) * 100)) : 0
     };
@@ -418,6 +465,15 @@ function buildSipPitisDashboard(query = {}) {
     }).length;
     return { ...week, meeting, missing, total: teachers.length };
   });
+  const calendarExclusions = filteredWeeks.flatMap((week) => week.days
+    .filter((day) => day.term === week.term && day.type !== "school_day")
+    .map((day) => ({
+      date: day.date,
+      day: day.label,
+      type: day.type,
+      reason: day.exclusionReason,
+      weekNumber: week.weekNumber
+    })));
   const statusFilter = String(query.status || "all");
   const minUsage = String(query.usageDays || "all");
   let visibleTeacherReports = teacherReports;
@@ -436,6 +492,7 @@ function buildSipPitisDashboard(query = {}) {
     allTeacherReports: teacherReports,
     weeks: filteredWeeks,
     weeklyChart,
+    calendarExclusions,
     currentTerm,
     currentWeek,
     filters: {
@@ -462,7 +519,7 @@ function buildSipPitisDashboard(query = {}) {
       current: onTrack,
       status: onTrack >= target ? "Achieved" : onTrack >= Math.max(0, target - 2) ? "Nearly Achieved" : "Needs Support"
     },
-    pdfInterpretation: "Kalendar 2026 PDF interpreted as 2026 MOE terms, term holidays, public holidays, and Sat/Mon/Tue/Wed/Thu school days."
+    pdfInterpretation: "The maintained 2026 school calendar determines available PITIS days. Public holidays, term holidays, examinations, and other administrator-marked exclusions do not count toward the 60% weekly requirement."
   };
 }
 
@@ -492,10 +549,11 @@ function buildSipPitisRawAudit(query = {}) {
   const endDate = normalizeIsoDate(query.to, weeks[weeks.length - 1] ? weeks[weeks.length - 1].end : "2026-12-31");
   const rows = fetchActivityRows(teachers.map((teacher) => teacher.id), startDate, endDate);
   const lookup = dateWeekLookup(weeks);
+  const schoolCalendarDays = getSchoolCalendarDayMap();
   const auditRows = rows.map((row) => {
     const directMatch = lookup.byDate.get(row.activity_date);
     const matchedWeek = directMatch ? directMatch.week : lookup.byWeekKey.get(getMondayKey(row.activity_date));
-    const match = matchedWeek ? { week: matchedWeek, day: directMatch ? directMatch.day : classifyDate(row.activity_date, todayValue) } : null;
+    const match = matchedWeek ? { week: matchedWeek, day: directMatch ? directMatch.day : classifyDate(row.activity_date, todayValue, schoolCalendarDays) } : null;
     const teacher = teacherMap.get(Number(row.user_id)) || {};
     const counted = !!(match && match.day.type === "school_day");
     return {
@@ -533,6 +591,11 @@ function sipDashboardToCsv(dashboard) {
       available: week.availableSchoolDays,
       required: week.requiredDays,
       active: week.activeDays,
+      usageDays: week.usageDays,
+      usageDates: week.usageDayDetails.map((day) => `${day.shortLabel} ${day.date}${day.counted ? "" : ` (excluded: ${day.exclusionReason})`}`).join("; "),
+      transactions: week.totalTransactions,
+      studentsRewarded: week.totalStudentsRewarded,
+      pointsAwarded: week.totalPointsAwarded,
       status: week.status,
       termPercentage: `${teacher.termPercentage}%`,
       termPitisAwarded: teacher.termPitisAwarded,
@@ -549,6 +612,11 @@ function sipDashboardToCsv(dashboard) {
     { key: "available", label: "Available School Days" },
     { key: "required", label: "Required Days" },
     { key: "active", label: "Teacher Active Days" },
+    { key: "usageDays", label: "Days PITIS Was Used" },
+    { key: "usageDates", label: "PITIS Usage Days and Dates" },
+    { key: "transactions", label: "PITIS Transactions" },
+    { key: "studentsRewarded", label: "Student Recipients (Daily Total)" },
+    { key: "pointsAwarded", label: "PITIS Points Awarded" },
     { key: "status", label: "Status" },
     { key: "termPercentage", label: "Term %" },
     { key: "termPitisAwarded", label: "Term PITIS Awarded" },
