@@ -148,7 +148,11 @@ function recomputeSchoolWeeks() {
 
 function seedOfficialSchoolCalendar2026() {
   const admin = db.prepare("SELECT id FROM users WHERE role = 'admin' ORDER BY id ASC LIMIT 1").get();
-  const createdBy = admin ? Number(admin.id) : 1;
+  if (!admin) {
+    console.warn("Official school calendar seed deferred until an administrator account exists.");
+    return false;
+  }
+  const createdBy = Number(admin.id);
   const publicHolidayLabelId = ensureCalendarLabel("Public Holiday", "#d9534f", "Official public holiday", createdBy);
   const schoolTermLabelId = ensureCalendarLabel("School Term", "#2f855a", "Official school term", createdBy);
   const termHolidayLabelId = ensureCalendarLabel("Term Holiday", "#f0ad4e", "Official school term holiday", createdBy);
@@ -213,6 +217,7 @@ function seedOfficialSchoolCalendar2026() {
   });
   tx();
   recomputeSchoolWeeks();
+  return true;
 }
 
 function getSchoolCalendarFilters(query = {}) {
