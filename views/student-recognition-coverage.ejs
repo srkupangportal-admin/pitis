@@ -1,0 +1,71 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Student Recognition Coverage</title>
+  <link rel="stylesheet" href="/css/theme-c.css">
+</head>
+<body>
+  <%- include('partials/teacher-nav') %>
+  <main class="container stack recognition-coverage-page">
+    <div class="calendar-header-row report-header-row">
+      <div><span class="reporting-tool-menu-kicker">Phase 3 · Equity</span><h2>Student Recognition Coverage</h2><p class="muted">See who is being recognised consistently and who may be overlooked.</p></div>
+      <div class="button-row">
+        <a class="btn secondary" href="/teacher/reporting-tool">Reporting Tool</a>
+        <% if (!report.error) { %><a class="btn secondary" href="/teacher/reporting-tool/recognition-coverage/export.csv?classId=<%= report.classId %>&from=<%= report.from %>&to=<%= report.to %>">Download CSV</a><% } %>
+        <button class="btn" type="button" onclick="window.print()">Print / Save PDF</button>
+      </div>
+    </div>
+
+    <form class="card form recognition-coverage-filter" method="get" action="/teacher/reporting-tool/recognition-coverage">
+      <label>Class<select name="classId"><option value="all">All Classes</option><% report.classes.forEach(function(item) { %><option value="<%= item.id %>" <%= Number(report.classId) === item.id ? 'selected' : '' %>><%= item.name %></option><% }) %></select></label>
+      <label>From<input type="date" name="from" value="<%= report.from %>" required></label>
+      <label>To<input type="date" name="to" value="<%= report.to %>" required></label>
+      <button class="btn" type="submit">Generate Report</button>
+    </form>
+
+    <% if (report.error) { %>
+      <section class="card"><h3>Report could not be generated</h3><p><%= report.error %></p></section>
+    <% } else { %>
+      <section class="card recognition-coverage-period"><div><span class="reporting-tool-menu-kicker">Reporting period</span><h3><%= report.from %> to <%= report.to %></h3><p class="muted"><%= report.classId === 'all' ? 'All classes' : (report.classRows[0] ? report.classRows[0].name : 'Selected class') %> · Generated <%= report.generatedAt %></p></div></section>
+
+      <section class="recognition-coverage-kpi-grid">
+        <article class="card"><strong><%= report.summary.coverage %>%</strong><span>Students recognised</span></article>
+        <article class="card"><strong><%= report.summary.recognisedStudents %>/<%= report.summary.students %></strong><span>Recognised students</span></article>
+        <article class="card"><strong><%= report.summary.notRecognisedStudents %></strong><span>Not recognised</span></article>
+        <article class="card"><strong><%= report.summary.recognisedOnce %></strong><span>Recognised on one day</span></article>
+        <article class="card"><strong><%= report.summary.recognisedRegularly %></strong><span>Recognised on 2+ days</span></article>
+      </section>
+
+      <section class="card">
+        <div class="report-section-heading"><span class="reporting-tool-menu-kicker">Class view</span><h3>Recognition Coverage by Class</h3><p class="muted">Coverage means a student received at least one positive PITIS transaction during the selected period.</p></div>
+        <div class="table-wrap"><table class="data-table"><thead><tr><th>Class</th><th>Recognised</th><th>Not recognised</th><th>Coverage</th><th>Recognition days</th><th>Positive PITIS</th><th>Deductions</th></tr></thead><tbody>
+          <% report.classRows.forEach(function(row) { %><tr><td><strong><%= row.name %></strong></td><td><%= row.recognised %>/<%= row.students %></td><td><%= row.notRecognised %></td><td><strong><%= row.coverage %>%</strong></td><td><%= row.recognitionDays %></td><td><%= row.positivePoints %></td><td><%= row.deductions %></td></tr><% }) %>
+        </tbody></table></div>
+      </section>
+
+      <section class="card">
+        <div class="report-section-heading"><span class="reporting-tool-menu-kicker">Priority follow-up</span><h3>Students with Limited or No Recognition</h3><p class="muted">Students recognised on zero or one day during the selected period, ordered by class and lowest coverage.</p></div>
+        <% if (!report.priorityStudents.length) { %><p class="integrity-pass-copy">Every student was recognised on at least two different days.</p><% } else { %>
+          <div class="table-wrap"><table class="data-table"><thead><tr><th>Student</th><th>Class</th><th>Status</th><th>Days</th><th>Transactions</th><th>Positive PITIS</th><th>Last recognised</th><th>Action</th></tr></thead><tbody>
+            <% report.priorityStudents.forEach(function(row) { %><tr><td><strong><%= row.name %></strong><br><small class="muted"><%= row.fullName %></small></td><td><%= row.className %></td><td><span class="status-badge"><%= row.coverageStatus %></span></td><td><%= row.recognitionDays %></td><td><%= row.positiveTransactions %></td><td><%= row.positivePoints %></td><td><%= row.lastRecognisedAt %></td><td><a href="/teacher/reward/<%= row.classId %>">Open class</a></td></tr><% }) %>
+          </tbody></table></div>
+        <% } %>
+      </section>
+
+      <section class="recognition-analysis-grid">
+        <article class="card">
+          <div class="report-section-heading"><span class="reporting-tool-menu-kicker">Trend</span><h3>Weekly Comparison</h3><p class="muted">Unique students recognised in each activity week.</p></div>
+          <% if (!report.weeklyRows.length) { %><p class="muted">No PITIS activity in this period.</p><% } else { %><div class="table-wrap"><table class="data-table"><thead><tr><th>Week starting</th><th>Students</th><th>Coverage</th><th>Awards</th><th>PITIS</th><th>Deductions</th></tr></thead><tbody><% report.weeklyRows.forEach(function(row) { %><tr><td><%= row.weekStarting %></td><td><%= row.recognisedStudents %></td><td><%= row.coverage %>%</td><td><%= row.positiveTransactions %></td><td><%= row.positivePoints %></td><td><%= row.deductions %></td></tr><% }) %></tbody></table></div><% } %>
+        </article>
+        <article class="card">
+          <div class="report-section-heading"><span class="reporting-tool-menu-kicker">Distribution</span><h3>Most-used Recognition Reasons</h3><p class="muted">Positive reasons used during the selected period.</p></div>
+          <% if (!report.reasonRows.length) { %><p class="muted">No positive reasons in this period.</p><% } else { %><div class="table-wrap"><table class="data-table"><thead><tr><th>Reason</th><th>Uses</th><th>Students</th><th>PITIS</th></tr></thead><tbody><% report.reasonRows.forEach(function(row) { %><tr><td><%= row.reason %></td><td><%= row.uses %></td><td><%= row.students %></td><td><%= row.points %></td></tr><% }) %></tbody></table></div><% } %>
+        </article>
+      </section>
+    <% } %>
+  </main>
+  <script src="/js/inactivity.js"></script>
+</body>
+</html>

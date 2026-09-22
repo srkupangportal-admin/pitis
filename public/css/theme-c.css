@@ -3752,10 +3752,24 @@ img, video, canvas, svg { max-width: 100%; }
 .weekly-action-kpi-grid span { color: #58656f; font-size: .86rem; }
 .weekly-action-report-page details summary { cursor: pointer; color: #123b63; font-weight: 800; }
 .weekly-action-report-page details .table-wrap { margin-top: 12px; }
+.recognition-coverage-page { padding-bottom: 48px; }
+.recognition-coverage-filter { display: grid; grid-template-columns: minmax(180px, 1.4fr) repeat(2, minmax(150px, 1fr)) auto; align-items: end; gap: 12px; }
+.recognition-coverage-filter label { display: grid; gap: 6px; font-weight: 700; }
+.recognition-coverage-period { border-left: 6px solid #2f855a; }
+.recognition-coverage-period h3 { margin: 3px 0; }
+.recognition-coverage-period p { margin: 0; }
+.recognition-coverage-kpi-grid { display: grid; grid-template-columns: repeat(5, minmax(120px, 1fr)); gap: 10px; }
+.recognition-coverage-kpi-grid .card { display: grid; align-content: center; gap: 4px; min-height: 108px; }
+.recognition-coverage-kpi-grid strong { color: #123b63; font-size: 1.7rem; line-height: 1; }
+.recognition-coverage-kpi-grid span { color: #58656f; font-size: .86rem; }
+.recognition-analysis-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px; align-items: start; }
 
 @media (max-width: 800px) {
   .integrity-kpi-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .weekly-action-kpi-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .recognition-coverage-kpi-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .recognition-coverage-filter { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .recognition-analysis-grid { grid-template-columns: 1fr; }
   .weekly-action-period { align-items: flex-start; flex-direction: column; }
   .weekly-action-generated { white-space: normal; }
 }
@@ -3763,6 +3777,8 @@ img, video, canvas, svg { max-width: 100%; }
 @media (max-width: 540px) {
   .weekly-action-filter { align-items: stretch; flex-direction: column; }
   .weekly-action-filter .btn { width: 100%; }
+  .recognition-coverage-filter { grid-template-columns: 1fr; }
+  .recognition-coverage-filter .btn { width: 100%; }
 }
 
 @media print {
@@ -3773,4 +3789,8 @@ img, video, canvas, svg { max-width: 100%; }
   .weekly-action-report-page .weekly-action-filter { display: none !important; }
   .weekly-action-kpi-grid { grid-template-columns: repeat(5, 1fr); }
   .weekly-action-report-page .card { break-inside: avoid; }
+  .recognition-coverage-page .button-row,
+  .recognition-coverage-page .recognition-coverage-filter { display: none !important; }
+  .recognition-coverage-kpi-grid { grid-template-columns: repeat(5, 1fr); }
+  .recognition-analysis-grid { grid-template-columns: 1fr 1fr; }
 }

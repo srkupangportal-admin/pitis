@@ -39,6 +39,10 @@ const {
   buildWeeklyPitisActionReport,
   weeklyPitisActionReportToCsv
 } = require("../services/weeklyPitisActionReportService");
+const {
+  buildStudentRecognitionCoverageReport,
+  studentRecognitionCoverageToCsv
+} = require("../services/studentRecognitionCoverageService");
 
 const router = express.Router();
 router.use(requireRole(["teacher", "staff", "admin"]));
@@ -4144,6 +4148,22 @@ function exportWeeklyPitisActionReport(req, res) {
   res.send(weeklyPitisActionReportToCsv(report));
 }
 
+function renderStudentRecognitionCoverage(req, res) {
+  res.render("student-recognition-coverage", {
+    report: buildStudentRecognitionCoverageReport(req.query),
+    user: req.session.user
+  });
+}
+
+function exportStudentRecognitionCoverage(req, res) {
+  const report = buildStudentRecognitionCoverageReport(req.query);
+  if (report.error) return res.status(400).send(report.error);
+  const classLabel = report.classId === "all" ? "all-classes" : `class-${report.classId}`;
+  res.setHeader("Content-Type", "text/csv; charset=utf-8");
+  res.setHeader("Content-Disposition", `attachment; filename=student-recognition-coverage-${classLabel}-${report.from}-to-${report.to}.csv`);
+  res.send(studentRecognitionCoverageToCsv(report));
+}
+
 function exportReportingTool(req, res) {
   const users = getReportingToolUsers();
   const allowedIds = new Set(users.map((user) => Number(user.id)));
@@ -4233,6 +4253,8 @@ router.get("/reporting-tool/data-integrity", renderPitisIntegrityReport);
 router.get("/reporting-tool/data-integrity/export.csv", exportPitisIntegrityReport);
 router.get("/reporting-tool/weekly-action", renderWeeklyPitisActionReport);
 router.get("/reporting-tool/weekly-action/export.csv", exportWeeklyPitisActionReport);
+router.get("/reporting-tool/recognition-coverage", renderStudentRecognitionCoverage);
+router.get("/reporting-tool/recognition-coverage/export.csv", exportStudentRecognitionCoverage);
 router.get("/reporting-tool/sip-pitis", renderSipPitisDashboard);
 router.get("/reporting-tool/sip-pitis/export.csv", exportSipPitisDashboard);
 router.get("/reporting-tool/sip-pitis/print", renderSipPitisDashboardPrint);
