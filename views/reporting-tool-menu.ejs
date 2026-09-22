@@ -1,53 +1,47 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
   <title>Reporting Tool</title>
-  <link rel="stylesheet" href="/css/theme-c.css" />
+  <link rel="stylesheet" href="/css/theme-c.css">
 </head>
 <body>
   <%- include('partials/teacher-nav') %>
   <main class="container stack reporting-tool-menu-page">
     <div class="calendar-header-row report-header-row">
-      <div>
-        <h2>Reporting Tool</h2>
-        <p class="muted">Choose a report to view or print.</p>
-      </div>
+      <div><h2>Reporting Tool</h2><p class="muted">Generate reliable operational, student, class, and leadership reports from one place.</p></div>
     </div>
 
-    <section class="reporting-tool-menu-grid">
-      <article class="card reporting-tool-menu-card">
-        <div>
-          <span class="reporting-tool-menu-kicker">Dashboard</span>
-          <h3>Teacher Usage Report Dashboard</h3>
-          <p class="muted">SIP PITIS dashboard with target progress, weekly trends, teacher matrix, raw audit, and settings.</p>
-        </div>
-        <a class="btn" href="/teacher/reporting-tool/sip-pitis" target="_blank" rel="noopener">Open Dashboard</a>
-      </article>
-
-      <article class="card reporting-tool-menu-card">
-        <div>
-          <span class="reporting-tool-menu-kicker">Spreadsheet</span>
-          <h3>Students' P.I.T.I.S. Report</h3>
-          <p class="muted">Class-based PITIS award report with date range and all-time export options.</p>
-        </div>
-        <a class="btn secondary" href="/teacher/report">Open Report</a>
-      </article>
-
-      <article class="card reporting-tool-menu-card">
-        <div>
-          <span class="reporting-tool-menu-kicker">Student totals</span>
-          <h3>Student PITIS Totals</h3>
-          <p class="muted">Total PITIS collected by every student for a selected date range or all time, with deductions and net totals.</p>
-        </div>
-        <a class="btn secondary" href="/teacher/report/student-totals">Open Totals Report</a>
-      </article>
+    <section class="report-section">
+      <div class="report-section-heading"><span class="reporting-tool-menu-kicker">Reliability</span><h3>Data Integrity and Administration</h3><p class="muted">Check data quality before relying on totals, rankings, or exports.</p></div>
+      <div class="reporting-tool-menu-grid">
+        <article class="card reporting-tool-menu-card featured-report-card">
+          <div><span class="reporting-tool-menu-kicker">Phase 1 · Available</span><h3>PITIS Data Integrity Report</h3><p class="muted">Reconcile leaderboard and ledger totals; identify duplicates, timestamp collisions, class differences, future dates, unusual values, missing references, and snapshot inconsistencies.</p></div>
+          <a class="btn" href="/teacher/reporting-tool/data-integrity">Run Integrity Report</a>
+        </article>
+      </div>
     </section>
 
-    <section class="card">
-      <h3>SIP PITIS Source</h3>
-      <p class="muted">The dashboard uses raw PITIS transaction logs and the official 2026 calendar interpretation only. The existing portal calendar is not used for these calculations.</p>
+    <section class="report-section">
+      <div class="report-section-heading"><span class="reporting-tool-menu-kicker">Students and classes</span><h3>Detailed Records</h3><p class="muted">Transaction evidence and calculated balances are grouped here as complementary views.</p></div>
+      <div class="reporting-tool-menu-grid">
+        <article class="card reporting-tool-menu-card"><div><span class="reporting-tool-menu-kicker">Transaction ledger</span><h3>PITIS Transaction Report</h3><p class="muted">Detailed awards and deductions by class, date, reason, and awarding teacher.</p></div><a class="btn secondary" href="/teacher/report">Open Transaction Report</a></article>
+        <article class="card reporting-tool-menu-card"><div><span class="reporting-tool-menu-kicker">Calculated balances</span><h3>Student PITIS Totals</h3><p class="muted">Collected PITIS, deductions, net balance, and transaction count by student.</p></div><a class="btn secondary" href="/teacher/report/student-totals">Open Totals Report</a></article>
+        <article class="card reporting-tool-menu-card planned-report-card"><div><span class="reporting-tool-menu-kicker">Phase 3 · Planned</span><h3>Student Recognition Coverage</h3><p class="muted">Students with limited or no recognition, class coverage, award distribution, and weekly comparisons.</p></div><span class="status-badge">Planned</span></article>
+        <article class="card reporting-tool-menu-card planned-report-card"><div><span class="reporting-tool-menu-kicker">Phase 4 · Planned</span><h3>Individual Student Statement</h3><p class="muted">Printable student ledger with balances, awards, deductions, reasons, teachers, and period summaries.</p></div><span class="status-badge">Planned</span></article>
+        <article class="card reporting-tool-menu-card planned-report-card"><div><span class="reporting-tool-menu-kicker">Phase 4 · Planned</span><h3>Class Weekly Digest</h3><p class="muted">Recognition coverage, trends, common reasons, deductions, and students not yet recognised.</p></div><span class="status-badge">Planned</span></article>
+      </div>
+    </section>
+
+    <section class="report-section">
+      <div class="report-section-heading"><span class="reporting-tool-menu-kicker">Action and leadership</span><h3>Monitoring and Improvement</h3><p class="muted">Turn PITIS activity into weekly action and school-improvement evidence.</p></div>
+      <div class="reporting-tool-menu-grid">
+        <article class="card reporting-tool-menu-card"><div><span class="reporting-tool-menu-kicker">Current dashboard</span><h3>SIP PITIS Dashboard</h3><p class="muted">Teacher consistency targets, weekly trends, teacher matrix, term progress, exclusions, raw audit, CSV, and print output.</p></div><a class="btn" href="/teacher/reporting-tool/sip-pitis" target="_blank" rel="noopener">Open SIP Dashboard</a></article>
+        <article class="card reporting-tool-menu-card planned-report-card"><div><span class="reporting-tool-menu-kicker">Phase 2 · Planned</span><h3>Weekly Action Report</h3><p class="muted">Teachers at risk, remaining target days, inactive classes, unrecognised students, and unusual activity requiring follow-up.</p></div><span class="status-badge">Next phase</span></article>
+        <article class="card reporting-tool-menu-card planned-report-card"><div><span class="reporting-tool-menu-kicker">Phase 5 · Planned</span><h3>Leadership Term Summary</h3><p class="muted">One-page SIP status, teacher consistency, recognition coverage, class comparisons, trends, and support priorities.</p></div><span class="status-badge">Planned</span></article>
+        <article class="card reporting-tool-menu-card planned-report-card"><div><span class="reporting-tool-menu-kicker">Phase 5 · Planned</span><h3>PWA and Notification Adoption</h3><p class="muted">P.I.T.I.S invitations, push-enabled devices, inactive subscriptions, app usage, and PWA award activity.</p></div><span class="status-badge">Planned</span></article>
+      </div>
     </section>
   </main>
   <script src="/js/inactivity.js"></script>

@@ -3710,3 +3710,41 @@ img, video, canvas, svg { max-width: 100%; }
     width: 100%;
   }
 }
+
+.report-section { display: grid; gap: 12px; }
+.report-section-heading h3 { margin: 3px 0; }
+.report-section-heading p { margin: 0; }
+.featured-report-card { border-color: #2f855a; box-shadow: 0 10px 28px rgba(47, 133, 90, .12); }
+.planned-report-card { background: #f7f9f8; border-style: dashed; }
+.planned-report-card .status-badge { align-self: flex-start; }
+.integrity-report-page { padding-bottom: 48px; }
+.integrity-overview { display: grid; gap: 16px; border-left: 6px solid #d39e00; }
+.integrity-status-healthy { border-left-color: #198754; }
+.integrity-status-critical { border-left-color: #b42318; }
+.integrity-kpi-grid { display: grid; grid-template-columns: repeat(5, minmax(110px, 1fr)); gap: 10px; }
+.integrity-kpi-grid div { display: grid; gap: 2px; padding: 12px; border-radius: 12px; background: #f5f8f7; }
+.integrity-kpi-grid strong { font-size: 1.45rem; color: #123b63; }
+.integrity-kpi-grid span { color: #58656f; font-size: .86rem; }
+.integrity-check-grid { display: grid; gap: 14px; }
+.integrity-check { border-left: 5px solid #d39e00; }
+.integrity-check-passed { border-left-color: #198754; }
+.integrity-severity-critical.integrity-check-review { border-left-color: #b42318; }
+.integrity-check > header { display: flex; justify-content: space-between; align-items: flex-start; gap: 14px; }
+.integrity-check > header h3 { margin: 5px 0 0; }
+.integrity-check > header > strong { font-size: 1.5rem; }
+.integrity-badge { display: inline-block; padding: 3px 9px; border-radius: 999px; background: #fff1cc; color: #725000; font-size: .76rem; font-weight: 800; text-transform: uppercase; }
+.integrity-check-passed .integrity-badge { background: #dff4e8; color: #17663c; }
+.integrity-severity-critical.integrity-check-review .integrity-badge { background: #fee4e2; color: #9f2016; }
+.integrity-pass-copy { margin-bottom: 0; color: #17663c; font-weight: 700; }
+.integrity-check details summary { cursor: pointer; font-weight: 800; color: #123b63; }
+.integrity-check details .table-wrap { margin-top: 12px; }
+
+@media (max-width: 800px) {
+  .integrity-kpi-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+
+@media print {
+  .integrity-report-page .button-row { display: none !important; }
+  .integrity-check-grid { display: block; }
+  .integrity-check { break-inside: avoid; margin-bottom: 10px; }
+}

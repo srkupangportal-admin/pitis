@@ -31,6 +31,10 @@ const {
   normalizeGender,
   normalizeOptionalText
 } = require("../services/studentSchema");
+const {
+  buildPitisIntegrityReport,
+  pitisIntegrityReportToCsv
+} = require("../services/pitisIntegrityReportService");
 
 const router = express.Router();
 router.use(requireRole(["teacher", "staff", "admin"]));
@@ -4108,6 +4112,20 @@ function renderReportingToolMenu(_req, res) {
   });
 }
 
+function renderPitisIntegrityReport(req, res) {
+  res.render("pitis-integrity-report", {
+    report: buildPitisIntegrityReport(),
+    user: req.session.user
+  });
+}
+
+function exportPitisIntegrityReport(_req, res) {
+  const report = buildPitisIntegrityReport();
+  res.setHeader("Content-Type", "text/csv; charset=utf-8");
+  res.setHeader("Content-Disposition", `attachment; filename=pitis-data-integrity-${dayjs().format("YYYY-MM-DD")}.csv`);
+  res.send(pitisIntegrityReportToCsv(report));
+}
+
 function exportReportingTool(req, res) {
   const users = getReportingToolUsers();
   const allowedIds = new Set(users.map((user) => Number(user.id)));
@@ -4193,6 +4211,8 @@ function saveSipPitisSettingsRoute(req, res) {
 }
 
 router.get("/reporting-tool", renderReportingToolMenu);
+router.get("/reporting-tool/data-integrity", renderPitisIntegrityReport);
+router.get("/reporting-tool/data-integrity/export.csv", exportPitisIntegrityReport);
 router.get("/reporting-tool/sip-pitis", renderSipPitisDashboard);
 router.get("/reporting-tool/sip-pitis/export.csv", exportSipPitisDashboard);
 router.get("/reporting-tool/sip-pitis/print", renderSipPitisDashboardPrint);

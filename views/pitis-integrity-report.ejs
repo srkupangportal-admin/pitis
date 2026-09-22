@@ -1,0 +1,55 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>PITIS Data Integrity Report</title>
+  <link rel="stylesheet" href="/css/theme-c.css">
+</head>
+<body>
+  <%- include('partials/teacher-nav') %>
+  <main class="container stack integrity-report-page">
+    <div class="calendar-header-row report-header-row">
+      <div>
+        <span class="reporting-tool-menu-kicker">Phase 1 · Reliability</span>
+        <h2>PITIS Data Integrity Report</h2>
+        <p class="muted">Generated <%= report.generatedAt %>. This report identifies inconsistencies for review; it never changes or deletes records.</p>
+      </div>
+      <div class="button-row">
+        <a class="btn secondary" href="/teacher/reporting-tool">Reporting Tool</a>
+        <a class="btn secondary" href="/teacher/reporting-tool/data-integrity/export.csv">Download CSV</a>
+        <button class="btn" type="button" onclick="window.print()">Print / Save PDF</button>
+      </div>
+    </div>
+
+    <section class="card integrity-overview integrity-status-<%= report.status %>">
+      <div><span class="reporting-tool-menu-kicker">Overall status</span><h3><%= report.status === 'healthy' ? 'All checks passed' : report.status === 'critical' ? 'Critical inconsistencies found' : 'Review recommended' %></h3></div>
+      <div class="integrity-kpi-grid">
+        <div><strong><%= report.summary.students %></strong><span>Students checked</span></div>
+        <div><strong><%= report.summary.transactions.toLocaleString() %></strong><span>Transactions checked</span></div>
+        <div><strong><%= report.summary.passed %>/<%= report.summary.checks %></strong><span>Checks passed</span></div>
+        <div><strong><%= report.summary.criticalIssues %></strong><span>Critical issues</span></div>
+        <div><strong><%= report.summary.warnings %></strong><span>Review items</span></div>
+      </div>
+    </section>
+
+    <section class="integrity-check-grid">
+      <% report.checks.forEach(function(check) { %>
+        <article class="card integrity-check integrity-check-<%= check.status %> integrity-severity-<%= check.severity %>">
+          <header><div><span class="integrity-badge"><%= check.status === 'passed' ? 'Passed' : check.severity %></span><h3><%= check.title %></h3></div><strong><%= check.total %></strong></header>
+          <p class="muted"><%= check.description %></p>
+          <% if (check.rows.length) { %>
+            <details>
+              <summary>Review <%= check.rows.length %><%= check.truncated ? ' of ' + check.total : '' %> item<%= check.rows.length === 1 ? '' : 's' %></summary>
+              <div class="table-wrap"><table class="data-table">
+                <thead><tr><th>Student</th><th>Class</th><th>Expected</th><th>Actual</th><th>Details</th></tr></thead>
+                <tbody><% check.rows.forEach(function(row) { %><tr><td><%= row.student || '—' %></td><td><%= row.class_name || '—' %></td><td><%= row.expected ?? '—' %></td><td><%= row.actual ?? '—' %></td><td><%= row.details || '—' %></td></tr><% }) %></tbody>
+              </table></div>
+            </details>
+          <% } else { %><p class="integrity-pass-copy">No inconsistencies detected.</p><% } %>
+        </article>
+      <% }) %>
+    </section>
+  </main>
+</body>
+</html>
