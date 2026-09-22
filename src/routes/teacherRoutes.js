@@ -49,6 +49,12 @@ const {
   buildClassWeeklyDigest,
   classWeeklyDigestToCsv
 } = require("../services/phaseFourPitisReportsService");
+const {
+  buildLeadershipTermSummary,
+  leadershipTermSummaryToCsv,
+  buildPwaAdoptionReport,
+  pwaAdoptionReportToCsv
+} = require("../services/phaseFivePitisReportsService");
 
 const router = express.Router();
 router.use(requireRole(["teacher", "staff", "admin"]));
@@ -4194,6 +4200,28 @@ function exportClassWeeklyDigest(req, res) {
   res.send(classWeeklyDigestToCsv(report));
 }
 
+function renderLeadershipTermSummary(req, res) {
+  res.render("leadership-term-summary", { report: buildLeadershipTermSummary(req.query), user: req.session.user });
+}
+
+function exportLeadershipTermSummary(req, res) {
+  const report = buildLeadershipTermSummary(req.query);
+  res.setHeader("Content-Type", "text/csv; charset=utf-8");
+  res.setHeader("Content-Disposition", `attachment; filename=leadership-term-${report.term.term}-${report.asOf}.csv`);
+  res.send(leadershipTermSummaryToCsv(report));
+}
+
+function renderPwaAdoptionReport(req, res) {
+  res.render("pwa-adoption-report", { report: buildPwaAdoptionReport(), user: req.session.user });
+}
+
+function exportPwaAdoptionReport(_req, res) {
+  const report = buildPwaAdoptionReport();
+  res.setHeader("Content-Type", "text/csv; charset=utf-8");
+  res.setHeader("Content-Disposition", "attachment; filename=pwa-notification-adoption.csv");
+  res.send(pwaAdoptionReportToCsv(report));
+}
+
 function exportReportingTool(req, res) {
   const users = getReportingToolUsers();
   const allowedIds = new Set(users.map((user) => Number(user.id)));
@@ -4289,6 +4317,10 @@ router.get("/reporting-tool/student-statement", renderStudentStatement);
 router.get("/reporting-tool/student-statement/export.csv", exportStudentStatement);
 router.get("/reporting-tool/class-digest", renderClassWeeklyDigest);
 router.get("/reporting-tool/class-digest/export.csv", exportClassWeeklyDigest);
+router.get("/reporting-tool/leadership-summary", renderLeadershipTermSummary);
+router.get("/reporting-tool/leadership-summary/export.csv", exportLeadershipTermSummary);
+router.get("/reporting-tool/pwa-adoption", renderPwaAdoptionReport);
+router.get("/reporting-tool/pwa-adoption/export.csv", exportPwaAdoptionReport);
 router.get("/reporting-tool/sip-pitis", renderSipPitisDashboard);
 router.get("/reporting-tool/sip-pitis/export.csv", exportSipPitisDashboard);
 router.get("/reporting-tool/sip-pitis/print", renderSipPitisDashboardPrint);

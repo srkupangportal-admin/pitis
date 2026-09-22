@@ -5,6 +5,21 @@ const { parseStudentQrPayload } = require("../services/qrCodeService");
 
 const router = express.Router();
 
+function recordPwaActivity(userId, counter, classId = null) {
+  const allowedCounters = new Set(["page_views", "bootstrap_count", "scan_count", "transaction_count"]);
+  if (!allowedCounters.has(counter)) return;
+  const now = dayjs().toISOString();
+  db.prepare(`
+    INSERT INTO pwa_user_activity (user_id, first_seen_at, last_seen_at, ${counter}, last_class_id, updated_at)
+    VALUES (?, ?, ?, 1, ?, ?)
+    ON CONFLICT(user_id) DO UPDATE SET
+      last_seen_at = excluded.last_seen_at,
+      ${counter} = ${counter} + 1,
+      last_class_id = COALESCE(excluded.last_class_id, last_class_id),
+      updated_at = excluded.updated_at
+  `).run(userId, now, now, classId || null, now);
+}
+
 router.use((req, res, next) => {
   const user = req.session.user;
   if (!user) return res.redirect(`/login?next=${encodeURIComponent("/pwa")}`);
@@ -15,10 +30,12 @@ router.use((req, res, next) => {
 });
 
 router.get("/", (req, res) => {
+  recordPwaActivity(req.session.user.id, "page_views", Number(req.session.pwaQuickPitisClassId || 0));
   res.render("pwa-quick-pitis", { user: req.session.user });
 });
 
 router.get("/api/bootstrap", (req, res) => {
+  recordPwaActivity(req.session.user.id, "bootstrap_count", Number(req.session.pwaQuickPitisClassId || 0));
   const classes = db.prepare(`
     SELECT c.id, c.name, COUNT(s.id) AS student_count
     FROM classes c
@@ -94,6 +111,7 @@ router.post("/api/scan", (req, res) => {
       WHERE s.id = ? AND s.student_id = ? AND s.qr_token = ?
     `).get(parsed.student_pk, parsed.student_id, parsed.qr_token);
     if (!student) return res.status(404).json({ error: "Student was not found for this QR code." });
+    recordPwaActivity(req.session.user.id, "scan_count", Number(student.class_id));
     return res.json({ student });
   } catch (_error) {
     return res.status(400).json({ error: "This is not a valid student QR code." });
@@ -171,6 +189,7 @@ router.post("/api/transactions", (req, res) => {
   }
 
   const total = Number(db.prepare("SELECT COALESCE(SUM(points), 0) AS total FROM point_logs WHERE student_id = ?").get(student.id).total || 0);
+  recordPwaActivity(req.session.user.id, "transaction_count", Number(student.class_id));
   return res.status(201).json({
     ok: true,
     student: { id: student.id, name: student.nickname || student.full_name, total_points: total },

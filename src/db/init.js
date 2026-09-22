@@ -1854,6 +1854,22 @@ function initializeDatabase() {
   migrateTeacherUsageAuditTables();
   migrateKioskTables();
   migrateQrQuizTables();
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS pwa_user_activity (
+      user_id INTEGER PRIMARY KEY,
+      first_seen_at TEXT NOT NULL,
+      last_seen_at TEXT NOT NULL,
+      page_views INTEGER NOT NULL DEFAULT 0,
+      bootstrap_count INTEGER NOT NULL DEFAULT 0,
+      scan_count INTEGER NOT NULL DEFAULT 0,
+      transaction_count INTEGER NOT NULL DEFAULT 0,
+      last_class_id INTEGER,
+      updated_at TEXT NOT NULL,
+      FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
+      FOREIGN KEY (last_class_id) REFERENCES classes(id) ON DELETE SET NULL
+    );
+    CREATE INDEX IF NOT EXISTS idx_pwa_user_activity_last_seen ON pwa_user_activity(last_seen_at DESC);
+  `);
   retireKnownDemoAccounts();
   seedDefaults();
   seedCalendarLabels();
