@@ -4310,14 +4310,19 @@ function renderSipPitisSettings(req, res) {
     settings: getSipPitisSettings(),
     candidates: getAllPortalTeacherCandidates(),
     saved: String(req.query.saved || "") === "1",
+    error: String(req.query.error || ""),
     user: req.session.user
   });
 }
 
 function saveSipPitisSettingsRoute(req, res) {
   if (!req.session.user || req.session.user.role !== "admin") return res.status(403).send("Admin access required");
-  saveSipPitisSettings(req.body, Number(req.session.user.id || 0) || null);
-  res.redirect("/teacher/reporting-tool/sip-pitis/settings?saved=1");
+  try {
+    saveSipPitisSettings(req.body, Number(req.session.user.id || 0) || null);
+    res.redirect("/teacher/reporting-tool/sip-pitis/settings?saved=1");
+  } catch (error) {
+    res.redirect(`/teacher/reporting-tool/sip-pitis/settings?error=${encodeURIComponent(error.message || "Invalid settings.")}`);
+  }
 }
 
 router.get("/reporting-tool", renderReportingToolMenu);

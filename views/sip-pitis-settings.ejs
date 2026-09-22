@@ -11,30 +11,36 @@
   <main class="container stack sip-pitis-page">
     <div class="calendar-header-row report-header-row">
       <div>
-        <h2>SIP PITIS Settings</h2>
-        <p class="muted">Admin controls for term targets and teacher account selection.</p>
+        <span class="reporting-tool-menu-kicker">Admin settings</span>
+        <h2>School PITIS Term Targets</h2>
+        <p class="muted">Set the school target separately for each term and choose the teacher accounts included in measurement.</p>
       </div>
       <div class="report-actions">
         <a class="btn secondary" href="/teacher/reporting-tool/sip-pitis">Dashboard</a>
+        <a class="btn secondary" href="/teacher/reporting-tool">Reporting Tool</a>
         <a class="btn secondary" href="/teacher/reporting-tool/sip-pitis/export.csv">Excel CSV</a>
         <button class="btn" type="button" onclick="window.print()">PDF / Print</button>
       </div>
     </div>
 
     <% if (saved) { %><div class="success-message">SIP PITIS settings saved.</div><% } %>
+    <% if (error) { %><div class="card target-settings-error"><strong>Settings were not saved.</strong><p><%= error %></p></div><% } %>
 
     <form class="card form stack" method="post" action="/teacher/reporting-tool/sip-pitis/settings">
       <section>
-        <h3>Term Targets</h3>
+        <h3>Term-by-term school targets</h3>
+        <p class="muted">The denominator is the total number of teachers used for the school target. Each term target is the number expected to remain on track. The percentage is calculated automatically.</p>
         <div class="sip-settings-grid">
+          <label>Target denominator
+            <input type="number" min="1" name="teacher_target_total" id="teacherTargetTotal" value="<%= settings.teacherTargetTotal %>" required />
+            <small class="muted">Total teachers in the target, for example 18.</small>
+          </label>
           <% [1,2,3,4].forEach(function(term) { %>
             <label>Term <%= term %>
-              <input type="number" min="0" name="target_term_<%= term %>" value="<%= settings.termTargets[term] %>" />
+              <input class="term-target-input" type="number" min="0" max="<%= settings.teacherTargetTotal %>" name="target_term_<%= term %>" value="<%= settings.termTargets[term] %>" data-term="<%= term %>" required />
+              <small class="muted" data-term-percentage="<%= term %>"><%= settings.teacherTargetTotal ? Math.round((settings.termTargets[term] / settings.teacherTargetTotal) * 100) : 0 %>% of target teachers</small>
             </label>
           <% }) %>
-          <label>Target denominator
-            <input type="number" min="1" name="teacher_target_total" value="<%= settings.teacherTargetTotal %>" />
-          </label>
         </div>
       </section>
 
@@ -65,6 +71,23 @@
       </div>
     </form>
   </main>
+  <script>
+    (function () {
+      var denominator = document.getElementById('teacherTargetTotal');
+      var targets = Array.prototype.slice.call(document.querySelectorAll('.term-target-input'));
+      function updatePercentages() {
+        var total = Math.max(1, Number(denominator && denominator.value) || 1);
+        targets.forEach(function (input) {
+          input.max = String(total);
+          var output = document.querySelector('[data-term-percentage="' + input.dataset.term + '"]');
+          if (output) output.textContent = Math.round(((Number(input.value) || 0) / total) * 100) + '% of target teachers';
+        });
+      }
+      if (denominator) denominator.addEventListener('input', updatePercentages);
+      targets.forEach(function (input) { input.addEventListener('input', updatePercentages); });
+      updatePercentages();
+    })();
+  </script>
   <script src="/js/inactivity.js"></script>
 </body>
 </html>

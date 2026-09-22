@@ -253,10 +253,17 @@ function getSipTeacherUsers(settings = getSipPitisSettings()) {
 }
 
 function saveSipPitisSettings(body, adminUserId) {
+  const teacherTargetTotal = Number.parseInt(String(body.teacher_target_total || ""), 10);
+  if (!Number.isInteger(teacherTargetTotal) || teacherTargetTotal < 1) {
+    throw new Error("The target denominator must be at least 1.");
+  }
   const targets = {};
   [1, 2, 3, 4].forEach((term) => {
     const value = Number.parseInt(String(body[`target_term_${term}`] || ""), 10);
-    targets[term] = Number.isInteger(value) && value >= 0 ? value : TERM_TARGETS_DEFAULT[term];
+    if (!Number.isInteger(value) || value < 0 || value > teacherTargetTotal) {
+      throw new Error(`Term ${term} target must be between 0 and ${teacherTargetTotal}.`);
+    }
+    targets[term] = value;
   });
   const excludedUsernames = String(body.excluded_usernames || "")
     .split(",")
@@ -265,11 +272,10 @@ function saveSipPitisSettings(body, adminUserId) {
   const teacherIds = (Array.isArray(body.teacher_user_ids) ? body.teacher_user_ids : [body.teacher_user_ids])
     .map((id) => Number(id))
     .filter((id) => Number.isInteger(id) && id > 0);
-  const teacherTargetTotal = Number.parseInt(String(body.teacher_target_total || ""), 10);
   setSetting("sip_pitis_term_targets", JSON.stringify(targets), adminUserId);
   setSetting("sip_pitis_excluded_usernames", JSON.stringify(excludedUsernames.length ? excludedUsernames : DEFAULT_EXCLUDED_USERNAMES), adminUserId);
   setSetting("sip_pitis_teacher_user_ids", JSON.stringify(Array.from(new Set(teacherIds))), adminUserId);
-  setSetting("sip_pitis_teacher_target_total", Number.isInteger(teacherTargetTotal) && teacherTargetTotal > 0 ? teacherTargetTotal : DEFAULT_TEACHER_TARGET_TOTAL, adminUserId);
+  setSetting("sip_pitis_teacher_target_total", teacherTargetTotal, adminUserId);
   return getSipPitisSettings();
 }
 
