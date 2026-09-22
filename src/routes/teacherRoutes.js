@@ -35,6 +35,10 @@ const {
   buildPitisIntegrityReport,
   pitisIntegrityReportToCsv
 } = require("../services/pitisIntegrityReportService");
+const {
+  buildWeeklyPitisActionReport,
+  weeklyPitisActionReportToCsv
+} = require("../services/weeklyPitisActionReportService");
 
 const router = express.Router();
 router.use(requireRole(["teacher", "staff", "admin"]));
@@ -4126,6 +4130,20 @@ function exportPitisIntegrityReport(_req, res) {
   res.send(pitisIntegrityReportToCsv(report));
 }
 
+function renderWeeklyPitisActionReport(req, res) {
+  res.render("weekly-pitis-action-report", {
+    report: buildWeeklyPitisActionReport(req.query),
+    user: req.session.user
+  });
+}
+
+function exportWeeklyPitisActionReport(req, res) {
+  const report = buildWeeklyPitisActionReport(req.query);
+  res.setHeader("Content-Type", "text/csv; charset=utf-8");
+  res.setHeader("Content-Disposition", `attachment; filename=weekly-pitis-action-${report.asOf}.csv`);
+  res.send(weeklyPitisActionReportToCsv(report));
+}
+
 function exportReportingTool(req, res) {
   const users = getReportingToolUsers();
   const allowedIds = new Set(users.map((user) => Number(user.id)));
@@ -4213,6 +4231,8 @@ function saveSipPitisSettingsRoute(req, res) {
 router.get("/reporting-tool", renderReportingToolMenu);
 router.get("/reporting-tool/data-integrity", renderPitisIntegrityReport);
 router.get("/reporting-tool/data-integrity/export.csv", exportPitisIntegrityReport);
+router.get("/reporting-tool/weekly-action", renderWeeklyPitisActionReport);
+router.get("/reporting-tool/weekly-action/export.csv", exportWeeklyPitisActionReport);
 router.get("/reporting-tool/sip-pitis", renderSipPitisDashboard);
 router.get("/reporting-tool/sip-pitis/export.csv", exportSipPitisDashboard);
 router.get("/reporting-tool/sip-pitis/print", renderSipPitisDashboardPrint);

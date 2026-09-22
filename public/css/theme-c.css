@@ -3739,12 +3739,38 @@ img, video, canvas, svg { max-width: 100%; }
 .integrity-check details summary { cursor: pointer; font-weight: 800; color: #123b63; }
 .integrity-check details .table-wrap { margin-top: 12px; }
 
+.weekly-action-report-page { padding-bottom: 48px; }
+.weekly-action-filter { display: flex; align-items: end; gap: 12px; }
+.weekly-action-filter label { display: grid; gap: 6px; min-width: min(100%, 240px); font-weight: 700; }
+.weekly-action-period { display: flex; align-items: center; justify-content: space-between; gap: 18px; border-left: 6px solid #2f855a; }
+.weekly-action-period h3 { margin: 3px 0; }
+.weekly-action-period p { margin: 0; }
+.weekly-action-generated { color: #58656f; font-size: .86rem; white-space: nowrap; }
+.weekly-action-kpi-grid { display: grid; grid-template-columns: repeat(5, minmax(120px, 1fr)); gap: 10px; }
+.weekly-action-kpi-grid .card { display: grid; align-content: center; gap: 4px; min-height: 108px; }
+.weekly-action-kpi-grid strong { color: #123b63; font-size: 1.7rem; line-height: 1; }
+.weekly-action-kpi-grid span { color: #58656f; font-size: .86rem; }
+.weekly-action-report-page details summary { cursor: pointer; color: #123b63; font-weight: 800; }
+.weekly-action-report-page details .table-wrap { margin-top: 12px; }
+
 @media (max-width: 800px) {
   .integrity-kpi-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .weekly-action-kpi-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .weekly-action-period { align-items: flex-start; flex-direction: column; }
+  .weekly-action-generated { white-space: normal; }
+}
+
+@media (max-width: 540px) {
+  .weekly-action-filter { align-items: stretch; flex-direction: column; }
+  .weekly-action-filter .btn { width: 100%; }
 }
 
 @media print {
   .integrity-report-page .button-row { display: none !important; }
   .integrity-check-grid { display: block; }
   .integrity-check { break-inside: avoid; margin-bottom: 10px; }
+  .weekly-action-report-page .button-row,
+  .weekly-action-report-page .weekly-action-filter { display: none !important; }
+  .weekly-action-kpi-grid { grid-template-columns: repeat(5, 1fr); }
+  .weekly-action-report-page .card { break-inside: avoid; }
 }

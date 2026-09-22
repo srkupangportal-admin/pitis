@@ -1,0 +1,82 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Weekly PITIS Action Report</title>
+  <link rel="stylesheet" href="/css/theme-c.css">
+</head>
+<body>
+  <%- include('partials/teacher-nav') %>
+  <main class="container stack weekly-action-report-page">
+    <div class="calendar-header-row report-header-row">
+      <div><span class="reporting-tool-menu-kicker">Phase 2 · Action</span><h2>Weekly PITIS Action Report</h2><p class="muted">Focus on people and classes needing attention rather than reviewing every transaction.</p></div>
+      <div class="button-row">
+        <a class="btn secondary" href="/teacher/reporting-tool">Reporting Tool</a>
+        <% if (!report.outsideTerm) { %><a class="btn secondary" href="/teacher/reporting-tool/weekly-action/export.csv?asOf=<%= report.asOf %>">Download CSV</a><% } %>
+        <button class="btn" type="button" onclick="window.print()">Print / Save PDF</button>
+      </div>
+    </div>
+
+    <form class="card form weekly-action-filter" method="get" action="/teacher/reporting-tool/weekly-action">
+      <label>Report as of <input type="date" name="asOf" value="<%= report.asOf %>" required></label>
+      <button class="btn" type="submit">Generate Report</button>
+    </form>
+
+    <% if (report.outsideTerm) { %>
+      <section class="card"><h3>Outside official school week</h3><p class="muted"><%= report.message %></p></section>
+    <% } else { %>
+      <section class="card weekly-action-period">
+        <div><span class="reporting-tool-menu-kicker">Reporting period</span><h3>Term <%= report.week.term %> · Week <%= report.week.weekNumber %></h3><p class="muted"><%= report.week.start %> to <%= report.week.end %> · Activity counted through <%= report.week.activityEnd %></p></div>
+        <div class="weekly-action-generated">Generated <%= report.generatedAt %></div>
+      </section>
+
+      <section class="weekly-action-kpi-grid">
+        <article class="card"><strong><%= report.summary.teachersNeedingAction %></strong><span>Teachers needing action</span></article>
+        <article class="card"><strong><%= report.summary.inactiveClasses %></strong><span>Classes with no recognition</span></article>
+        <article class="card"><strong><%= report.summary.unrecognisedStudents %></strong><span>Students not recognised</span></article>
+        <article class="card"><strong><%= report.summary.recognitionCoverage %>%</strong><span>School recognition coverage</span></article>
+        <article class="card"><strong><%= report.summary.unusualActivity %></strong><span>Unusual activity flags</span></article>
+      </section>
+
+      <section class="card">
+        <div class="report-section-heading"><span class="reporting-tool-menu-kicker">Priority 1</span><h3>Teacher Target Actions</h3><p class="muted">Teachers who have not yet met the weekly active-day requirement.</p></div>
+        <% if (!report.teacherActions.length) { %><p class="integrity-pass-copy">No teacher action is currently required.</p><% } else { %>
+          <div class="table-wrap"><table class="data-table"><thead><tr><th>Teacher</th><th>Status</th><th>Active days</th><th>Days available</th><th>Transactions</th><th>Students</th><th>Action</th></tr></thead><tbody>
+            <% report.teacherActions.forEach(function(row) { %><tr><td><strong><%= row.displayName %></strong><br><small class="muted"><%= row.username %></small></td><td><span class="status-badge"><%= row.status %></span></td><td><%= row.activeDays %>/<%= row.requiredDays %></td><td><%= row.availableDaysRemaining %></td><td><%= row.transactions %></td><td><%= row.studentsRewarded %></td><td><%= row.action %></td></tr><% }) %>
+          </tbody></table></div>
+        <% } %>
+      </section>
+
+      <section class="card">
+        <div class="report-section-heading"><span class="reporting-tool-menu-kicker">Priority 2</span><h3>Class Recognition Coverage</h3><p class="muted">Classes with no recognition or coverage below 50% this week.</p></div>
+        <% if (!report.classActions.length) { %><p class="integrity-pass-copy">Every active class has at least 50% recognition coverage.</p><% } else { %>
+          <div class="table-wrap"><table class="data-table"><thead><tr><th>Class</th><th>Recognised</th><th>Coverage</th><th>Transactions</th><th>Positive PITIS</th><th>Deductions</th><th>Action</th></tr></thead><tbody>
+            <% report.classActions.forEach(function(row) { %><tr><td><strong><%= row.name %></strong></td><td><%= row.recognisedStudents %>/<%= row.studentCount %></td><td><%= row.coverage %>%</td><td><%= row.transactions %></td><td><%= row.positivePoints %></td><td><%= row.deductions %></td><td><a href="/teacher/reward/<%= row.id %>"><%= row.action %></a></td></tr><% }) %>
+          </tbody></table></div>
+        <% } %>
+      </section>
+
+      <section class="card">
+        <div class="report-section-heading"><span class="reporting-tool-menu-kicker">Priority 3</span><h3>Students Not Yet Recognised</h3><p class="muted">Students without a positive PITIS transaction during the selected school week.</p></div>
+        <% if (!report.unrecognisedStudents.length) { %><p class="integrity-pass-copy">Every student has been recognised this week.</p><% } else { %>
+          <details><summary>Show <%= report.unrecognisedStudents.length %> student<%= report.unrecognisedStudents.length === 1 ? '' : 's' %></summary>
+            <div class="table-wrap"><table class="data-table"><thead><tr><th>Student</th><th>Class</th><th>All-time total</th><th>Last positive award</th><th>Action</th></tr></thead><tbody>
+              <% report.unrecognisedStudents.forEach(function(row) { %><tr><td><strong><%= row.name %></strong><br><small class="muted"><%= row.fullName %></small></td><td><%= row.className %></td><td><%= row.totalPoints %></td><td><%= row.lastPositiveAt %></td><td><a href="/teacher/reward/<%= row.classId %>">Open class</a></td></tr><% }) %>
+            </tbody></table></div>
+          </details>
+        <% } %>
+      </section>
+
+      <section class="card">
+        <div class="report-section-heading"><span class="reporting-tool-menu-kicker">Review</span><h3>Unusual Weekly Activity</h3><p class="muted">Flags students with more than 50 positive PITIS or at least 10 deductions this week. A flag is not automatically an error.</p></div>
+        <% if (!report.unusualActivity.length) { %><p class="integrity-pass-copy">No unusual weekly activity detected.</p><% } else { %>
+          <div class="table-wrap"><table class="data-table"><thead><tr><th>Student</th><th>Class</th><th>Positive PITIS</th><th>Deductions</th><th>Transactions</th><th>Review</th></tr></thead><tbody>
+            <% report.unusualActivity.forEach(function(row) { %><tr><td><%= row.name %></td><td><%= row.className %></td><td><%= row.positivePoints %></td><td><%= row.deductions %></td><td><%= row.transactions %></td><td><%= row.action %></td></tr><% }) %>
+          </tbody></table></div>
+        <% } %>
+      </section>
+    <% } %>
+  </main>
+</body>
+</html>
