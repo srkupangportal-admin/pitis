@@ -1,7 +1,7 @@
 {
   "id": "/pwa",
-  "name": "Quick PITIS",
-  "short_name": "Quick PITIS",
+  "name": "P.I.T.I.S",
+  "short_name": "P.I.T.I.S",
   "description": "Quickly award or deduct PITIS for SRK Kupang students.",
   "start_url": "/pwa",
   "scope": "/",
@@ -10,7 +10,6 @@
   "background_color": "#f2f6f5",
   "theme_color": "#123b63",
   "icons": [
-    { "src": "/images/quick-pitis-icon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any maskable" },
     { "src": "/images/brunei-school-logo.jpg", "type": "image/jpeg", "purpose": "any" }
   ]
 }

@@ -6,14 +6,29 @@
   <main class="container"><section class="card">
     <div class="notification-heading"><div><h2>Notification Device Status</h2><p class="muted">Users need at least one active browser or device to receive Web Push alerts. In-portal notifications remain available without a device.</p></div><a class="btn secondary" href="/admin/notification-diagnostics">Diagnostics</a></div>
     <% if (message) { %><p class="notice"><%= message %></p><% } %>
+    <form method="post" action="/admin/notification-users/send-pitis" id="sendPitisForm" class="stack" style="margin:16px 0;">
+      <div><h3>Send P.I.T.I.S</h3><p class="muted">Send users an in-portal notification that opens the installable P.I.T.I.S app. Users with enabled push notifications also receive it on their device.</p></div>
+      <div class="inline-actions">
+        <button class="btn" type="submit" name="send_to" value="selected">Send to selected users</button>
+        <button class="btn secondary" type="submit" name="send_to" value="all">Send to all active users</button>
+      </div>
     <div class="table-wrap"><table class="data-table notification-user-table">
-      <thead><tr><th>User</th><th>Role</th><th>Status</th><th>Last reminder</th><th>Action</th></tr></thead>
+      <thead><tr><th><input type="checkbox" id="selectAllPitisUsers" aria-label="Select all users"></th><th>User</th><th>Role</th><th>Status</th><th>Last reminder</th><th>Action</th></tr></thead>
       <tbody><% users.forEach(function(user) { %><tr>
+        <td><input type="checkbox" name="user_ids" value="<%= user.id %>" class="pitis-user-checkbox" aria-label="Select <%= user.display_name %>"></td>
         <td><strong><%= user.display_name %></strong><br><small class="muted"><%= user.username %></small></td><td><%= user.role %></td>
         <td><% if (user.active_devices) { %><span class="status-badge status-good"><%= user.active_devices %> active device<%= user.active_devices === 1 ? '' : 's' %></span><% } else { %><span class="status-badge status-warning">No active device</span><% } %></td>
         <td><%= user.last_reminded_at ? new Date(user.last_reminded_at).toLocaleString() : 'Never' %></td>
-        <td><% if (!user.active_devices) { %><form method="post" action="/admin/notification-users/<%= user.id %>/remind" class="inline-form"><button class="btn" type="submit">Send in-portal reminder</button></form><% } else { %><span class="muted">Ready</span><% } %></td>
+        <td><% if (!user.active_devices) { %><button class="btn" type="submit" formaction="/admin/notification-users/<%= user.id %>/remind" formmethod="post">Send in-portal reminder</button><% } else { %><span class="muted">Ready</span><% } %></td>
       </tr><% }) %></tbody>
     </table></div>
+    </form>
   </section></main>
+  <script>
+    document.getElementById('selectAllPitisUsers')?.addEventListener('change', function () {
+      document.querySelectorAll('.pitis-user-checkbox').forEach(function (checkbox) {
+        checkbox.checked = this.checked;
+      }, this);
+    });
+  </script>
 </body></html>
