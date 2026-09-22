@@ -10,8 +10,30 @@
   <%- include('partials/teacher-nav') %>
   <main class="container stack reporting-tool-menu-page">
     <div class="calendar-header-row report-header-row">
-      <div><h2>Reporting Tool</h2><p class="muted">Generate reliable operational, student, class, and leadership reports from one place.</p></div>
+      <div><span class="reporting-tool-menu-kicker">Phase 6 · Consolidated</span><h2>Reporting Tool</h2><p class="muted">Generate reliable operational, student, class, and leadership reports from one place.</p></div>
     </div>
+
+    <section class="reporting-command-overview" aria-label="Current reporting overview">
+      <article class="card"><strong><%= overview.availableReports %></strong><span>Available reports</span></article>
+      <article class="card"><strong><%= overview.criticalIntegrityIssues %></strong><span>Critical integrity issues</span></article>
+      <article class="card"><strong><%= overview.teachersNeedingAction %></strong><span>Teachers needing weekly action</span></article>
+      <article class="card"><strong><%= overview.recognitionCoverage %>%</strong><span>28-day recognition coverage</span></article>
+      <article class="card"><strong><%= overview.schoolConsistency %>%</strong><span>Current term consistency</span></article>
+      <article class="card"><strong><%= overview.pushEnabledUsers %></strong><span>Push-enabled users</span></article>
+    </section>
+
+    <section class="card reporting-guide">
+      <div><span class="reporting-tool-menu-kicker">Quick guide</span><h3>Choose the right report</h3><p class="muted">Use the narrowest report that answers the question; open the transaction ledger only when individual transaction evidence is required.</p></div>
+      <div class="reporting-guide-grid">
+        <div><strong>Is the data reliable?</strong><a href="/teacher/reporting-tool/data-integrity">Data Integrity</a></div>
+        <div><strong>What needs action now?</strong><a href="/teacher/reporting-tool/weekly-action">Weekly Action</a></div>
+        <div><strong>Who may be overlooked?</strong><a href="/teacher/reporting-tool/recognition-coverage">Recognition Coverage</a></div>
+        <div><strong>What happened to one student?</strong><a href="/teacher/reporting-tool/student-statement">Student Statement</a></div>
+        <div><strong>How is one class doing?</strong><a href="/teacher/reporting-tool/class-digest">Class Digest</a></div>
+        <div><strong>What should leadership review?</strong><a href="/teacher/reporting-tool/leadership-summary">Leadership Summary</a></div>
+      </div>
+      <small class="muted">Snapshot generated <%= overview.generatedAt %>.</small>
+    </section>
 
     <section class="report-section">
       <div class="report-section-heading"><span class="reporting-tool-menu-kicker">Reliability</span><h3>Data Integrity and Administration</h3><p class="muted">Check data quality before relying on totals, rankings, or exports.</p></div>

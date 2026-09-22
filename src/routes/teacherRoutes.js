@@ -4127,8 +4127,22 @@ function renderReportingTool(req, res) {
 }
 
 function renderReportingToolMenu(_req, res) {
+  const integrity = buildPitisIntegrityReport();
+  const weekly = buildWeeklyPitisActionReport();
+  const coverage = buildStudentRecognitionCoverageReport();
+  const leadership = buildLeadershipTermSummary();
+  const adoption = buildPwaAdoptionReport();
   res.render("reporting-tool-menu", {
-    auditStatus: getLatestTeacherUsageAudit()
+    auditStatus: getLatestTeacherUsageAudit(),
+    overview: {
+      availableReports: 10,
+      criticalIntegrityIssues: integrity.summary.criticalIssues,
+      teachersNeedingAction: weekly.summary.teachersNeedingAction,
+      recognitionCoverage: coverage.summary.coverage,
+      schoolConsistency: leadership.summary.schoolConsistency,
+      pushEnabledUsers: adoption.summary.pushEnabled,
+      generatedAt: dayjs().format("YYYY-MM-DD HH:mm:ss")
+    }
   });
 }
 

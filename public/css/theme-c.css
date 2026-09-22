@@ -3717,6 +3717,16 @@ img, video, canvas, svg { max-width: 100%; }
 .featured-report-card { border-color: #2f855a; box-shadow: 0 10px 28px rgba(47, 133, 90, .12); }
 .planned-report-card { background: #f7f9f8; border-style: dashed; }
 .planned-report-card .status-badge { align-self: flex-start; }
+.reporting-command-overview { display: grid; grid-template-columns: repeat(6, minmax(105px, 1fr)); gap: 10px; }
+.reporting-command-overview .card { display: grid; align-content: center; gap: 4px; min-height: 105px; }
+.reporting-command-overview strong { color: #123b63; font-size: 1.65rem; line-height: 1; }
+.reporting-command-overview span { color: #58656f; font-size: .84rem; }
+.reporting-guide { display: grid; gap: 14px; border-left: 6px solid #2f855a; }
+.reporting-guide h3 { margin: 3px 0; }
+.reporting-guide p { margin: 0; }
+.reporting-guide-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; }
+.reporting-guide-grid div { display: grid; gap: 4px; padding: 11px; border-radius: 11px; background: #f5f8f7; }
+.reporting-guide-grid a { color: #17663c; font-weight: 800; }
 .integrity-report-page { padding-bottom: 48px; }
 .integrity-overview { display: grid; gap: 16px; border-left: 6px solid #d39e00; }
 .integrity-status-healthy { border-left-color: #198754; }
@@ -3799,6 +3809,8 @@ img, video, canvas, svg { max-width: 100%; }
 .adoption-delivery-grid span { color: #58656f; text-transform: capitalize; }
 
 @media (max-width: 800px) {
+  .reporting-command-overview { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .reporting-guide-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .integrity-kpi-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .weekly-action-kpi-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .recognition-coverage-kpi-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
@@ -3817,6 +3829,7 @@ img, video, canvas, svg { max-width: 100%; }
 }
 
 @media (max-width: 540px) {
+  .reporting-guide-grid { grid-template-columns: 1fr; }
   .weekly-action-filter { align-items: stretch; flex-direction: column; }
   .weekly-action-filter .btn { width: 100%; }
   .recognition-coverage-filter { grid-template-columns: 1fr; }
@@ -3828,6 +3841,7 @@ img, video, canvas, svg { max-width: 100%; }
 }
 
 @media print {
+  .reporting-tool-menu-page .reporting-guide { display: none !important; }
   .integrity-report-page .button-row { display: none !important; }
   .integrity-check-grid { display: block; }
   .integrity-check { break-inside: avoid; margin-bottom: 10px; }
