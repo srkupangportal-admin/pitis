@@ -8,7 +8,7 @@ const { db } = require("../db/init");
 const PROJECT_ROOT = path.join(__dirname, "..", "..");
 const FALLBACK_DIRECTORY = path.join(PROJECT_ROOT, "backup");
 const SETTINGS_FALLBACK_PATH = path.join(FALLBACK_DIRECTORY, "auto-backup-settings.json");
-const LEGACY_DEFAULT_DESTINATION_PATH = "/home/hp/Documents/srkupangPORTAL/backup/auto-backups";
+const LEGACY_DEFAULT_DESTINATION_PATH = "/home/hp/Documents/pitis/backup/auto-backups";
 const DEFAULT_DESTINATION_PATH = path.join(FALLBACK_DIRECTORY, "auto-backups");
 const PUBLIC_UPLOADS_DIR = path.join(PROJECT_ROOT, "public", "uploads");
 

@@ -31,6 +31,10 @@ function canUserAccessPath(user, nextPath) {
     return ["admin", "teacher", "staff"].includes(user.role);
   }
 
+  if (safeNextPath === "/pwa" || safeNextPath.startsWith("/pwa/")) {
+    return ["admin", "teacher", "staff"].includes(user.role);
+  }
+
   if (safeNextPath.startsWith("/notes") || safeNextPath.startsWith("/informations") || safeNextPath.startsWith("/photos-upload")) {
     return ["admin", "teacher", "staff"].includes(user.role);
   }
@@ -45,8 +49,10 @@ function getLoginViewModel(error, nextPath) {
   };
 }
 
-function redirectUserByRole(res, _user, _nextPath) {
-  if (_user && _user.mustChangePassword) return res.redirect("/account/change-password");
+function redirectUserByRole(res, user, nextPath) {
+  if (user && user.mustChangePassword) return res.redirect("/account/change-password");
+  const safeNextPath = normalizeNextPath(nextPath);
+  if (safeNextPath && canUserAccessPath(user, safeNextPath)) return res.redirect(safeNextPath);
   return res.redirect("/");
 }
 

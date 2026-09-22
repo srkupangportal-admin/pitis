@@ -26,6 +26,7 @@ const deviceRoutes = require("./routes/deviceRoutes");
 const inventoryRoutes = require("./routes/inventoryRoutes");
 const rewardGalleryRoutes = require("./routes/rewardGalleryRoutes");
 const notificationRoutes = require("./routes/notificationRoutes");
+const pwaRoutes = require("./routes/pwaRoutes");
 const { initializeNotificationTables, initializeNotificationScheduler } = require("./services/notificationService");
 const { initializePitisProgressTables } = require("./services/pitisProgressService");
 const { initializeBackupScheduler } = require("./services/backupService");
@@ -213,6 +214,7 @@ function createApp(config) {
 
   app.use(authRoutes);
   app.use(publicRoutes);
+  app.use("/pwa", pwaRoutes);
   app.use("/teacher", teacherRoutes);
   app.use("/admin", adminAuditMiddleware);
   app.use("/admin", importRoutes);

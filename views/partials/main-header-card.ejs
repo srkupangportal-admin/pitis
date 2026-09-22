@@ -15,6 +15,7 @@
   const mainHeaderShortcuts = [
     { label: 'Home', href: '/' },
     { label: 'P.I.T.I.S.', href: authHref('/teacher/reward') },
+    { label: 'Quick PITIS App', href: authHref('/pwa') },
     { label: 'PITIS Leaders', href: '/leaderboard' },
     { label: 'Class Compass', href: classCompassUrl },
     { label: 'Calendar', href: authHref('/teacher/calendar') },
@@ -95,6 +96,7 @@
         Quick Menu
       </button>
       <nav id="mainHeaderMobileShortcuts" class="main-header-mobile-panel hidden" aria-label="Mobile shortcuts">
+        <button type="button" class="btn pwa-install-button" data-pwa-install hidden aria-hidden="true">Install SRK Portal</button>
         <% if (isAuthenticated) { %><a class="btn notification-bell" href="/notifications">&#128276; Notifications</a><a class="btn" href="/notification-settings">Notification Settings</a><a class="btn" href="/reminders">Reminders</a><% } %>
         <% mainHeaderShortcuts.forEach(function (item) { %>
           <a class="btn <%= item.className || '' %>" href="<%= item.href %>"><%= item.label %></a>
@@ -215,5 +217,6 @@
   })();
 </script>
 <% if (isAuthenticated) { %><script src="/js/notifications.js"></script><% } %>
+<script src="/js/pwa.js"></script>
 <script src="/js/async-forms.js"></script>
 <script src="/js/mobile-date-picker.js"></script>

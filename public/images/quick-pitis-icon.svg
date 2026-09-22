@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+  <rect width="512" height="512" rx="112" fill="#123b63"/>
+  <circle cx="256" cy="212" r="132" fill="#fff"/>
+  <path d="M170 212h172M256 126v172" stroke="#198754" stroke-width="44" stroke-linecap="round"/>
+  <rect x="92" y="374" width="328" height="72" rx="36" fill="#f2c94c"/>
+  <text x="256" y="425" text-anchor="middle" font-family="Arial,Helvetica,sans-serif" font-size="48" font-weight="700" fill="#123b63">PITIS</text>
+</svg>

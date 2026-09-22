@@ -1,10 +1,22 @@
 {
-  "name": "SRK Kupang Portal",
+  "name": "SRK Kupang School Portal",
   "short_name": "SRK Portal",
-  "start_url": "/kiosk",
+  "start_url": "/",
   "scope": "/",
   "display": "standalone",
   "background_color": "#f4f7fb",
   "theme_color": "#123b63",
-  "description": "LAN-ready school portal kiosk and dashboard."
+  "description": "PITIS, attendance, school information, and staff tools for SRK Kupang.",
+  "icons": [
+    {
+      "src": "/images/brunei-school-logo.jpg",
+      "type": "image/jpeg",
+      "purpose": "any"
+    }
+  ],
+  "shortcuts": [
+    { "name": "Attendance Kiosk", "url": "/kiosk" },
+    { "name": "PITIS Leaders", "url": "/leaderboard" },
+    { "name": "Login", "url": "/login" }
+  ]
 }

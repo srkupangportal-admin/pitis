@@ -1117,6 +1117,52 @@ body.calendar-ref-dark::after { display: none !important; }
   .calendar-upcoming-list { max-height: none; }
 }
 
+/* Installed mobile web app: safe touch targets and iOS home-indicator clearance. */
+@media (max-width: 640px) {
+  body {
+    min-height: 100dvh;
+    padding-bottom: env(safe-area-inset-bottom);
+  }
+
+  input, select, textarea, button, .btn {
+    min-height: 44px;
+  }
+
+  .pwa-install-button {
+    grid-column: 1 / -1;
+    color: #fff !important;
+    background: #176b54 !important;
+    border-color: #176b54 !important;
+  }
+}
+
+.pwa-install-help {
+  position: fixed;
+  z-index: 2000;
+  right: max(16px, env(safe-area-inset-right));
+  bottom: max(16px, env(safe-area-inset-bottom));
+  left: max(16px, env(safe-area-inset-left));
+  display: grid;
+  gap: 8px;
+  max-width: 420px;
+  margin: auto;
+  padding: 16px;
+  border-radius: 16px;
+  color: #fff;
+  background: #123b63;
+  box-shadow: 0 14px 36px rgba(5, 24, 17, .34);
+}
+
+.pwa-install-help button {
+  justify-self: start;
+  min-height: 40px;
+  padding: 7px 12px;
+  border: 1px solid rgba(255,255,255,.5);
+  border-radius: 8px;
+  color: inherit;
+  background: transparent;
+}
+
 /* Calendar: Apple Calendar-inspired light workspace. Presentation only. */
 html body.calendar-apple {
   --calendar-red: #ff3b30;

@@ -58,7 +58,7 @@ public/resources/
 # Local student imports/exports and duplicate legacy checkout
 students*.csv
 cleaned-student-details-template.csv
-srkupangPORTAL/
+pitis/
 
 # Build and test output
 dist/

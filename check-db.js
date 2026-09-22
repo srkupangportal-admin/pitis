@@ -1,6 +1,6 @@
 const Database = require('better-sqlite3');
 
-const p = 'D:/srkupangportal/data/restored-2026-06-11.sqlite';
+const p = 'D:/schoolportal/pitis/data/restored-2026-06-11.sqlite';
 const db = new Database(p, { readonly: true });
 
 console.log('Checking database:', p);

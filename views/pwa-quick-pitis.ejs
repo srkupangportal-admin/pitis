@@ -1,0 +1,95 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover,user-scalable=no">
+  <meta name="theme-color" content="#123b63">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="default">
+  <title>Quick PITIS</title>
+  <link rel="manifest" href="/pwa-manifest.webmanifest">
+  <link rel="icon" href="/images/quick-pitis-icon.svg" type="image/svg+xml">
+  <link rel="apple-touch-icon" href="/images/brunei-school-logo.jpg">
+  <link rel="stylesheet" href="/css/pwa-quick-pitis.css">
+</head>
+<body>
+  <header class="app-header">
+    <img src="/images/brunei-school-logo.jpg" alt="SRK Kupang">
+    <div><strong>Quick PITIS</strong><small><%= user.displayName %></small></div>
+    <button type="button" id="installApp" class="header-button" hidden>Install</button>
+  </header>
+
+  <main class="app-main">
+    <button type="button" id="scanStudent" class="scan-button">Scan student QR code</button>
+    <section class="step-card">
+      <label for="classSelect"><span>1</span> Select class</label>
+      <select id="classSelect"><option value="">Loading classes…</option></select>
+    </section>
+
+    <section class="step-card">
+      <label for="studentSelect"><span>2</span> Select student</label>
+      <select id="studentSelect" disabled><option value="">Select a class first</option></select>
+      <article id="studentCard" class="student-card" hidden>
+        <img id="studentPhoto" src="/images/student-placeholder.svg" alt="">
+        <div><strong id="studentName"></strong><small id="studentFullName"></small></div>
+        <output id="studentTotal">0 PITIS</output>
+      </article>
+    </section>
+
+    <section class="step-card">
+      <div class="step-title"><span>3</span> Choose PITIS</div>
+      <p class="button-label award-label">Award</p>
+      <div class="number-grid" id="awardButtons" aria-label="Award PITIS">
+        <% for (let value = 1; value <= 5; value += 1) { %><button type="button" class="number-button award" data-action="award" data-amount="<%= value %>">+<%= value %></button><% } %>
+      </div>
+      <p class="button-label deduct-label">Deduct</p>
+      <div class="number-grid" id="deductButtons" aria-label="Deduct PITIS">
+        <% for (let value = 1; value <= 5; value += 1) { %><button type="button" class="number-button deduct" data-action="deduct" data-amount="<%= value %>">−<%= value %></button><% } %>
+      </div>
+    </section>
+
+    <section class="step-card">
+      <label for="reasonSelect"><span>4</span> Select reason</label>
+      <select id="reasonSelect" disabled><option value="">Choose PITIS first</option></select>
+      <label class="custom-reason-toggle"><input type="checkbox" id="useCustomReason"> Create a new reason</label>
+      <input id="customReason" type="text" maxlength="120" placeholder="Type new reason" hidden>
+    </section>
+
+    <button type="button" id="reviewButton" class="confirm-button" disabled>Review and confirm</button>
+    <p id="statusMessage" class="status-message" role="status" aria-live="polite"></p>
+  </main>
+
+  <nav class="app-footer" aria-label="App controls">
+    <button type="button" id="enableNotifications">Enable notifications</button>
+    <form method="post" action="/logout"><button type="submit">Log out</button></form>
+  </nav>
+
+  <dialog id="confirmDialog">
+    <form method="dialog" class="confirm-dialog-card">
+      <h2>Confirm PITIS</h2>
+      <p id="confirmSummary"></p>
+      <div class="dialog-actions">
+        <button value="cancel" class="cancel-button">Cancel</button>
+        <button value="confirm" id="submitTransaction" class="confirm-button">Confirm</button>
+      </div>
+    </form>
+  </dialog>
+
+  <dialog id="scanDialog" class="scan-dialog">
+    <section class="scan-dialog-card">
+      <div class="scan-heading"><h2>Scan student QR</h2><button type="button" id="closeScanner" aria-label="Close scanner">Close</button></div>
+      <div id="pwaQrReader" class="qr-reader"></div>
+      <p id="scanStatus" role="status">Allow camera access, then point it at a student QR code.</p>
+      <form id="manualQrForm" class="manual-qr-form">
+        <input id="manualQrText" type="text" placeholder="Or paste QR text" autocomplete="off" autocapitalize="off" spellcheck="false">
+        <button type="submit">Select student</button>
+      </form>
+    </section>
+  </dialog>
+
+  <script src="/js/notifications.js"></script>
+  <script src="/vendor/html5-qrcode/html5-qrcode.min.js"></script>
+  <script src="/js/pwa-quick-pitis.js"></script>
+</body>
+</html>
