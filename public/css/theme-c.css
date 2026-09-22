@@ -3763,6 +3763,23 @@ img, video, canvas, svg { max-width: 100%; }
 .recognition-coverage-kpi-grid strong { color: #123b63; font-size: 1.7rem; line-height: 1; }
 .recognition-coverage-kpi-grid span { color: #58656f; font-size: .86rem; }
 .recognition-analysis-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px; align-items: start; }
+.phase-four-report-page { padding-bottom: 48px; }
+.phase-four-filter { display: grid; grid-template-columns: minmax(240px, 1.7fr) repeat(2, minmax(145px, .7fr)) auto; align-items: end; gap: 12px; }
+.phase-four-filter label { display: grid; gap: 6px; font-weight: 700; }
+.statement-identity { display: flex; align-items: center; justify-content: space-between; gap: 18px; border-left: 6px solid #2f855a; }
+.statement-identity h3 { margin: 3px 0; }
+.statement-identity p { margin: 0; }
+.statement-identity > div:last-child { display: grid; gap: 4px; color: #58656f; text-align: right; }
+.phase-four-kpi-grid { display: grid; grid-template-columns: repeat(5, minmax(115px, 1fr)); gap: 10px; }
+.phase-four-kpi-grid .card { display: grid; align-content: center; gap: 4px; min-height: 108px; }
+.phase-four-kpi-grid strong { color: #123b63; font-size: 1.7rem; line-height: 1; }
+.phase-four-kpi-grid span { color: #58656f; font-size: .86rem; }
+.phase-four-two-column { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px; align-items: start; }
+.phase-four-empty { border-style: dashed; text-align: center; }
+.phase-four-empty h3 { margin-bottom: 4px; }
+.phase-four-empty p { margin: 0; }
+.class-student-chip-grid { display: flex; flex-wrap: wrap; gap: 8px; margin: 12px 0; }
+.class-student-chip-grid span { padding: 6px 10px; border: 1px solid #e2b744; border-radius: 999px; background: #fff8df; color: #614a00; font-weight: 700; }
 
 @media (max-width: 800px) {
   .integrity-kpi-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
@@ -3770,6 +3787,12 @@ img, video, canvas, svg { max-width: 100%; }
   .recognition-coverage-kpi-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .recognition-coverage-filter { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .recognition-analysis-grid { grid-template-columns: 1fr; }
+  .phase-four-kpi-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .phase-four-filter { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .phase-four-wide-field { grid-column: 1 / -1; }
+  .phase-four-two-column { grid-template-columns: 1fr; }
+  .statement-identity { align-items: flex-start; flex-direction: column; }
+  .statement-identity > div:last-child { text-align: left; }
   .weekly-action-period { align-items: flex-start; flex-direction: column; }
   .weekly-action-generated { white-space: normal; }
 }
@@ -3779,6 +3802,8 @@ img, video, canvas, svg { max-width: 100%; }
   .weekly-action-filter .btn { width: 100%; }
   .recognition-coverage-filter { grid-template-columns: 1fr; }
   .recognition-coverage-filter .btn { width: 100%; }
+  .phase-four-filter { grid-template-columns: 1fr; }
+  .phase-four-filter .btn { width: 100%; }
 }
 
 @media print {
@@ -3793,4 +3818,9 @@ img, video, canvas, svg { max-width: 100%; }
   .recognition-coverage-page .recognition-coverage-filter { display: none !important; }
   .recognition-coverage-kpi-grid { grid-template-columns: repeat(5, 1fr); }
   .recognition-analysis-grid { grid-template-columns: 1fr 1fr; }
+  .phase-four-report-page .button-row,
+  .phase-four-report-page .phase-four-filter { display: none !important; }
+  .phase-four-kpi-grid { grid-template-columns: repeat(5, 1fr); }
+  .phase-four-two-column { grid-template-columns: 1fr 1fr; }
+  .phase-four-report-page .card { break-inside: avoid; }
 }

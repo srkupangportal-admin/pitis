@@ -43,6 +43,12 @@ const {
   buildStudentRecognitionCoverageReport,
   studentRecognitionCoverageToCsv
 } = require("../services/studentRecognitionCoverageService");
+const {
+  buildStudentStatement,
+  studentStatementToCsv,
+  buildClassWeeklyDigest,
+  classWeeklyDigestToCsv
+} = require("../services/phaseFourPitisReportsService");
 
 const router = express.Router();
 router.use(requireRole(["teacher", "staff", "admin"]));
@@ -4164,6 +4170,30 @@ function exportStudentRecognitionCoverage(req, res) {
   res.send(studentRecognitionCoverageToCsv(report));
 }
 
+function renderStudentStatement(req, res) {
+  res.render("individual-student-statement", { report: buildStudentStatement(req.query), user: req.session.user });
+}
+
+function exportStudentStatement(req, res) {
+  const report = buildStudentStatement(req.query);
+  if (report.error || !report.hasStudent) return res.status(400).send(report.error || "Choose a student.");
+  res.setHeader("Content-Type", "text/csv; charset=utf-8");
+  res.setHeader("Content-Disposition", `attachment; filename=pitis-statement-${report.studentId}-${report.from}-to-${report.to}.csv`);
+  res.send(studentStatementToCsv(report));
+}
+
+function renderClassWeeklyDigest(req, res) {
+  res.render("class-weekly-digest", { report: buildClassWeeklyDigest(req.query), user: req.session.user });
+}
+
+function exportClassWeeklyDigest(req, res) {
+  const report = buildClassWeeklyDigest(req.query);
+  if (report.error || !report.hasClass) return res.status(400).send(report.error || "Choose a class.");
+  res.setHeader("Content-Type", "text/csv; charset=utf-8");
+  res.setHeader("Content-Disposition", `attachment; filename=class-digest-${report.classId}-${report.from}-to-${report.to}.csv`);
+  res.send(classWeeklyDigestToCsv(report));
+}
+
 function exportReportingTool(req, res) {
   const users = getReportingToolUsers();
   const allowedIds = new Set(users.map((user) => Number(user.id)));
@@ -4255,6 +4285,10 @@ router.get("/reporting-tool/weekly-action", renderWeeklyPitisActionReport);
 router.get("/reporting-tool/weekly-action/export.csv", exportWeeklyPitisActionReport);
 router.get("/reporting-tool/recognition-coverage", renderStudentRecognitionCoverage);
 router.get("/reporting-tool/recognition-coverage/export.csv", exportStudentRecognitionCoverage);
+router.get("/reporting-tool/student-statement", renderStudentStatement);
+router.get("/reporting-tool/student-statement/export.csv", exportStudentStatement);
+router.get("/reporting-tool/class-digest", renderClassWeeklyDigest);
+router.get("/reporting-tool/class-digest/export.csv", exportClassWeeklyDigest);
 router.get("/reporting-tool/sip-pitis", renderSipPitisDashboard);
 router.get("/reporting-tool/sip-pitis/export.csv", exportSipPitisDashboard);
 router.get("/reporting-tool/sip-pitis/print", renderSipPitisDashboardPrint);

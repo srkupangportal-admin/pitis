@@ -1,0 +1,24 @@
+<!doctype html>
+<html lang="en">
+<head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Individual Student PITIS Statement</title><link rel="stylesheet" href="/css/theme-c.css"></head>
+<body>
+  <%- include('partials/teacher-nav') %>
+  <main class="container stack phase-four-report-page">
+    <div class="calendar-header-row report-header-row">
+      <div><span class="reporting-tool-menu-kicker">Phase 4 · Student record</span><h2>Individual Student PITIS Statement</h2><p class="muted">A printable balance summary and complete transaction ledger for one student.</p></div>
+      <div class="button-row"><a class="btn secondary" href="/teacher/reporting-tool">Reporting Tool</a><% if (report.hasStudent && !report.error) { %><a class="btn secondary" href="/teacher/reporting-tool/student-statement/export.csv?studentId=<%= report.studentId %>&from=<%= report.from %>&to=<%= report.to %>">Download CSV</a><% } %><button class="btn" type="button" onclick="window.print()">Print / Save PDF</button></div>
+    </div>
+    <form class="card form phase-four-filter" method="get" action="/teacher/reporting-tool/student-statement">
+      <label class="phase-four-wide-field">Student<select name="studentId" required><option value="">Select student</option><% report.students.forEach(function(item) { %><option value="<%= item.id %>" <%= Number(report.studentId) === item.id ? 'selected' : '' %>><%= item.class_name %> · <%= item.name %> — <%= item.full_name %></option><% }) %></select></label>
+      <label>From<input type="date" name="from" value="<%= report.from %>" required></label><label>To<input type="date" name="to" value="<%= report.to %>" required></label><button class="btn" type="submit">Generate Statement</button>
+    </form>
+    <% if (report.error) { %><section class="card"><h3>Statement could not be generated</h3><p><%= report.error %></p></section><% } %>
+    <% if (!report.hasStudent && !report.error) { %><section class="card phase-four-empty"><h3>Select a student</h3><p class="muted">Choose the student and reporting dates above to generate a statement.</p></section><% } %>
+    <% if (report.hasStudent && !report.error) { %>
+      <section class="card statement-identity"><div><span class="reporting-tool-menu-kicker">Student</span><h3><%= report.student.name %></h3><p class="muted"><%= report.student.full_name %> · <%= report.student.class_name %><% if (report.student.student_id) { %> · <%= report.student.student_id %><% } %></p></div><div><strong><%= report.from %> to <%= report.to %></strong><span>Generated <%= report.generatedAt %></span></div></section>
+      <section class="phase-four-kpi-grid"><article class="card"><strong><%= report.summary.openingBalance %></strong><span>Opening balance</span></article><article class="card"><strong>+<%= report.summary.awarded %></strong><span>Awarded</span></article><article class="card"><strong>-<%= report.summary.deducted %></strong><span>Deducted</span></article><article class="card"><strong><%= report.summary.netChange >= 0 ? '+' : '' %><%= report.summary.netChange %></strong><span>Period change</span></article><article class="card"><strong><%= report.summary.closingBalance %></strong><span>Closing balance</span></article></section>
+      <section class="card"><div class="report-section-heading"><span class="reporting-tool-menu-kicker">Ledger</span><h3>Transaction History</h3><p class="muted"><%= report.summary.transactions %> transaction<%= report.summary.transactions === 1 ? '' : 's' %> in this period.</p></div><% if (!report.transactions.length) { %><p class="muted">No transactions in this period.</p><% } else { %><div class="table-wrap"><table class="data-table"><thead><tr><th>Date and time</th><th>Type</th><th>Points</th><th>Reason</th><th>Teacher</th></tr></thead><tbody><% report.transactions.forEach(function(row) { %><tr><td><%= row.awardedAt %></td><td><%= row.type %></td><td><strong><%= row.points > 0 ? '+' : '' %><%= row.points %></strong></td><td><%= row.reason %></td><td><%= row.teacher %></td></tr><% }) %></tbody></table></div><% } %></section>
+      <section class="card"><div class="report-section-heading"><span class="reporting-tool-menu-kicker">Summary</span><h3>Reasons Used</h3></div><% if (!report.reasonRows.length) { %><p class="muted">No reasons in this period.</p><% } else { %><div class="table-wrap"><table class="data-table"><thead><tr><th>Reason</th><th>Type</th><th>Uses</th><th>Net PITIS</th></tr></thead><tbody><% report.reasonRows.forEach(function(row) { %><tr><td><%= row.reason %></td><td><%= row.type %></td><td><%= row.uses %></td><td><%= row.netPoints %></td></tr><% }) %></tbody></table></div><% } %></section>
+    <% } %>
+  </main><script src="/js/inactivity.js"></script>
+</body></html>
