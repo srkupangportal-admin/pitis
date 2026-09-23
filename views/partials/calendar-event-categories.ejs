@@ -1,0 +1,30 @@
+<section class="card form calendar-add-form calendar-category-card">
+  <details class="calendar-category-details">
+    <summary class="calendar-category-summary">
+      <span>
+        <strong>Event Categories</strong>
+        <small><%= (selectedLabelIds || []).length ? (selectedLabelIds || []).length + ' selected' : 'All categories' %></small>
+      </span>
+    </summary>
+    <div class="calendar-category-body">
+      <form method="get" action="/teacher/calendar" class="stack">
+        <input type="hidden" name="month" value="<%= monthKey %>" />
+        <div class="calendar-label-picker">
+          <div class="muted">Select one or more labels to list matching events.</div>
+          <div class="calendar-label-list">
+            <% labels.forEach(lb => { %>
+              <label class="calendar-label-option">
+                <input type="checkbox" name="label_ids" value="<%= lb.id %>" <%= (selectedLabelIds || []).includes(Number(lb.id)) ? 'checked' : '' %> />
+                <span class="calendar-label-chip" style="--label-color:<%= lb.color %>"><%= lb.name %></span>
+              </label>
+            <% }) %>
+          </div>
+        </div>
+        <div class="button-row">
+          <button class="btn" type="submit">Apply Label Filter</button>
+          <a class="btn secondary" href="/teacher/calendar?month=<%= monthKey %>">Clear Filter</a>
+        </div>
+      </form>
+    </div>
+  </details>
+</section>

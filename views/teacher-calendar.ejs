@@ -123,36 +123,7 @@
 
       <aside class="calendar-side-column">
 
-    <section class="card form calendar-add-form calendar-category-card">
-      <details class="calendar-category-details">
-        <summary class="calendar-category-summary">
-          <span>
-            <strong>Event Categories</strong>
-            <small><%= (selectedLabelIds || []).length ? (selectedLabelIds || []).length + ' selected' : 'All categories' %></small>
-          </span>
-        </summary>
-        <div class="calendar-category-body">
-      <form method="get" action="/teacher/calendar" class="stack">
-        <input type="hidden" name="month" value="<%= monthKey %>" />
-        <div class="calendar-label-picker">
-          <div class="muted">Select one or more labels to list matching events.</div>
-          <div class="calendar-label-list">
-            <% labels.forEach(lb => { %>
-              <label class="calendar-label-option">
-                <input type="checkbox" name="label_ids" value="<%= lb.id %>" <%= (selectedLabelIds || []).includes(Number(lb.id)) ? 'checked' : '' %> />
-                <span class="calendar-label-chip" style="--label-color:<%= lb.color %>"><%= lb.name %></span>
-              </label>
-            <% }) %>
-          </div>
-        </div>
-        <div class="button-row">
-          <button class="btn" type="submit">Apply Label Filter</button>
-          <a class="btn secondary" href="/teacher/calendar?month=<%= monthKey %>">Clear Filter</a>
-        </div>
-      </form>
-        </div>
-      </details>
-    </section>
+    <%- include('partials/calendar-add-event') %>
 
     <section class="card form calendar-add-form calendar-filtered-events-card">
       <details class="calendar-filtered-events-details" open>
@@ -287,77 +258,7 @@
       </div>
     </div>
 
-    <section class="card form calendar-add-form" id="calendarAddEvent">
-      <h3>Add Event</h3>
-      <form method="post" action="/teacher/calendar/add">
-        <div class="inline-filters">
-          <label>Title
-            <input type="text" name="title" required />
-          </label>
-          <label>Details
-            <input type="text" name="details" />
-          </label>
-          <label>Start Date
-            <input type="date" name="event_date" required />
-          </label>
-          <label>Start Time
-            <input type="time" name="event_time" value="09:00" />
-          </label>
-          <label>End Date
-            <input type="date" name="end_date" />
-          </label>
-        </div>
-
-        <div class="calendar-label-picker">
-          <div class="muted">Labels (optional, multi-select):</div>
-          <div class="calendar-label-list">
-            <% labels.forEach(lb => { %>
-              <label class="calendar-label-option">
-                <input type="checkbox" name="label_ids" value="<%= lb.id %>" />
-                <span class="calendar-label-chip" style="--label-color:<%= lb.color %>"><%= lb.name %></span>
-              </label>
-            <% }) %>
-          </div>
-        </div>
-
-        <div class="calendar-label-picker">
-          <label>Tag Users Scope
-            <select name="tag_scope" class="tag-scope-select">
-              <option value="">None</option>
-              <option value="all">All stakeholders</option>
-              <option value="all_teachers">All teachers</option>
-              <option value="teachers">Teachers</option>
-              <option value="all_staffs">All Staffs</option>
-              <option value="staffs">Staffs</option>
-            </select>
-          </label>
-          <div class="tag-user-group tag-teacher-wrap">
-              <div class="muted">Teachers (select one or more)</div>
-              <div class="tag-checkbox-grid">
-                <% teacherUsers.forEach(u => { %>
-                  <label class="tag-check-item">
-                    <input type="checkbox" name="tag_teacher_ids" value="<%= u.id %>" <%= (typeof ev !== 'undefined' && (ev.tagged_teacher_ids || []).includes(Number(u.id))) ? 'checked' : '' %> />
-                    <span><%= u.display_name %></span>
-                  </label>
-                <% }) %>
-              </div>
-            </div>
-            <div class="tag-user-group tag-staff-wrap">
-              <div class="muted">Staffs (select one or more)</div>
-              <div class="tag-checkbox-grid">
-                <% staffUsers.forEach(u => { %>
-                  <label class="tag-check-item">
-                    <input type="checkbox" name="tag_staff_ids" value="<%= u.id %>" <%= (typeof ev !== 'undefined' && (ev.tagged_staff_ids || []).includes(Number(u.id))) ? 'checked' : '' %> />
-                    <span><%= u.display_name %></span>
-                  </label>
-                <% }) %>
-              </div>
-            </div>
-        </div>
-
-        <button class="btn" type="submit">Add Event</button>
-      </form>
-    </section>
+    <%- include('partials/calendar-event-categories') %>
 
     <section class="card form calendar-add-form">
       <h3>Create New Label</h3>
