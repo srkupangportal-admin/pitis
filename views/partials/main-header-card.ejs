@@ -2,6 +2,7 @@
   const headerUser = typeof currentUser !== 'undefined' && currentUser ? currentUser : (typeof user !== 'undefined' ? user : null);
   const isAuthenticated = !!headerUser;
   const isAdmin = isAuthenticated && headerUser.role === 'admin';
+  const canViewStudentDetails = isAuthenticated && ['teacher', 'admin'].includes(headerUser.role);
   const headerProgressSummary = typeof teacherProgressSummary !== 'undefined' && teacherProgressSummary
     ? teacherProgressSummary
     : null;
@@ -19,7 +20,7 @@
     { label: 'PITIS Leaders', href: '/leaderboard' },
     { label: 'Class Compass', href: classCompassUrl },
     { label: 'Calendar', href: authHref('/teacher/calendar') },
-    { label: 'Student Details', href: authHref('/teacher/students') },
+    canViewStudentDetails ? { label: 'Student Details', href: '/teacher/students' } : null,
     { label: 'Tools', href: authHref('/teacher/tools') },
     { label: 'PITIS Gallery', href: '/rewards' },
     { label: 'Device Bookings', href: authHref(isAdmin ? '/admin/devices' : '/devices') },

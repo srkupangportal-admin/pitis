@@ -58,6 +58,12 @@ const {
 
 const router = express.Router();
 router.use(requireRole(["teacher", "staff", "admin"]));
+router.use("/students", (req, res, next) => {
+  if (!["teacher", "admin"].includes(req.session.user.role)) {
+    return res.status(403).send("Student details are restricted to teachers and administrators.");
+  }
+  return next();
+});
 
 const STUDENT_UPLOAD_DIR = path.join(__dirname, "..", "..", "public", "uploads", "students");
 if (!fs.existsSync(STUDENT_UPLOAD_DIR)) {
