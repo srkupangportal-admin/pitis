@@ -1660,6 +1660,10 @@
             <div><strong>Automatic backup:</strong> <%= Number((backupSettings && backupSettings.auto_enabled) || 0) === 1 ? 'ON' : 'OFF' %></div>
             <div><strong>Backup schedule:</strong> Every <%= (backupSettings && backupSettings.backup_interval_days) || 2 %> days at <%= (backupSettings && backupSettings.backup_time) || '15:00' %></div>
             <div><strong>Destination folder:</strong> <%= (backupSettings && backupSettings.destination_path) || '-' %></div>
+            <div><strong>Automatic retention:</strong> Latest <%= backupRetentionCount || 14 %> verified automatic backups plus two recent failed attempts for diagnosis. Manual backups are retained until an administrator deletes them.</div>
+            <div><strong>Storage available:</strong> <%= backupStorage && backupStorage.available ? `${(backupStorage.freeBytes / 1024 / 1024 / 1024).toFixed(1)} GB (${backupStorage.freePercent}%)` : 'Unavailable' %></div>
+            <div><strong>Recovery testing:</strong> Every new backup and the latest saved backup at least every <%= backupRecoveryTestIntervalDays || 7 %> days.</div>
+            <div><strong>Latest recovery test:</strong> <%= backupLatestSaved && backupLatestSaved.recovery_test ? `${backupLatestSaved.recovery_test.status} — ${backupLatestSaved.recovery_test.checked_at}` : 'No recovery test recorded' %></div>
             <div><strong>Status:</strong> <%= (backupStatus && backupStatus.message) || 'No backup status available.' %></div>
             <% if (backupStatus && backupStatus.warning) { %>
               <div class="error"><%= backupStatus.warning %></div>
@@ -1727,7 +1731,7 @@
                     <td><%= item.created_at || '-' %></td>
                     <td><%= item.trigger_type || '-' %></td>
                     <td><%= item.source_hostname || 'Legacy backup' %><% if (item.source_environment) { %><br><small class="muted"><%= item.source_environment %></small><% } %></td>
-                    <td><%= item.integrity_protection || 'Legacy backup' %></td>
+                    <td><%= item.integrity_protection || 'Legacy backup' %><% if (item.recovery_test) { %><br><small class="muted">Recovery test: <%= item.recovery_test.status %><br><%= item.recovery_test.checked_at %></small><% } %></td>
                     <td><%= item.path || '-' %></td>
                     <td>
                       <div class="inline-filters">

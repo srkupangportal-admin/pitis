@@ -178,9 +178,12 @@ const OPTIONAL_BACKUP_TABLES = new Set([
 
 let schedulerTimer = null;
 let backupInProgress = false;
+let recoveryTestInProgress = false;
 const DEFAULT_BACKUP_DAY_OF_WEEK = 6;
 const DEFAULT_BACKUP_INTERVAL_DAYS = 2;
 const DEFAULT_BACKUP_TIME = "15:00";
+const DEFAULT_AUTO_BACKUP_RETENTION = 14;
+const DEFAULT_RECOVERY_TEST_INTERVAL_DAYS = 7;
 const DAY_LABELS = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
 
 function getDefaultBackupSettings() {
@@ -454,6 +457,7 @@ function listSavedBackups(destinationPath) {
         trigger_type: (manifest && manifest.trigger_type) || "",
         source_hostname: manifest && manifest.source && manifest.source.hostname || "",
         source_environment: manifest && manifest.source && manifest.source.environment || "",
+        recovery_test: manifest && manifest.recovery_test || null,
         has_manifest: !!manifest,
         integrity_protection: manifest && Number(manifest.manifest_version) >= 2 && Array.isArray(manifest.files)
           ? "SHA-256 manifest"
@@ -577,8 +581,20 @@ function buildBackupFileInventory(rootPath) {
   return collectDirectoryFiles(rootPath)
     .filter((file) => file.relativePath !== "backup-manifest.json")
     .map((file) => {
-      const data = fs.readFileSync(file.absolutePath);
-      return { path: file.relativePath, size: data.length, sha256: sha256Buffer(data) };
+      const stats = fs.statSync(file.absolutePath);
+      const hash = crypto.createHash("sha256");
+      const fd = fs.openSync(file.absolutePath, "r");
+      const buffer = Buffer.allocUnsafe(1024 * 1024);
+      try {
+        let bytesRead;
+        do {
+          bytesRead = fs.readSync(fd, buffer, 0, buffer.length, null);
+          if (bytesRead) hash.update(buffer.subarray(0, bytesRead));
+        } while (bytesRead);
+      } finally {
+        fs.closeSync(fd);
+      }
+      return { path: file.relativePath, size: stats.size, sha256: hash.digest("hex") };
     })
     .sort((a, b) => a.path.localeCompare(b.path));
 }
@@ -649,6 +665,97 @@ function validatePortableBackupIntegrity(payload, manifest, observedFiles) {
     }
   }
   validateManifestFiles(manifest, observedFiles);
+}
+
+function getAutoBackupRetentionCount() {
+  const configured = Number(process.env.BACKUP_RETENTION_COUNT || DEFAULT_AUTO_BACKUP_RETENTION);
+  return Number.isInteger(configured) && configured >= 2 && configured <= 365
+    ? configured
+    : DEFAULT_AUTO_BACKUP_RETENTION;
+}
+
+function getRecoveryTestIntervalDays() {
+  const configured = Number(process.env.BACKUP_RECOVERY_TEST_INTERVAL_DAYS || DEFAULT_RECOVERY_TEST_INTERVAL_DAYS);
+  return Number.isInteger(configured) && configured >= 1 && configured <= 30
+    ? configured
+    : DEFAULT_RECOVERY_TEST_INTERVAL_DAYS;
+}
+
+function writeRecoveryTestResult(backupPath, manifest, result) {
+  const nextManifest = {
+    ...manifest,
+    recovery_test: {
+      status: result.status,
+      checked_at: dayjs().toISOString(),
+      message: String(result.message || "").slice(0, 500)
+    }
+  };
+  fs.writeFileSync(path.join(backupPath, "backup-manifest.json"), JSON.stringify(nextManifest, null, 2), "utf8");
+  return nextManifest.recovery_test;
+}
+
+function runRecoveryReadinessTest(backupPath) {
+  const manifestPath = path.join(backupPath, "backup-manifest.json");
+  let manifest;
+  try {
+    manifest = JSON.parse(fs.readFileSync(manifestPath, "utf8"));
+    const snapshot = JSON.parse(fs.readFileSync(path.join(backupPath, "snapshot.json"), "utf8"));
+    if (!ensureValidBackupPayload(snapshot) || manifest.app !== "srkupangcodex-school-app") {
+      throw new Error("Backup metadata is invalid");
+    }
+    const inventory = buildBackupFileInventory(backupPath);
+    const observedFiles = new Map(inventory.map((file) => [file.path, { size: file.size, sha256: file.sha256 }]));
+    validatePortableBackupIntegrity(snapshot, manifest, observedFiles);
+
+    const databasePath = path.join(backupPath, "data", "data.db");
+    verifySqliteDatabase(databasePath);
+    const checkDb = new Database(databasePath, { readonly: true, fileMustExist: true });
+    try {
+      const requiredTables = ["users", "classes", "students", "point_logs"];
+      const present = new Set(checkDb.prepare("SELECT name FROM sqlite_master WHERE type = 'table'").all().map((row) => row.name));
+      const missing = requiredTables.filter((table) => !present.has(table));
+      if (missing.length) throw new Error(`Backup database is missing required tables: ${missing.join(", ")}`);
+      const violations = checkDb.pragma("foreign_key_check");
+      if (violations.length) throw new Error(`Backup database contains ${violations.length} foreign-key violation(s)`);
+    } finally {
+      checkDb.close();
+    }
+    return writeRecoveryTestResult(backupPath, manifest, { status: "passed", message: "Database, schema, references and file hashes verified." });
+  } catch (error) {
+    if (manifest && manifest.app === "srkupangcodex-school-app") {
+      try { writeRecoveryTestResult(backupPath, manifest, { status: "failed", message: error.message || String(error) }); } catch (_) {}
+    }
+    throw error;
+  }
+}
+
+function enforceAutomaticBackupRetention(destinationPath) {
+  const retentionCount = getAutoBackupRetentionCount();
+  const automaticBackups = listSavedBackups(destinationPath).filter((item) => item.trigger_type === "auto");
+  const verifiedBackups = automaticBackups.filter((item) => !item.recovery_test || item.recovery_test.status === "passed");
+  const failedBackups = automaticBackups.filter((item) => item.recovery_test && item.recovery_test.status === "failed");
+  const removed = [];
+  [...verifiedBackups.slice(retentionCount), ...failedBackups.slice(2)].forEach((item) => {
+    removeDirectoryRecursive(item.path);
+    removed.push(item.name);
+  });
+  return { retentionCount, removed };
+}
+
+function getBackupStorageStatus(destinationPath) {
+  try {
+    const resolvedPath = ensureWritableDirectory(destinationPath);
+    const stats = fs.statfsSync(resolvedPath);
+    const totalBytes = Number(stats.blocks) * Number(stats.bsize);
+    const freeBytes = Number(stats.bavail) * Number(stats.bsize);
+    const freePercent = totalBytes > 0 ? Math.round((freeBytes / totalBytes) * 1000) / 10 : 0;
+    const warning = freeBytes < 5 * 1024 * 1024 * 1024 || freePercent < 10
+      ? "Backup storage is running low."
+      : null;
+    return { available: true, totalBytes, freeBytes, freePercent, warning };
+  } catch (error) {
+    return { available: false, totalBytes: 0, freeBytes: 0, freePercent: 0, warning: error.message || String(error) };
+  }
 }
 
 function createZipArchive(sourcePath, destinationZipPath) {
@@ -1222,8 +1329,9 @@ async function runBackup(options = {}) {
 
   let targetPath = null;
   let backupName = null;
+  let destinationRoot = null;
   try {
-    const destinationRoot = ensureWritableDirectory(options.destination_path || settings.destination_path);
+    destinationRoot = ensureWritableDirectory(options.destination_path || settings.destination_path);
     backupName = `backup-${dayjs().format("YYYY-MM-DD-HHmm")}`;
     targetPath = buildBackupFolderPath(destinationRoot, backupName);
 
@@ -1277,6 +1385,10 @@ async function runBackup(options = {}) {
       }, null, 2),
       "utf8"
     );
+    const recoveryTest = runRecoveryReadinessTest(targetPath);
+    const retention = triggerType === "auto"
+      ? enforceAutomaticBackupRetention(destinationRoot)
+      : { retentionCount: getAutoBackupRetentionCount(), removed: [] };
 
     const finishedAt = dayjs().toISOString();
     updateLastBackupState({
@@ -1301,7 +1413,9 @@ async function runBackup(options = {}) {
       backup_name: backupName,
       backup_path: targetPath,
       started_at: startedAt,
-      finished_at: finishedAt
+      finished_at: finishedAt,
+      recovery_test: recoveryTest,
+      retention
     };
   } catch (error) {
     const finishedAt = dayjs().toISOString();
@@ -1320,6 +1434,9 @@ async function runBackup(options = {}) {
       finished_at: finishedAt,
       error_message: error.message || String(error)
     });
+    if (triggerType === "auto" && destinationRoot) {
+      try { enforceAutomaticBackupRetention(destinationRoot); } catch (_) {}
+    }
     throw error;
   } finally {
     backupInProgress = false;
@@ -1381,14 +1498,44 @@ function getBackupDashboardData() {
   } catch (_) {
     savedBackups = [];
   }
+  const latestSaved = savedBackups[0] || null;
+  const storage = getBackupStorageStatus(settings.destination_path);
+  const status = describeAutoBackupState(settings);
+  if (storage.warning) status.warning = status.warning ? `${status.warning} ${storage.warning}` : storage.warning;
+  if (latestSaved && latestSaved.recovery_test && latestSaved.recovery_test.status === "failed") {
+    const recoveryWarning = `Latest backup recovery test failed: ${latestSaved.recovery_test.message || "verification failed"}`;
+    status.warning = status.warning ? `${status.warning} ${recoveryWarning}` : recoveryWarning;
+  }
   return {
     settings,
-    status: describeAutoBackupState(settings),
+    status,
     latest: getLatestBackupRecord(),
     history: getBackupHistory(12),
     savedBackups,
+    latestSaved,
+    storage,
+    retentionCount: getAutoBackupRetentionCount(),
+    recoveryTestIntervalDays: getRecoveryTestIntervalDays(),
     running: backupInProgress
   };
+}
+
+function checkScheduledRecoveryTest() {
+  if (backupInProgress || recoveryTestInProgress || getMaintenanceState()) return;
+  const settings = getBackupSettings();
+  let latest;
+  try { latest = listSavedBackups(settings.destination_path)[0]; } catch (_) { return; }
+  if (!latest || !latest.has_manifest) return;
+  const checkedAt = latest.recovery_test && dayjs(latest.recovery_test.checked_at);
+  if (checkedAt && checkedAt.isValid() && checkedAt.add(getRecoveryTestIntervalDays(), "day").isAfter(dayjs())) return;
+  recoveryTestInProgress = true;
+  try {
+    runRecoveryReadinessTest(latest.path);
+  } catch (error) {
+    console.error("Backup recovery-readiness test failed:", error.message || error);
+  } finally {
+    recoveryTestInProgress = false;
+  }
 }
 
 async function checkAutomaticBackup() {
@@ -1430,12 +1577,14 @@ function initializeBackupScheduler() {
     checkAutomaticBackup().catch((error) => {
       console.error("Backup scheduler error:", error.message || error);
     });
+    checkScheduledRecoveryTest();
   }, 30000);
 
   setTimeout(() => {
     checkAutomaticBackup().catch((error) => {
       console.error("Initial backup scheduler check failed:", error.message || error);
     });
+    checkScheduledRecoveryTest();
   }, 1500);
 }
 
@@ -1448,6 +1597,7 @@ module.exports = {
   createZipArchive,
   createSavedBackupDownload,
   deleteSavedBackup,
+  enforceAutomaticBackupRetention,
   ensureValidBackupPayload,
   getBackupDayLabel,
   getBackupDashboardData,
@@ -1459,6 +1609,7 @@ module.exports = {
   preparePublicUploadsRestore,
   preparePortableBackupArchiveRestore,
   readPortableBackupArchive,
+  runRecoveryReadinessTest,
   runBackup,
   sanitizeStagingClone,
   updateBackupSettings
