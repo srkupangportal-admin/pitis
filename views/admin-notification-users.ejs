@@ -6,8 +6,18 @@
   <main class="container"><section class="card">
     <div class="notification-heading"><div><h2>Notification Device Status</h2><p class="muted">Users need at least one active browser or device to receive Web Push alerts. In-portal notifications remain available without a device.</p></div><a class="btn secondary" href="/admin/notification-diagnostics">Diagnostics</a></div>
     <% if (message) { %><p class="notice"><%= message %></p><% } %>
+    <section class="card" style="margin:16px 0;">
+      <h3>Download PITIS for Android</h3>
+      <% if (pitisApk.available) { %>
+        <p class="muted">Download the signed Android package, then share the APK file directly with authorised users. Package size: <%= (pitisApk.size / 1024 / 1024).toFixed(1) %> MB. Published <%= new Date(pitisApk.updatedAt).toLocaleString() %>.</p>
+        <a class="btn" href="/admin/notification-users/pitis.apk" download="PITIS.apk">Download PITIS APK</a>
+      <% } else { %>
+        <p class="muted">No signed PITIS APK has been published on this server yet. The download will become available after the first signed Android build is installed.</p>
+        <button class="btn" type="button" disabled>APK not available</button>
+      <% } %>
+    </section>
     <form method="post" action="/admin/notification-users/send-pitis" id="sendPitisForm" class="stack" style="margin:16px 0;">
-      <div><h3>Send P.I.T.I.S</h3><p class="muted">Send users an in-portal notification that opens the installable P.I.T.I.S app. Users with enabled push notifications also receive it on their device.</p></div>
+      <div><h3>Send PITIS</h3><p class="muted">Send users an in-portal notification that opens the installable PITIS app. Users with enabled push notifications also receive it on their device.</p></div>
       <div class="inline-actions">
         <button class="btn" type="submit" name="send_to" value="selected">Send to selected users</button>
         <button class="btn secondary" type="submit" name="send_to" value="all">Send to all active users</button>

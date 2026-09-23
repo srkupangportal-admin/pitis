@@ -1,7 +1,7 @@
 {
   "id": "/pwa",
-  "name": "P.I.T.I.S",
-  "short_name": "P.I.T.I.S",
+  "name": "PITIS",
+  "short_name": "PITIS",
   "description": "Quickly award or deduct PITIS for SRK Kupang students.",
   "start_url": "/pwa",
   "scope": "/",
