@@ -2670,6 +2670,66 @@ body.landing-home .portal-sidebar h1::before {
   overflow: hidden;
 }
 
+/* Classroom tool results use light surfaces in Theme C. The legacy feature
+   stylesheet uses dark panels, so explicitly restore accessible text contrast. */
+.tool-result {
+  color: var(--c-ink);
+  background: var(--c-sage-soft);
+  border-color: rgba(25, 82, 64, 0.22);
+}
+
+.tool-group-card {
+  color: var(--c-ink);
+  background: var(--c-white);
+  border-color: var(--c-border);
+  box-shadow: 0 8px 20px rgba(18, 42, 34, 0.08);
+}
+
+.tool-group-card h3,
+.tool-group-card li,
+.tool-group-card li strong {
+  color: var(--c-ink);
+}
+
+.tool-group-card h3 {
+  color: var(--c-forest-800);
+}
+
+.tool-group-card li span,
+.tool-student-text small {
+  color: var(--c-muted);
+}
+
+.tool-random-picked-card {
+  color: var(--c-ink);
+  background: var(--c-white);
+  border-color: var(--c-border);
+  box-shadow: 0 8px 20px rgba(18, 42, 34, 0.08);
+}
+
+.tool-random-picked-text strong {
+  color: var(--c-forest-800);
+}
+
+.tool-random-picked-text div,
+.tool-random-class {
+  color: var(--c-muted);
+}
+
+.tool-result-feature {
+  color: var(--c-ink);
+  background: linear-gradient(160deg, #edf5ef, #fffdf8);
+  border-color: rgba(25, 82, 64, 0.28);
+}
+
+.tool-result-feature .muted {
+  color: var(--c-muted);
+}
+
+.tool-result-feature .tool-picked-card strong {
+  color: var(--c-forest-800);
+}
+
 .leaderboard-ref .animated-podium-card .podium-photo {
   width: 104px;
   max-width: none;
