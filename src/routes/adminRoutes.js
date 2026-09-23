@@ -9,6 +9,14 @@ const os = require("os");
 const path = require("path");
 const { db, initializeDatabase } = require("../db/init");
 const { requireRole } = require("../middleware/auth");
+const {
+  PRIVATE_STUDENT_PHOTO_DIR,
+  createStudentPhotoFilename,
+  ensurePrivateStudentPhotoDirectory,
+  removeStudentPhoto,
+  studentPhotoUrl,
+  toPrivatePhotoReference
+} = require("../services/studentPhotoStorageService");
 const { initializeNotificationTables } = require("../services/notificationService");
 const { initializePitisProgressTables } = require("../services/pitisProgressService");
 const { beginMaintenance, endMaintenance } = require("../services/maintenanceService");
@@ -137,10 +145,7 @@ function assignCalendarEventLabels(eventId, labelIds) {
   tx();
 }
 
-const STUDENT_UPLOAD_DIR = path.join(__dirname, "..", "..", "public", "uploads", "students");
-if (!fs.existsSync(STUDENT_UPLOAD_DIR)) {
-  fs.mkdirSync(STUDENT_UPLOAD_DIR, { recursive: true });
-}
+ensurePrivateStudentPhotoDirectory();
 
 const INFORMATION_UPLOAD_DIR = path.join(__dirname, "..", "..", "public", "uploads", "informations");
 if (!fs.existsSync(INFORMATION_UPLOAD_DIR)) {
@@ -148,12 +153,8 @@ if (!fs.existsSync(INFORMATION_UPLOAD_DIR)) {
 }
 
 const photoStorage = multer.diskStorage({
-  destination: (_req, _file, cb) => cb(null, STUDENT_UPLOAD_DIR),
-  filename: (req, file, cb) => {
-    const ext = path.extname(file.originalname || "").toLowerCase() || ".jpg";
-    const safeId = String(req.body.student_id || "student").replace(/[^a-zA-Z0-9_-]/g, "_");
-    cb(null, `${safeId}-${Date.now()}-${Math.round(Math.random() * 1e9)}${ext}`);
-  }
+  destination: (_req, _file, cb) => cb(null, PRIVATE_STUDENT_PHOTO_DIR),
+  filename: (_req, file, cb) => cb(null, createStudentPhotoFilename(file.originalname))
 });
 
 const photoUpload = multer({
@@ -194,18 +195,11 @@ const informationUpload = multer({
 });
 
 function normalizePhotoPath(file) {
-  if (!file) return "";
-  const rel = path.join("uploads", "students", file.filename).replace(/\\/g, "/");
-  return `/${rel}`;
+  return file ? toPrivatePhotoReference(file.filename) : "";
 }
 
 function removeManagedPhotoIfExists(photoPath) {
-  const rel = String(photoPath || "").trim();
-  if (!rel || !rel.startsWith("/uploads/students/")) return;
-  const abs = path.join(__dirname, "..", "..", "public", rel.replace(/^\//, ""));
-  if (fs.existsSync(abs)) {
-    try { fs.unlinkSync(abs); } catch (_) {}
-  }
+  removeStudentPhoto(photoPath);
 }
 
 function formatStudentExportDate(value) {
@@ -654,11 +648,11 @@ function getStudentPhotoSlots(student) {
     const slot = index + 1;
     const pathColumn = getPhotoColumnForSlot(slot);
     const uploadedAtColumn = getPhotoUploadedAtColumnForSlot(slot);
-    const src = String(student[pathColumn] || "").trim();
+    const reference = String(student[pathColumn] || "").trim();
     const uploadedById = Number(student[getPhotoUploadedByColumnForSlot(slot)] || 0);
     return {
       slot,
-      src,
+      src: studentPhotoUrl(student.id, slot, reference),
       uploadedAt: formatUploadedDate(student[uploadedAtColumn]),
       uploadedBy: uploaderNameById.get(uploadedById) || ""
     };
@@ -1087,7 +1081,7 @@ router.get("/classes/:classId/edit-data", (req, res) => {
     selectedStudent: selectedStudent
       ? {
           ...selectedStudent,
-          photo_src: selectedStudent.photo_path || "",
+          photo_src: studentPhotoUrl(selectedStudent.id, 1, selectedStudent.photo_path),
           photo_slots: getStudentPhotoSlots(selectedStudent)
         }
       : null
@@ -1110,7 +1104,7 @@ router.get("/students/:studentPk/edit-data", (req, res) => {
   return res.json({
     student: {
       ...student,
-      photo_src: student.photo_path || "",
+      photo_src: studentPhotoUrl(student.id, 1, student.photo_path),
       photo_slots: getStudentPhotoSlots(student)
     }
   });

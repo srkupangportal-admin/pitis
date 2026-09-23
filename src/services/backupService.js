@@ -8,6 +8,7 @@ const dayjs = require("dayjs");
 const { db } = require("../db/init");
 const { dbPath, reloadDatabaseConnection, closeDatabaseConnection } = require("../db/database");
 const { getMaintenanceState } = require("./maintenanceService");
+const { PRIVATE_STUDENT_PHOTO_DIR } = require("./studentPhotoStorageService");
 
 const PROJECT_ROOT = path.join(__dirname, "..", "..");
 const LEGACY_FALLBACK_DIRECTORY = path.join(PROJECT_ROOT, "backup");
@@ -1019,8 +1020,10 @@ function preparePortableBackupArchiveRestore(zipFilePath) {
   const token = `${Date.now()}-${Math.random().toString(16).slice(2)}`;
   const publicRoot = path.dirname(PUBLIC_UPLOADS_DIR);
   const stagingPath = path.join(publicRoot, `.uploads-restore-${token}`);
+  const privateStagingPath = path.join(DATA_DIRECTORY, `.student-photos-restore-${token}`);
   const databaseStagingPath = path.join(DATA_DIRECTORY, `.database-restore-${token}.db`);
   fs.mkdirSync(stagingPath, { recursive: true });
+  fs.mkdirSync(privateStagingPath, { recursive: true });
   const fd = fs.openSync(zipFilePath, "r");
   let offset = 0;
   let entryCount = 0;
@@ -1072,10 +1075,20 @@ function preparePortableBackupArchiveRestore(zipFilePath) {
           fs.writeFileSync(targetPath, data);
         }
       }
+      if (entryName.startsWith("private/student-photos/")) {
+        const relativePath = entryName.slice("private/student-photos/".length);
+        if (relativePath) {
+          const targetPath = path.resolve(privateStagingPath, normalizeArchiveEntryName(relativePath));
+          if (!isPathWithinRoot(privateStagingPath, targetPath)) throw new Error("Backup ZIP contains an unsafe private-photo path");
+          fs.mkdirSync(path.dirname(targetPath), { recursive: true });
+          fs.writeFileSync(targetPath, data);
+        }
+      }
       offset = dataStart + compressedSize;
     }
   } catch (error) {
     removeDirectoryRecursive(stagingPath);
+    removeDirectoryRecursive(privateStagingPath);
     removeDirectoryRecursive(databaseStagingPath);
     throw error;
   } finally {
@@ -1084,6 +1097,7 @@ function preparePortableBackupArchiveRestore(zipFilePath) {
 
   if (!snapshotBuffer || !manifestBuffer) {
     removeDirectoryRecursive(stagingPath);
+    removeDirectoryRecursive(privateStagingPath);
     removeDirectoryRecursive(databaseStagingPath);
     throw new Error("Portable backup must contain snapshot.json and backup-manifest.json");
   }
@@ -1094,6 +1108,7 @@ function preparePortableBackupArchiveRestore(zipFilePath) {
     manifest = JSON.parse(manifestBuffer.toString("utf8"));
   } catch (error) {
     removeDirectoryRecursive(stagingPath);
+    removeDirectoryRecursive(privateStagingPath);
     removeDirectoryRecursive(databaseStagingPath);
     throw new Error(`Backup ZIP metadata is invalid: ${error.message}`);
   }
@@ -1122,6 +1137,7 @@ function preparePortableBackupArchiveRestore(zipFilePath) {
   }
 
   const rollbackPath = path.join(publicRoot, `.uploads-rollback-${token}`);
+  const privateRollbackPath = path.join(DATA_DIRECTORY, `.student-photos-rollback-${token}`);
   let committed = false;
   return {
     payload,
@@ -1131,9 +1147,12 @@ function preparePortableBackupArchiveRestore(zipFilePath) {
         try {
           if (fs.existsSync(PUBLIC_UPLOADS_DIR)) fs.renameSync(PUBLIC_UPLOADS_DIR, rollbackPath);
           fs.renameSync(stagingPath, PUBLIC_UPLOADS_DIR);
+          if (fs.existsSync(PRIVATE_STUDENT_PHOTO_DIR)) fs.renameSync(PRIVATE_STUDENT_PHOTO_DIR, privateRollbackPath);
+          fs.renameSync(privateStagingPath, PRIVATE_STUDENT_PHOTO_DIR);
           committed = true;
         } catch (error) {
           if (!fs.existsSync(PUBLIC_UPLOADS_DIR) && fs.existsSync(rollbackPath)) fs.renameSync(rollbackPath, PUBLIC_UPLOADS_DIR);
+          if (!fs.existsSync(PRIVATE_STUDENT_PHOTO_DIR) && fs.existsSync(privateRollbackPath)) fs.renameSync(privateRollbackPath, PRIVATE_STUDENT_PHOTO_DIR);
           throw error;
         }
       },
@@ -1141,14 +1160,19 @@ function preparePortableBackupArchiveRestore(zipFilePath) {
         if (!committed) return;
         removeDirectoryRecursive(PUBLIC_UPLOADS_DIR);
         if (fs.existsSync(rollbackPath)) fs.renameSync(rollbackPath, PUBLIC_UPLOADS_DIR);
+        removeDirectoryRecursive(PRIVATE_STUDENT_PHOTO_DIR);
+        if (fs.existsSync(privateRollbackPath)) fs.renameSync(privateRollbackPath, PRIVATE_STUDENT_PHOTO_DIR);
         committed = false;
       },
       finalize() {
         removeDirectoryRecursive(rollbackPath);
         removeDirectoryRecursive(stagingPath);
+        removeDirectoryRecursive(privateRollbackPath);
+        removeDirectoryRecursive(privateStagingPath);
       },
       cleanup() {
         if (!committed) removeDirectoryRecursive(stagingPath);
+        if (!committed) removeDirectoryRecursive(privateStagingPath);
       }
     },
     databaseRestore: prepareDatabaseFileRestore(databaseStagingPath, token)
@@ -1349,6 +1373,9 @@ async function runBackup(options = {}) {
     if (options.include_uploads !== false && fs.existsSync(PUBLIC_UPLOADS_DIR)) {
       copyDirectoryRecursive(PUBLIC_UPLOADS_DIR, path.join(targetPath, "public", "uploads"));
     }
+    if (options.include_uploads !== false && fs.existsSync(PRIVATE_STUDENT_PHOTO_DIR)) {
+      copyDirectoryRecursive(PRIVATE_STUDENT_PHOTO_DIR, path.join(targetPath, "private", "student-photos"));
+    }
 
     fs.writeFileSync(
       path.join(targetPath, "RESTORE-INSTRUCTIONS.txt"),
@@ -1361,7 +1388,7 @@ async function runBackup(options = {}) {
         "3. Upload this ZIP under Restore Portable Backup.",
         "4. Confirm the restore. You will be signed out when it completes.",
         "",
-        "The ZIP contains the database snapshot and managed files from public/uploads."
+        "The ZIP contains the database snapshot, managed public uploads, and private student reference photos."
       ].join("\r\n"),
       "utf8"
     );

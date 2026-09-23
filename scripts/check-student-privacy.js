@@ -26,6 +26,8 @@ const pwaRoutes = read("src/routes/pwaRoutes.js");
 const teacherRoutes = read("src/routes/teacherRoutes.js");
 const attendanceView = read("views/teacher-attendance.ejs");
 const rewardView = read("views/teacher-reward.ejs");
+const serverSource = read("src/server.js");
+const photoStorage = read("src/services/studentPhotoStorageService.js");
 
 assert(!leaderboardQueries.includes("photo_path"), "Leaderboard queries must never use student reference photos");
 assert(!pwaRoutes.includes("photo_path"), "PWA routes must never use student reference photos");
@@ -36,5 +38,8 @@ assert(teacherRoutes.includes('NULLIF(s.avatar_path, \'\') AS photo_src'), "Teac
 assert(!attendanceView.includes("student.photo_path"), "Attendance must not display student reference photos");
 assert(attendanceView.includes("student.avatar_path"), "Attendance must display student avatars");
 assert(!rewardView.includes("api.dicebear.com"), "Student names must not be sent to an external avatar provider");
+assert(!serverSource.includes('app.use("/uploads/students"'), "Student photos must not be mounted as static web files");
+assert(photoStorage.includes('PRIVATE_REFERENCE_PREFIX = "private:student-photos/"'), "Private student-photo references are not configured");
+assert(teacherRoutes.includes('Cache-Control", "private, no-store"'), "Protected student-photo responses must disable caching");
 
 console.log(`Student privacy check passed: ${counts.students} students, ${counts.reference_photos || 0} preserved reference-photo records, ${counts.avatars || 0} customized avatars.`);

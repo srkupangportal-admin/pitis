@@ -43,6 +43,7 @@ yarn-error.log*
 backup/
 backups/
 private-migration/
+private/
 *.bak
 *.backup
 *.tar

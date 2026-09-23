@@ -10,8 +10,10 @@ const session = require("express-session");
 const helmet = require("helmet");
 const { ipKeyGenerator, rateLimit } = require("express-rate-limit");
 const dayjs = require("dayjs");
-const { initializeDatabase } = require("./db/init");
 const { getServerConfig, loadEnvFile } = require("./config/env");
+loadEnvFile();
+const { db, initializeDatabase, updateDailySnapshot } = require("./db/init");
+const { migrateLegacyStudentPhotos } = require("./services/studentPhotoStorageService");
 
 const authRoutes = require("./routes/authRoutes");
 const publicRoutes = require("./routes/publicRoutes");
@@ -37,12 +39,10 @@ const { adminAuditMiddleware } = require("./services/adminAuditService");
 const { SqliteSessionStore } = require("./services/sessionStore");
 const { maintenanceMiddleware } = require("./services/maintenanceService");
 const { sameOriginOnly } = require("./middleware/sameOrigin");
-const { db, updateDailySnapshot } = require("./db/init");
-
-loadEnvFile();
 const serverConfig = getServerConfig();
 
 initializeDatabase();
+migrateLegacyStudentPhotos(db);
 initializeNotificationTables();
 initializePitisProgressTables();
 initializeNotificationScheduler();
@@ -184,7 +184,6 @@ function createApp(config) {
     },
     express.static(path.join(publicRoot, "uploads", folder), { dotfiles: "deny", index: false, fallthrough: false })
   ];
-  app.use("/uploads/students", ...protectedUpload("students"));
   app.use("/uploads/informations", ...protectedUpload("informations"));
   app.use("/uploads/inventory-documents", ...protectedUpload("inventory-documents"));
   app.use("/uploads/devices", ...protectedUpload("devices"));
