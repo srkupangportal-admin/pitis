@@ -138,7 +138,7 @@
               '<input type="checkbox" name="random_students" value="' + escapeHtml(student.id) + '" data-class-id="' + escapeHtml(student.class_id || '') + '" data-class-name="' + escapeHtml(student.class_name || '') + '" checked />' +
               photo +
               '<span class="tool-student-text">' +
-                '<a class="student-detail-link" href="/teacher/students/' + encodeURIComponent(student.id) + '"><strong>' + escapeHtml(student.nickname || student.full_name) + '</strong></a>' +
+                '<strong>' + escapeHtml(student.nickname || student.full_name) + '</strong>' +
               '</span>' +
             '</label>';
         });
@@ -238,10 +238,8 @@
         var classLine = student && randomClassSelect && randomClassSelect.value === 'all-school' && student.class_name
           ? '<div class="tool-random-class">' + escapeHtml(student.class_name) + '</div>'
           : '';
-        var nameLink = student && student.id
-          ? '<a class="student-detail-link" href="/teacher/students/' + encodeURIComponent(student.id) + '"><strong>' + name + '</strong></a>'
-          : '<strong>' + name + '</strong>';
-        randomModalContent.innerHTML = '<div class="tool-random-picked-card' + (isAnimating ? ' is-shuffling' : '') + '">' + photo + '<div class="tool-random-picked-text">' + nameLink + classLine + '</div></div>';
+        var nameText = '<strong>' + name + '</strong>';
+        randomModalContent.innerHTML = '<div class="tool-random-picked-card' + (isAnimating ? ' is-shuffling' : '') + '">' + photo + '<div class="tool-random-picked-text">' + nameText + classLine + '</div></div>';
       }
 
       function stopRandomRevealAnimation() {

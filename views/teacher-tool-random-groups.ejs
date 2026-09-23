@@ -181,7 +181,7 @@
               '<input type="checkbox" name="random_group_students" value="' + escapeHtml(student.id) + '" data-class-id="' + escapeHtml(student.class_id || '') + '" checked />' +
               photo +
               '<span class="tool-student-text">' +
-                '<a class="student-detail-link" href="/teacher/students/' + encodeURIComponent(student.id) + '"><strong>' + escapeHtml(label) + '</strong></a>' +
+                '<strong>' + escapeHtml(label) + '</strong>' +
                 '<small>' + escapeHtml(student.class_name || '') + '</small>' +
               '</span>' +
             '</label>';
@@ -273,7 +273,7 @@
           html += '<section class="tool-group-card"><h3>Group ' + (index + 1) + ' <span>' + group.length + ' students</span></h3><ol>';
           group.forEach(function (student) {
             var label = escapeHtml(student.nickname || student.full_name || 'Student');
-            html += '<li><a class="student-detail-link" href="/teacher/students/' + encodeURIComponent(student.id) + '"><strong>' + label + '</strong></a><span>' + escapeHtml(student.class_name || '') + '</span></li>';
+            html += '<li><strong>' + label + '</strong><span>' + escapeHtml(student.class_name || '') + '</span></li>';
           });
           html += '</ol></section>';
         });

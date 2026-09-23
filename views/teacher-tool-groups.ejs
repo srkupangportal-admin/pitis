@@ -126,7 +126,7 @@
               '<input type="checkbox" name="group_students" value="' + escapeHtml(student.id) + '" data-class-id="' + escapeHtml(student.class_id || '') + '" data-class-name="' + escapeHtml(student.class_name || '') + '" checked />' +
               photo +
               '<span class="tool-student-text">' +
-                '<a class="student-detail-link" href="/teacher/students/' + encodeURIComponent(student.id) + '"><strong>' + escapeHtml(student.nickname || student.full_name) + '</strong></a>' +
+                '<strong>' + escapeHtml(student.nickname || student.full_name) + '</strong>' +
               '</span>' +
             '</label>';
         });
@@ -227,7 +227,7 @@
             if (groupClassSelect && groupClassSelect.value === 'all-school' && student.class_name) {
               label += ' <span>' + escapeHtml(student.class_name) + '</span>';
             }
-            html += '<li><a class="student-detail-link" href="/teacher/students/' + encodeURIComponent(student.id) + '"><strong>' + label + '</strong></a></li>';
+            html += '<li><strong>' + label + '</strong></li>';
           });
           html += '</ol></section>';
         });
