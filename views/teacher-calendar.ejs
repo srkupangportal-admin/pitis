@@ -42,6 +42,16 @@
         month: date.toLocaleDateString('en-US', { month: 'short' })
       };
     }
+    function calendarEventTextColor(color) {
+      const value = String(color || '').trim().replace('#', '');
+      const hex = value.length === 3 ? value.split('').map(ch => ch + ch).join('') : value;
+      if (!/^[0-9a-fA-F]{6}$/.test(hex)) return '#1f2937';
+      const red = parseInt(hex.slice(0, 2), 16);
+      const green = parseInt(hex.slice(2, 4), 16);
+      const blue = parseInt(hex.slice(4, 6), 16);
+      const luminance = ((red * 299) + (green * 587) + (blue * 114)) / 255000;
+      return luminance > 0.62 ? '#1f2937' : '#ffffff';
+    }
   %>
   <main class="container">
     <% if (error) { %>
@@ -103,7 +113,7 @@
               <div
                 class="event-span <%= span.continuesLeft ? 'cont-left' : '' %> <%= span.continuesRight ? 'cont-right' : '' %> <%= span.isSystem ? 'system' : '' %>"
                 data-event-id="<%= span.id %>"
-                style="grid-column: <%= span.startCol %> / <%= span.endCol %>; grid-row: <%= span.lane + 1 %>; --event-color: <%= span.color %>;"
+                style="grid-column: <%= span.startCol %> / <%= span.endCol %>; grid-row: <%= span.lane + 1 %>; --event-color: <%= span.color %>; background:<%= span.color %>; color:<%= calendarEventTextColor(span.color) %>;"
                 title="<%= span.title %><%= span.details ? ' - ' + span.details : '' %><%= formatTaggedUsersDisplay(span.tag_scope, span.taggedUsers) !== 'None' ? ' | Users: ' + formatTaggedUsersDisplay(span.tag_scope, span.taggedUsers) : '' %>">
                 <span><%= span.title %></span>
                 <% if (span.labels && span.labels.length) { %>
