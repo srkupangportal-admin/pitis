@@ -1,17 +1,21 @@
 const session = require("express-session");
 
+function initializeSessionTable(db) {
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS web_sessions (
+      sid TEXT PRIMARY KEY,
+      session_json TEXT NOT NULL,
+      expires_at INTEGER NOT NULL
+    );
+    CREATE INDEX IF NOT EXISTS web_sessions_expires_idx ON web_sessions(expires_at);
+  `);
+}
+
 class SqliteSessionStore extends session.Store {
   constructor(db) {
     super();
     this.db = db;
-    this.db.exec(`
-      CREATE TABLE IF NOT EXISTS web_sessions (
-        sid TEXT PRIMARY KEY,
-        session_json TEXT NOT NULL,
-        expires_at INTEGER NOT NULL
-      );
-      CREATE INDEX IF NOT EXISTS web_sessions_expires_idx ON web_sessions(expires_at);
-    `);
+    initializeSessionTable(this.db);
     const cleanup = setInterval(() => {
       try {
         this.db.prepare("DELETE FROM web_sessions WHERE expires_at <= ?").run(Date.now());
@@ -72,4 +76,4 @@ class SqliteSessionStore extends session.Store {
   }
 }
 
-module.exports = { SqliteSessionStore };
+module.exports = { SqliteSessionStore, initializeSessionTable };

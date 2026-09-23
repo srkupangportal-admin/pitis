@@ -35,6 +35,7 @@ const { seedOfficialSchoolCalendar2026 } = require("./services/schoolCalendarSer
 const { getRecentNonAdminLogins } = require("./services/userLoginLogService");
 const { adminAuditMiddleware } = require("./services/adminAuditService");
 const { SqliteSessionStore } = require("./services/sessionStore");
+const { maintenanceMiddleware } = require("./services/maintenanceService");
 const { sameOriginOnly } = require("./middleware/sameOrigin");
 const { db, updateDailySnapshot } = require("./db/init");
 
@@ -154,6 +155,7 @@ function createApp(config) {
   app.use("/uploads/photos", express.static(path.join(publicRoot, "uploads", "photos"), { dotfiles: "deny", index: false }));
   app.use("/uploads/rewards", express.static(path.join(publicRoot, "uploads", "rewards"), { dotfiles: "deny", index: false }));
   app.use("/vendor/html5-qrcode", express.static(path.join(__dirname, "..", "node_modules", "html5-qrcode")));
+  app.use(maintenanceMiddleware);
 
   app.use(
     session({

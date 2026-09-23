@@ -6,7 +6,8 @@ const crypto = require("crypto");
 const Database = require("better-sqlite3");
 const dayjs = require("dayjs");
 const { db } = require("../db/init");
-const { dbPath } = require("../db/database");
+const { dbPath, reloadDatabaseConnection, closeDatabaseConnection } = require("../db/database");
+const { getMaintenanceState } = require("./maintenanceService");
 
 const PROJECT_ROOT = path.join(__dirname, "..", "..");
 const LEGACY_FALLBACK_DIRECTORY = path.join(PROJECT_ROOT, "backup");
@@ -820,10 +821,57 @@ function readExact(fd, length, position) {
   return buffer;
 }
 
+function removeSqliteSidecars(databasePath) {
+  for (const suffix of ["-wal", "-shm", "-journal"]) {
+    const sidecarPath = `${databasePath}${suffix}`;
+    if (fs.existsSync(sidecarPath)) fs.rmSync(sidecarPath, { force: true });
+  }
+}
+
+function prepareDatabaseFileRestore(stagingPath, token) {
+  const rollbackPath = path.join(DATA_DIRECTORY, `.database-rollback-${token}.db`);
+  let committed = false;
+  return {
+    commit() {
+      try { db.pragma("wal_checkpoint(TRUNCATE)"); } catch (_) {}
+      closeDatabaseConnection();
+      removeSqliteSidecars(dbPath);
+      try {
+        if (fs.existsSync(dbPath)) fs.renameSync(dbPath, rollbackPath);
+        fs.renameSync(stagingPath, dbPath);
+        reloadDatabaseConnection();
+        committed = true;
+      } catch (error) {
+        if (fs.existsSync(dbPath)) fs.rmSync(dbPath, { force: true });
+        if (fs.existsSync(rollbackPath)) fs.renameSync(rollbackPath, dbPath);
+        reloadDatabaseConnection();
+        throw error;
+      }
+    },
+    rollback() {
+      if (!committed) return;
+      closeDatabaseConnection();
+      removeSqliteSidecars(dbPath);
+      if (fs.existsSync(dbPath)) fs.rmSync(dbPath, { force: true });
+      if (fs.existsSync(rollbackPath)) fs.renameSync(rollbackPath, dbPath);
+      reloadDatabaseConnection();
+      committed = false;
+    },
+    finalize() {
+      removeDirectoryRecursive(rollbackPath);
+      removeDirectoryRecursive(stagingPath);
+    },
+    cleanup() {
+      if (!committed) removeDirectoryRecursive(stagingPath);
+    }
+  };
+}
+
 function preparePortableBackupArchiveRestore(zipFilePath) {
   const token = `${Date.now()}-${Math.random().toString(16).slice(2)}`;
   const publicRoot = path.dirname(PUBLIC_UPLOADS_DIR);
   const stagingPath = path.join(publicRoot, `.uploads-restore-${token}`);
+  const databaseStagingPath = path.join(DATA_DIRECTORY, `.database-restore-${token}.db`);
   fs.mkdirSync(stagingPath, { recursive: true });
   const fd = fs.openSync(zipFilePath, "r");
   let offset = 0;
@@ -866,6 +914,7 @@ function preparePortableBackupArchiveRestore(zipFilePath) {
       observedFiles.set(entryName, { size: data.length, sha256: sha256Buffer(data) });
       if (entryName === "snapshot.json") snapshotBuffer = data;
       if (entryName === "backup-manifest.json") manifestBuffer = data;
+      if (entryName === "data/data.db") fs.writeFileSync(databaseStagingPath, data);
       if (entryName.startsWith("public/uploads/")) {
         const relativePath = entryName.slice("public/uploads/".length);
         if (relativePath) {
@@ -879,6 +928,7 @@ function preparePortableBackupArchiveRestore(zipFilePath) {
     }
   } catch (error) {
     removeDirectoryRecursive(stagingPath);
+    removeDirectoryRecursive(databaseStagingPath);
     throw error;
   } finally {
     fs.closeSync(fd);
@@ -886,6 +936,7 @@ function preparePortableBackupArchiveRestore(zipFilePath) {
 
   if (!snapshotBuffer || !manifestBuffer) {
     removeDirectoryRecursive(stagingPath);
+    removeDirectoryRecursive(databaseStagingPath);
     throw new Error("Portable backup must contain snapshot.json and backup-manifest.json");
   }
   let payload;
@@ -895,16 +946,30 @@ function preparePortableBackupArchiveRestore(zipFilePath) {
     manifest = JSON.parse(manifestBuffer.toString("utf8"));
   } catch (error) {
     removeDirectoryRecursive(stagingPath);
+    removeDirectoryRecursive(databaseStagingPath);
     throw new Error(`Backup ZIP metadata is invalid: ${error.message}`);
   }
   if (!ensureValidBackupPayload(payload) || manifest.app !== "srkupangcodex-school-app") {
     removeDirectoryRecursive(stagingPath);
+    removeDirectoryRecursive(databaseStagingPath);
     throw new Error("Backup ZIP is not a valid SR Kupang Portal backup");
   }
   try {
     validatePortableBackupIntegrity(payload, manifest, observedFiles);
   } catch (error) {
     removeDirectoryRecursive(stagingPath);
+    removeDirectoryRecursive(databaseStagingPath);
+    throw error;
+  }
+  if (!fs.existsSync(databaseStagingPath)) {
+    removeDirectoryRecursive(stagingPath);
+    throw new Error("Portable backup does not contain data/data.db");
+  }
+  try {
+    verifySqliteDatabase(databaseStagingPath);
+  } catch (error) {
+    removeDirectoryRecursive(stagingPath);
+    removeDirectoryRecursive(databaseStagingPath);
     throw error;
   }
 
@@ -919,17 +984,26 @@ function preparePortableBackupArchiveRestore(zipFilePath) {
           if (fs.existsSync(PUBLIC_UPLOADS_DIR)) fs.renameSync(PUBLIC_UPLOADS_DIR, rollbackPath);
           fs.renameSync(stagingPath, PUBLIC_UPLOADS_DIR);
           committed = true;
-          removeDirectoryRecursive(rollbackPath);
         } catch (error) {
           if (!fs.existsSync(PUBLIC_UPLOADS_DIR) && fs.existsSync(rollbackPath)) fs.renameSync(rollbackPath, PUBLIC_UPLOADS_DIR);
           throw error;
         }
       },
+      rollback() {
+        if (!committed) return;
+        removeDirectoryRecursive(PUBLIC_UPLOADS_DIR);
+        if (fs.existsSync(rollbackPath)) fs.renameSync(rollbackPath, PUBLIC_UPLOADS_DIR);
+        committed = false;
+      },
+      finalize() {
+        removeDirectoryRecursive(rollbackPath);
+        removeDirectoryRecursive(stagingPath);
+      },
       cleanup() {
         if (!committed) removeDirectoryRecursive(stagingPath);
-        removeDirectoryRecursive(rollbackPath);
       }
-    }
+    },
+    databaseRestore: prepareDatabaseFileRestore(databaseStagingPath, token)
   };
 }
 
@@ -1274,7 +1348,7 @@ function getBackupDashboardData() {
 }
 
 async function checkAutomaticBackup() {
-  if (backupInProgress) return;
+  if (backupInProgress || getMaintenanceState()) return;
   const settings = getBackupSettings();
   if (!settings.auto_enabled) return;
 

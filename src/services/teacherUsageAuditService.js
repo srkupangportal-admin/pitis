@@ -1,5 +1,6 @@
 const dayjs = require("dayjs");
 const { db } = require("../db/init");
+const { getMaintenanceState } = require("./maintenanceService");
 
 const SCHOOL_DAY_OFFSETS = [0, 1, 2, 3, 5];
 const AUDIT_DAY_OF_WEEK = 6;
@@ -257,7 +258,7 @@ function shouldRunAutomaticAudit(now = dayjs()) {
 }
 
 function checkAutomaticTeacherUsageAudit() {
-  if (auditInProgress || !shouldRunAutomaticAudit()) return;
+  if (auditInProgress || getMaintenanceState() || !shouldRunAutomaticAudit()) return;
   try {
     runTeacherUsageAudit({ trigger_type: "auto" });
   } catch (error) {

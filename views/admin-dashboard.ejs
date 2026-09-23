@@ -1744,10 +1744,10 @@
 
         <div class="card">
           <h3 style="margin-top:0;">Restore Portable Backup</h3>
-          <p class="muted">Upload a portal backup ZIP on this or a replacement server. The portal validates the archive, creates a safety backup, restores all database records and managed uploads, then signs the administrator out. Legacy <code>snapshot.json</code> files remain supported.</p>
+          <p class="muted">Upload a portal backup ZIP on this or a replacement server. The portal validates the complete database and file hashes, enters maintenance mode, creates a safety backup, replaces the database and managed uploads, verifies the result, and automatically rolls back on failure. A successful restore signs out every user. Legacy <code>snapshot.json</code> files remain supported through the older record-import workflow.</p>
           <form class="inline-filters" method="post" action="/admin/backup/restore" enctype="multipart/form-data">
             <input type="file" name="backup_file" accept=".zip,.json,application/zip,application/json" required />
-            <button class="btn danger" type="submit" onclick="return confirm('Restore will replace the current portal data and managed uploads after creating a safety backup. Continue?');">Validate and Restore Backup</button>
+            <button class="btn danger" type="submit" onclick="return confirm('Restore will temporarily place the portal in maintenance mode, replace the database and managed uploads, and sign out every user after creating a safety backup. Continue?');">Validate and Restore Backup</button>
           </form>
         </div>
       </div>

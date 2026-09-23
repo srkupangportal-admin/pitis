@@ -7,8 +7,12 @@ const crypto = require("crypto");
 const fs = require("fs");
 const os = require("os");
 const path = require("path");
-const { db } = require("../db/init");
+const { db, initializeDatabase } = require("../db/init");
 const { requireRole } = require("../middleware/auth");
+const { initializeNotificationTables } = require("../services/notificationService");
+const { initializePitisProgressTables } = require("../services/pitisProgressService");
+const { beginMaintenance, endMaintenance } = require("../services/maintenanceService");
+const { initializeSessionTable } = require("../services/sessionStore");
 const {
   BACKUP_TABLES,
   DEFAULT_DESTINATION_PATH,
@@ -2145,6 +2149,8 @@ router.post("/backup/saved/:backupName/delete", (req, res) => {
 
 router.post("/backup/restore", uploadRestore.single("backup_file"), async (req, res) => {
   let uploadsRestore = null;
+  let databaseRestore = null;
+  let maintenanceStarted = false;
   const cleanupUploadedFile = () => {
     if (req.file && req.file.path && fs.existsSync(req.file.path)) {
       try { fs.unlinkSync(req.file.path); } catch (_) {}
@@ -2161,6 +2167,7 @@ router.post("/backup/restore", uploadRestore.single("backup_file"), async (req, 
       const archive = preparePortableBackupArchiveRestore(req.file.path);
       payload = archive.payload;
       uploadsRestore = archive.uploadsRestore;
+      databaseRestore = archive.databaseRestore;
     } else {
       const rawBackup = fs.readFileSync(req.file.path, "utf8").trim();
       if (!rawBackup) {
@@ -2185,12 +2192,51 @@ router.post("/backup/restore", uploadRestore.single("backup_file"), async (req, 
     }
     cleanupUploadedFile();
 
+    if (databaseRestore) {
+      beginMaintenance("Portal recovery is in progress");
+      maintenanceStarted = true;
+    }
+
     const backupSettings = getBackupDashboardData().settings;
     await runBackup({
       trigger_type: "manual",
       destination_path: backupSettings.destination_path,
       actor_user_id: req.session && req.session.user ? req.session.user.id : null
     });
+
+    if (databaseRestore) {
+      try {
+        databaseRestore.commit();
+        initializeDatabase();
+        initializeNotificationTables();
+        initializePitisProgressTables();
+        initializeSessionTable(db);
+        db.exec("DELETE FROM web_sessions");
+        assertNoRestoreForeignKeyViolations();
+        const integrityRows = db.pragma("integrity_check");
+        const integrityMessages = integrityRows.map((row) => String(row.integrity_check || Object.values(row)[0] || ""));
+        if (integrityMessages.length !== 1 || integrityMessages[0].toLowerCase() !== "ok") {
+          throw new Error(`Restored database integrity check failed: ${integrityMessages.join("; ") || "unknown result"}`);
+        }
+        uploadsRestore.commit();
+        assertNoRestoreForeignKeyViolations();
+        uploadsRestore.finalize();
+        databaseRestore.finalize();
+      } catch (restoreError) {
+        try { uploadsRestore.rollback(); } catch (_) {}
+        try { databaseRestore.rollback(); } catch (rollbackError) {
+          throw new Error(`${restoreError.message}; database rollback failed: ${rollbackError.message}`);
+        }
+        throw restoreError;
+      } finally {
+        endMaintenance();
+        maintenanceStarted = false;
+      }
+
+      return req.session.destroy(() => {
+        res.redirect("/login");
+      });
+    }
 
     const tx = db.transaction((backupData) => {
       db.exec("DELETE FROM admin_action_logs");
@@ -2324,8 +2370,10 @@ router.post("/backup/restore", uploadRestore.single("backup_file"), async (req, 
       res.redirect("/login");
     });
   } catch (err) {
+    if (maintenanceStarted) endMaintenance();
     cleanupUploadedFile();
     if (uploadsRestore) uploadsRestore.cleanup();
+    if (databaseRestore) databaseRestore.cleanup();
     res.redirect(`/admin/dashboard?error=${encodeURIComponent(`Restore failed: ${err.message}`)}`);
   }
 });
