@@ -6,7 +6,7 @@
   <title>Calendar</title>
   <link rel="stylesheet" href="/css/theme-c.css" />
 </head>
-<body class="calendar-ref-dark calendar-apple calendar-ical-reference">
+<body class="calendar-ref-dark calendar-clean-grid">
   <%- include('partials/teacher-nav') %>
   <%
     function formatTaggedUsersDisplay(tagScope, taggedUsers) {
@@ -103,7 +103,7 @@
               <div
                 class="event-span <%= span.continuesLeft ? 'cont-left' : '' %> <%= span.continuesRight ? 'cont-right' : '' %> <%= span.isSystem ? 'system' : '' %>"
                 data-event-id="<%= span.id %>"
-                style="grid-column: <%= span.startCol %> / <%= span.endCol %>; grid-row: <%= span.lane + 1 %>; background: <%= span.color %>;"
+                style="grid-column: <%= span.startCol %> / <%= span.endCol %>; grid-row: <%= span.lane + 1 %>; --event-color: <%= span.color %>;"
                 title="<%= span.title %><%= span.details ? ' - ' + span.details : '' %><%= formatTaggedUsersDisplay(span.tag_scope, span.taggedUsers) !== 'None' ? ' | Users: ' + formatTaggedUsersDisplay(span.tag_scope, span.taggedUsers) : '' %>">
                 <span><%= span.title %></span>
                 <% if (span.labels && span.labels.length) { %>
