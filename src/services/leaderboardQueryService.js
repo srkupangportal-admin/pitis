@@ -4,7 +4,7 @@ const leaderboardQuery = `
     s.class_id,
     c.name AS class_name,
     COALESCE(NULLIF(s.name, ''), s.full_name) AS nickname,
-    NULLIF(s.photo_path, '') AS photo_url,
+    NULLIF(s.avatar_path, '') AS photo_url,
     COALESCE(SUM(pl.points), 0) AS total_points,
     COALESCE(SUM(CASE WHEN pl.points > 0 AND date(pl.awarded_at) >= date(?) THEN pl.points ELSE 0 END), 0) AS weekly_points,
     COALESCE(SUM(CASE WHEN pl.points > 0 AND date(pl.awarded_at) >= date(?, '-7 day') AND date(pl.awarded_at) < date(?) THEN pl.points ELSE 0 END), 0) AS previous_weekly_points,
@@ -26,7 +26,7 @@ const leaderboardQuery = `
     WHERE row_number = 1
   ) last_log ON last_log.student_id = s.id
   WHERE s.class_id = ?
-  GROUP BY s.id, s.class_id, c.name, s.name, s.full_name, s.photo_path, last_log.awarded_at, last_log.reason
+  GROUP BY s.id, s.class_id, c.name, s.name, s.full_name, s.avatar_path, last_log.awarded_at, last_log.reason
   ORDER BY total_points DESC, c.name ASC, COALESCE(NULLIF(s.name, ''), s.full_name) ASC
 `;
 
@@ -36,7 +36,7 @@ const schoolLeaderboardQuery = `
     s.class_id,
     c.name AS class_name,
     COALESCE(NULLIF(s.name, ''), s.full_name) AS nickname,
-    NULLIF(s.photo_path, '') AS photo_url,
+    NULLIF(s.avatar_path, '') AS photo_url,
     COALESCE(SUM(pl.points), 0) AS total_points,
     COALESCE(SUM(CASE WHEN pl.points > 0 AND date(pl.awarded_at) >= date(?) THEN pl.points ELSE 0 END), 0) AS weekly_points,
     last_log.awarded_at AS last_awarded_at,
@@ -54,7 +54,7 @@ const schoolLeaderboardQuery = `
     ) ranked_logs
     WHERE row_number = 1
   ) last_log ON last_log.student_id = s.id
-  GROUP BY s.id, s.class_id, c.name, s.name, s.full_name, s.photo_path, last_log.awarded_at, last_log.reason
+  GROUP BY s.id, s.class_id, c.name, s.name, s.full_name, s.avatar_path, last_log.awarded_at, last_log.reason
   ORDER BY total_points DESC, c.name ASC, COALESCE(NULLIF(s.name, ''), s.full_name) ASC
 `;
 
@@ -64,7 +64,7 @@ const datedSchoolLeaderboardQuery = `
     s.class_id,
     c.name AS class_name,
     COALESCE(NULLIF(s.name, ''), s.full_name) AS nickname,
-    NULLIF(s.photo_path, '') AS photo_url,
+    NULLIF(s.avatar_path, '') AS photo_url,
     COALESCE(SUM(CASE WHEN date(pl.awarded_at, '+8 hours') <= date(?) THEN pl.points ELSE 0 END), 0) AS total_points,
     COALESCE(SUM(CASE WHEN pl.points > 0 AND date(pl.awarded_at, '+8 hours') BETWEEN date(?) AND date(?) THEN pl.points ELSE 0 END), 0) AS weekly_points,
     (
@@ -80,7 +80,7 @@ const datedSchoolLeaderboardQuery = `
   FROM students s
   JOIN classes c ON c.id = s.class_id
   LEFT JOIN point_logs pl ON pl.student_id = s.id
-  GROUP BY s.id, s.class_id, c.name, s.name, s.full_name, s.photo_path
+  GROUP BY s.id, s.class_id, c.name, s.name, s.full_name, s.avatar_path
   ORDER BY total_points DESC, c.name ASC, COALESCE(NULLIF(s.name, ''), s.full_name) ASC
 `;
 

@@ -76,8 +76,8 @@
                 <input type="checkbox" class="attendance-row-select" value="<%= student.id %>" />
                 <span>Select</span>
               </label>
-              <a class="attendance-student-link" href="/teacher/students/<%= student.id %>" data-photo-src="<%= student.photo_path || student.photo_url || '' %>" data-photo-name="<%= student.full_name %>">
-                <img class="attendance-thumb" src="<%= student.photo_path || student.photo_url || 'https://api.dicebear.com/7.x/adventurer/svg?seed=' + encodeURIComponent(student.full_name) %>" alt="<%= student.full_name %> thumbnail" />
+              <a class="attendance-student-link" href="/teacher/students/<%= student.id %>" data-photo-src="<%= student.avatar_path || '/images/student-placeholder.svg' %>" data-photo-name="<%= student.full_name %>">
+                <img class="attendance-thumb" src="<%= student.avatar_path || '/images/student-placeholder.svg' %>" alt="<%= student.full_name %> avatar" />
                 <span class="attendance-student-name"><%= student.nickname %></span>
               </a>
               <div class="attendance-student-meta">

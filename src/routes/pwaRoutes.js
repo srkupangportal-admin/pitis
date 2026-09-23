@@ -87,7 +87,7 @@ router.get("/api/classes/:classId/students", (req, res) => {
     SELECT s.id,
            COALESCE(NULLIF(s.name, ''), s.full_name) AS nickname,
            s.full_name,
-           NULLIF(s.photo_path, '') AS photo_src,
+           NULLIF(s.avatar_path, '') AS photo_src,
            COALESCE(SUM(pl.points), 0) AS total_points
     FROM students s
     LEFT JOIN point_logs pl ON pl.student_id = s.id
@@ -106,7 +106,7 @@ router.post("/api/scan", (req, res) => {
     const student = db.prepare(`
       SELECT s.id, s.class_id, s.student_id, s.qr_token,
              COALESCE(NULLIF(s.name, ''), s.full_name) AS nickname,
-             s.full_name, NULLIF(s.photo_path, '') AS photo_src,
+             s.full_name, NULLIF(s.avatar_path, '') AS photo_src,
              c.name AS class_name,
              COALESCE((SELECT SUM(points) FROM point_logs WHERE student_id = s.id), 0) AS total_points
       FROM students s

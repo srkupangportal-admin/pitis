@@ -1874,7 +1874,7 @@ router.get("/tools/class/:classId/students", (req, res) => {
     const students = db
       .prepare(
         `SELECT s.id, s.student_id, s.no_sb, s.full_name, COALESCE(NULLIF(s.name, ''), s.full_name) AS nickname, s.class_id, c.name AS class_name,
-                NULLIF(s.photo_path, '') AS photo_src
+                NULLIF(s.avatar_path, '') AS photo_src
          FROM students s
          JOIN classes c ON c.id = s.class_id
          ORDER BY COALESCE(NULLIF(s.name, ''), s.full_name) ASC, s.full_name ASC`
@@ -1893,7 +1893,7 @@ router.get("/tools/class/:classId/students", (req, res) => {
   const students = db
     .prepare(
       `SELECT s.id, s.student_id, s.no_sb, s.full_name, COALESCE(NULLIF(s.name, ''), s.full_name) AS nickname, s.class_id, c.name AS class_name,
-              NULLIF(s.photo_path, '') AS photo_src
+               NULLIF(s.avatar_path, '') AS photo_src
        FROM students s
        JOIN classes c ON c.id = s.class_id
        WHERE s.class_id = ?
@@ -1963,7 +1963,7 @@ router.get("/reward/:classId", (req, res) => {
 
   const students = db
     .prepare(
-      `SELECT s.id, COALESCE(NULLIF(s.name, ''), s.full_name) AS nickname, s.full_name, NULLIF(s.photo_path, '') AS photo_src, COALESCE(SUM(pl.points), 0) AS total_points
+      `SELECT s.id, COALESCE(NULLIF(s.name, ''), s.full_name) AS nickname, s.full_name, NULLIF(s.avatar_path, '') AS photo_src, COALESCE(SUM(pl.points), 0) AS total_points
        FROM students s
        LEFT JOIN point_logs pl ON pl.student_id = s.id
        WHERE s.class_id = ?
@@ -2823,7 +2823,7 @@ router.get("/students/class/:classId", (req, res) => {
   `).all();
   const students = db
     .prepare(
-      `SELECT id, name, full_name, dob, NULLIF(photo_path, '') AS photo_src
+      `SELECT id, name, full_name, dob, NULLIF(avatar_path, '') AS photo_src
        FROM students
        WHERE class_id = ?
        ORDER BY COALESCE(NULLIF(name, ''), full_name) ASC`
@@ -3509,7 +3509,7 @@ function getAttendancePageData(classId, attendanceDate) {
 
   const classes = db.prepare('SELECT id, name FROM classes ORDER BY name').all();
   const students = db.prepare(`
-    SELECT id, full_name, COALESCE(NULLIF(name, ''), full_name) AS nickname, photo_path
+    SELECT id, full_name, COALESCE(NULLIF(name, ''), full_name) AS nickname, avatar_path
     FROM students
     WHERE class_id = ?
     ORDER BY COALESCE(NULLIF(name, ''), full_name) COLLATE NOCASE ASC, full_name COLLATE NOCASE ASC

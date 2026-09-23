@@ -63,6 +63,7 @@ const BACKUP_TABLES = {
     "yiuran_sekolah_paid",
     "yuran_pibg_paid",
     "insuran_paid",
+    "avatar_path",
     "photo_path",
     "photo_uploaded_at",
     "photo_uploaded_by",

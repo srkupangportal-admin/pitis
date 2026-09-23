@@ -55,8 +55,8 @@
           <div class="reward-tile-head">
             <div class="reward-name-wrap">
               <div class="reward-photo-select-row">
-                <button type="button" class="reward-thumb-btn photo-preview-trigger" data-photo-src="<%= st.photo_src || ('https://api.dicebear.com/7.x/adventurer/svg?seed=' + encodeURIComponent(st.nickname || 'student')) %>" data-photo-name="<%= st.full_name %>">
-                  <img class="reward-thumb" src="<%= st.photo_src || ('https://api.dicebear.com/7.x/adventurer/svg?seed=' + encodeURIComponent(st.nickname || 'student')) %>" alt="<%= st.nickname %>" />
+                <button type="button" class="reward-thumb-btn photo-preview-trigger" data-photo-src="<%= st.photo_src || '/images/student-placeholder.svg' %>" data-photo-name="<%= st.full_name %>">
+                  <img class="reward-thumb" src="<%= st.photo_src || '/images/student-placeholder.svg' %>" alt="<%= st.nickname %> avatar" />
                 </button>
                 <label class="reward-select-check">
                   <input type="checkbox" class="reward-student-select" value="<%= st.id %>" data-student-name="<%= st.nickname %>" />

@@ -398,6 +398,7 @@ function mapLegacyStudentRow(row) {
     yiuran_sekolah_paid: Number(row.yiuran_sekolah_paid) === 1 ? 1 : 0,
     yuran_pibg_paid: Number(row.yuran_pibg_paid) === 1 ? 1 : 0,
     insuran_paid: Number(row.insuran_paid) === 1 ? 1 : 0,
+    avatar_path: normalizeOptionalText(row.avatar_path),
     photo_path: normalizeOptionalText(row.photo_path),
     photo_uploaded_at: normalizeOptionalText(row.photo_uploaded_at),
     photo_uploaded_by: row.photo_uploaded_by || null,

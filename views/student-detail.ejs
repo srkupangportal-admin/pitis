@@ -47,7 +47,7 @@
           <img src="<%= latestPhotoSlot.src %>" alt="Latest student photo" class="avatar" />
         </button>
       <% } else { %>
-        <img src="<%= primaryPhoto || 'https://api.dicebear.com/7.x/adventurer/svg?seed=student' %>" alt="Student photo" class="avatar" />
+        <img src="<%= primaryPhoto || '/images/student-placeholder.svg' %>" alt="Student photo" class="avatar" />
       <% } %>
       <h2><%= student.display_name_with_age %></h2>
       <div class="student-photo-upload-shell">
