@@ -16,6 +16,7 @@ const { initializeSessionTable } = require("../services/sessionStore");
 const {
   BACKUP_TABLES,
   DEFAULT_DESTINATION_PATH,
+  captureTargetBackupState,
   createManualBackupDownload,
   createSavedBackupDownload,
   deleteSavedBackup,
@@ -24,6 +25,7 @@ const {
   makeBackupSnapshot,
   preparePortableBackupArchiveRestore,
   runBackup,
+  sanitizeStagingClone,
   updateBackupSettings
 } = require("../services/backupService");
 const {
@@ -2160,6 +2162,15 @@ router.post("/backup/restore", uploadRestore.single("backup_file"), async (req, 
     if (!req.file) {
       return res.redirect("/admin/dashboard?error=Backup+file+is+required");
     }
+    if (String(req.body.confirm_restore || "") !== "1") {
+      cleanupUploadedFile();
+      return res.redirect("/admin/dashboard?error=Confirm+that+you+understand+the+restore+will+replace+portal+data");
+    }
+    const restoreMode = String(req.body.restore_mode || "");
+    if (!new Set(["disaster_recovery", "staging_clone"]).has(restoreMode)) {
+      cleanupUploadedFile();
+      return res.redirect("/admin/dashboard?error=Choose+a+valid+restore+mode");
+    }
 
     const uploadedName = String(req.file.originalname || "").toLowerCase();
     let payload;
@@ -2203,6 +2214,9 @@ router.post("/backup/restore", uploadRestore.single("backup_file"), async (req, 
       destination_path: backupSettings.destination_path,
       actor_user_id: req.session && req.session.user ? req.session.user.id : null
     });
+    const targetBackupState = restoreMode === "staging_clone"
+      ? captureTargetBackupState()
+      : null;
 
     if (databaseRestore) {
       try {
@@ -2211,7 +2225,8 @@ router.post("/backup/restore", uploadRestore.single("backup_file"), async (req, 
         initializeNotificationTables();
         initializePitisProgressTables();
         initializeSessionTable(db);
-        db.exec("DELETE FROM web_sessions");
+        if (restoreMode === "staging_clone") sanitizeStagingClone(targetBackupState);
+        else db.exec("DELETE FROM web_sessions");
         assertNoRestoreForeignKeyViolations();
         const integrityRows = db.pragma("integrity_check");
         const integrityMessages = integrityRows.map((row) => String(row.integrity_check || Object.values(row)[0] || ""));
@@ -2363,6 +2378,9 @@ router.post("/backup/restore", uploadRestore.single("backup_file"), async (req, 
     } finally {
       db.pragma("foreign_keys = ON");
     }
+    initializeSessionTable(db);
+    if (restoreMode === "staging_clone") sanitizeStagingClone(targetBackupState);
+    else db.exec("DELETE FROM web_sessions");
     if (uploadsRestore) uploadsRestore.commit();
     if (uploadsRestore) uploadsRestore.cleanup();
 

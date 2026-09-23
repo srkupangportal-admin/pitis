@@ -452,6 +452,8 @@ function listSavedBackups(destinationPath) {
         path: backupPath,
         created_at: (manifest && manifest.created_at) || stats.mtime.toISOString(),
         trigger_type: (manifest && manifest.trigger_type) || "",
+        source_hostname: manifest && manifest.source && manifest.source.hostname || "",
+        source_environment: manifest && manifest.source && manifest.source.environment || "",
         has_manifest: !!manifest,
         integrity_protection: manifest && Number(manifest.manifest_version) >= 2 && Array.isArray(manifest.files)
           ? "SHA-256 manifest"
@@ -527,6 +529,44 @@ function collectDirectoryFiles(rootPath, currentPath = rootPath) {
     });
   });
   return files;
+}
+
+function captureTargetBackupState() {
+  return {
+    settings: db.prepare("SELECT * FROM backup_settings WHERE id = 1").get() || null,
+    history: db.prepare("SELECT * FROM backup_history ORDER BY id").all()
+  };
+}
+
+function insertCompleteRows(table, rows) {
+  for (const row of rows || []) {
+    const columns = Object.keys(row);
+    if (!columns.length) continue;
+    const placeholders = columns.map(() => "?").join(", ");
+    db.prepare(`INSERT INTO ${table} (${columns.join(", ")}) VALUES (${placeholders})`).run(...columns.map((column) => row[column]));
+  }
+}
+
+function sanitizeStagingClone(targetBackupState) {
+  const operationalTables = [
+    "notification_delivery_log",
+    "notifications",
+    "push_subscriptions",
+    "notification_preferences",
+    "calendar_notification_jobs",
+    "pitis_notification_events",
+    "pwa_user_activity",
+    "pitis_progress_views",
+    "web_sessions"
+  ];
+  operationalTables.forEach((table) => db.exec(`DELETE FROM ${table}`));
+
+  db.exec("DELETE FROM backup_history");
+  db.exec("DELETE FROM backup_settings");
+  if (targetBackupState && targetBackupState.settings) {
+    insertCompleteRows("backup_settings", [{ ...targetBackupState.settings, updated_by: null }]);
+  }
+  insertCompleteRows("backup_history", targetBackupState && targetBackupState.history || []);
 }
 
 function sha256Buffer(buffer) {
@@ -1225,6 +1265,10 @@ async function runBackup(options = {}) {
         backup_version: snapshot.meta.backup_version,
         created_at: startedAt,
         trigger_type: triggerType,
+        source: {
+          hostname: String(process.env.PUBLIC_HOSTNAME || "").trim(),
+          environment: String(process.env.PORTAL_ENVIRONMENT || process.env.NODE_ENV || "unknown").trim()
+        },
         destination_root: destinationRoot,
         backup_name: backupName,
         database_integrity: databaseIntegrity,
@@ -1399,6 +1443,7 @@ module.exports = {
   BACKUP_TABLES,
   OPTIONAL_BACKUP_TABLES,
   DEFAULT_DESTINATION_PATH,
+  captureTargetBackupState,
   createManualBackupDownload,
   createZipArchive,
   createSavedBackupDownload,
@@ -1415,5 +1460,6 @@ module.exports = {
   preparePortableBackupArchiveRestore,
   readPortableBackupArchive,
   runBackup,
+  sanitizeStagingClone,
   updateBackupSettings
 };

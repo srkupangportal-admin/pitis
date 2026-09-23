@@ -1714,6 +1714,7 @@
                   <th>Backup Name</th>
                   <th>Created</th>
                   <th>Type</th>
+                  <th>Source</th>
                   <th>Integrity</th>
                   <th>Folder Path</th>
                   <th>Action</th>
@@ -1725,6 +1726,7 @@
                     <td><%= item.name %></td>
                     <td><%= item.created_at || '-' %></td>
                     <td><%= item.trigger_type || '-' %></td>
+                    <td><%= item.source_hostname || 'Legacy backup' %><% if (item.source_environment) { %><br><small class="muted"><%= item.source_environment %></small><% } %></td>
                     <td><%= item.integrity_protection || 'Legacy backup' %></td>
                     <td><%= item.path || '-' %></td>
                     <td>
@@ -1745,8 +1747,21 @@
         <div class="card">
           <h3 style="margin-top:0;">Restore Portable Backup</h3>
           <p class="muted">Upload a portal backup ZIP on this or a replacement server. The portal validates the complete database and file hashes, enters maintenance mode, creates a safety backup, replaces the database and managed uploads, verifies the result, and automatically rolls back on failure. A successful restore signs out every user. Legacy <code>snapshot.json</code> files remain supported through the older record-import workflow.</p>
-          <form class="inline-filters" method="post" action="/admin/backup/restore" enctype="multipart/form-data">
+          <% const restoreHost = String(requestHost || '').replace(/:\d+$/, ''); const defaultToStagingClone = /(^|[.-])(dev|staging)|zamdesignsbn/i.test(restoreHost); %>
+          <form class="stack" method="post" action="/admin/backup/restore" enctype="multipart/form-data">
             <input type="file" name="backup_file" accept=".zip,.json,application/zip,application/json" required />
+            <fieldset>
+              <legend><strong>Restore mode for <%= restoreHost || 'this server' %></strong></legend>
+              <label style="display:block; margin:8px 0;">
+                <input type="radio" name="restore_mode" value="staging_clone" <%= defaultToStagingClone ? 'checked' : '' %> required />
+                <strong>Clone to staging</strong> — restore school records and uploads, but clear sessions, push subscriptions, notifications, delivery queues and PWA usage data. Preserve this server's backup settings and history.
+              </label>
+              <label style="display:block; margin:8px 0;">
+                <input type="radio" name="restore_mode" value="disaster_recovery" <%= defaultToStagingClone ? '' : 'checked' %> required />
+                <strong>Disaster recovery</strong> — restore the complete environment, including push subscriptions and notification history. All login sessions are still invalidated.
+              </label>
+            </fieldset>
+            <label><input type="checkbox" name="confirm_restore" value="1" required /> I understand that this operation replaces portal data and signs out every user.</label>
             <button class="btn danger" type="submit" onclick="return confirm('Restore will temporarily place the portal in maintenance mode, replace the database and managed uploads, and sign out every user after creating a safety backup. Continue?');">Validate and Restore Backup</button>
           </form>
         </div>
