@@ -13,6 +13,7 @@ beforehttps.env
 # Runtime databases and SQLite sidecar files
 data/
 database/
+backup-settings.json
 *.db
 *.db-*
 *.sqlite

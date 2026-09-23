@@ -4,12 +4,15 @@ const os = require("os");
 const zlib = require("zlib");
 const dayjs = require("dayjs");
 const { db } = require("../db/init");
+const { dbPath } = require("../db/database");
 
 const PROJECT_ROOT = path.join(__dirname, "..", "..");
-const FALLBACK_DIRECTORY = path.join(PROJECT_ROOT, "backup");
-const SETTINGS_FALLBACK_PATH = path.join(FALLBACK_DIRECTORY, "auto-backup-settings.json");
+const LEGACY_FALLBACK_DIRECTORY = path.join(PROJECT_ROOT, "backup");
+const LEGACY_SETTINGS_FALLBACK_PATH = path.join(LEGACY_FALLBACK_DIRECTORY, "auto-backup-settings.json");
+const DATA_DIRECTORY = path.dirname(dbPath);
+const SETTINGS_FALLBACK_PATH = path.join(DATA_DIRECTORY, "backup-settings.json");
 const LEGACY_DEFAULT_DESTINATION_PATH = "/home/hp/Documents/pitis/backup/auto-backups";
-const DEFAULT_DESTINATION_PATH = path.join(FALLBACK_DIRECTORY, "auto-backups");
+const DEFAULT_DESTINATION_PATH = path.join(DATA_DIRECTORY, "backups");
 const PUBLIC_UPLOADS_DIR = path.join(PROJECT_ROOT, "public", "uploads");
 
 const BACKUP_TABLES = {
@@ -234,9 +237,24 @@ function normalizeDestinationPath(input) {
   return path.resolve(raw);
 }
 
+function isForeignPlatformPath(input) {
+  const raw = String(input || "").trim();
+  if (!raw) return false;
+  if (process.platform !== "win32" && /^[a-zA-Z]:[\\/]/.test(raw)) return true;
+  if (process.platform === "win32" && /^\/(?!\/)/.test(raw)) return true;
+  return false;
+}
+
+function shouldMigrateDestinationPath(input) {
+  const raw = String(input || "").trim();
+  if (!raw || raw === LEGACY_DEFAULT_DESTINATION_PATH || isForeignPlatformPath(raw)) return true;
+  const databaseIsPersistent = !isPathWithinRoot(PROJECT_ROOT, dbPath);
+  return databaseIsPersistent && isPathWithinRoot(PROJECT_ROOT, normalizeDestinationPath(raw));
+}
+
 function writeSettingsFallback(settings) {
   try {
-    fs.mkdirSync(FALLBACK_DIRECTORY, { recursive: true });
+    fs.mkdirSync(DATA_DIRECTORY, { recursive: true });
     fs.writeFileSync(
       SETTINGS_FALLBACK_PATH,
       JSON.stringify({
@@ -261,8 +279,12 @@ function writeSettingsFallback(settings) {
 
 function readSettingsFallback() {
   try {
-    if (!fs.existsSync(SETTINGS_FALLBACK_PATH)) return null;
-    const payload = JSON.parse(fs.readFileSync(SETTINGS_FALLBACK_PATH, "utf8"));
+    const canUseLegacyFallback = path.resolve(DATA_DIRECTORY) === path.resolve(PROJECT_ROOT);
+    const fallbackPath = fs.existsSync(SETTINGS_FALLBACK_PATH)
+      ? SETTINGS_FALLBACK_PATH
+      : canUseLegacyFallback ? LEGACY_SETTINGS_FALLBACK_PATH : SETTINGS_FALLBACK_PATH;
+    if (!fs.existsSync(fallbackPath)) return null;
+    const payload = JSON.parse(fs.readFileSync(fallbackPath, "utf8"));
     if (!payload || typeof payload !== "object") return null;
     return payload;
   } catch (_) {
@@ -274,7 +296,7 @@ function ensureSettingsRow() {
   const existing = db.prepare("SELECT * FROM backup_settings WHERE id = 1").get();
   if (existing) {
     const currentDestination = normalizeDestinationPath(existing.destination_path || DEFAULT_DESTINATION_PATH);
-    const shouldMigrateDestination = String(existing.destination_path || "").trim() === LEGACY_DEFAULT_DESTINATION_PATH;
+    const shouldMigrateDestination = shouldMigrateDestinationPath(existing.destination_path);
     const shouldMigrateTime = String(existing.backup_time || "").trim() !== DEFAULT_BACKUP_TIME;
     const shouldMigrateDay = normalizeBackupDayOfWeek(existing.backup_day_of_week) !== DEFAULT_BACKUP_DAY_OF_WEEK;
     const shouldMigrateInterval = normalizeBackupIntervalDays(existing.backup_interval_days) !== DEFAULT_BACKUP_INTERVAL_DAYS;

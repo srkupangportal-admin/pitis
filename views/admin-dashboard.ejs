@@ -1641,7 +1641,7 @@
                 <label><strong>Backup Folder</strong>
                   <input type="text" name="destination_path" value="<%= (backupSettings && backupSettings.destination_path) || '' %>" required autocomplete="off" style="width:100%;" />
                 </label>
-                <div class="muted">Example: <code>G:\\SchoolPortalBackups</code>. The folder will be created and tested when saved.</div>
+                <div class="muted">Use a persistent folder outside application release directories. On the VPS, use a path under this environment's data directory. The folder will be created and tested when saved.</div>
               </div>
             </div>
             <div class="inline-filters">
