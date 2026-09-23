@@ -8,7 +8,7 @@
     if (image.getAttribute("src") === fallbackUrl) return;
 
     image.setAttribute("src", fallbackUrl);
-    var photoButton = image.closest(".leaderboard-photo-button");
-    if (photoButton) photoButton.setAttribute("data-photo-src", fallbackUrl);
+    var avatarButton = image.closest(".leaderboard-photo-button");
+    if (avatarButton) avatarButton.setAttribute("data-photo-src", fallbackUrl);
   }, true);
 }());

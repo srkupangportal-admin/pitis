@@ -1,21 +1,11 @@
 const express = require("express");
 const dayjs = require("dayjs");
-const multer = require("multer");
 const fs = require("fs");
 const path = require("path");
 const crypto = require("crypto");
 const QRCode = require("qrcode");
 const { db, updateDailySnapshot } = require("../db/init");
 const { requireRole } = require("../middleware/auth");
-const {
-  PRIVATE_STUDENT_PHOTO_DIR,
-  createStudentPhotoFilename,
-  ensurePrivateStudentPhotoDirectory,
-  removeStudentPhoto,
-  resolveStudentPhotoPath,
-  studentPhotoUrl,
-  toPrivatePhotoReference
-} = require("../services/studentPhotoStorageService");
 const { notifyUser, scheduleEvent } = require("../services/notificationService");
 const { isTeacherUser, buildTeacherProgressSummary } = require("../services/pitisProgressService");
 const { buildStudentQrPayload, generateStudentQrDataUrl, parseStudentQrPayload } = require("../services/qrCodeService");
@@ -74,75 +64,6 @@ router.use("/students", (req, res, next) => {
   res.set("Cache-Control", "private, no-store");
   return next();
 });
-
-ensurePrivateStudentPhotoDirectory();
-
-const photoStorage = multer.diskStorage({
-  destination: (_req, _file, cb) => cb(null, PRIVATE_STUDENT_PHOTO_DIR),
-  filename: (_req, file, cb) => cb(null, createStudentPhotoFilename(file.originalname))
-});
-
-const photoUpload = multer({
-  storage: photoStorage,
-  limits: { fileSize: 5 * 1024 * 1024 },
-  fileFilter: (_req, file, cb) => {
-    if ((file.mimetype || "").startsWith("image/")) return cb(null, true);
-    return cb(new Error("Only image files are allowed"));
-  }
-});
-
-function normalizePhotoPath(file) {
-  return file ? toPrivatePhotoReference(file.filename) : "";
-}
-
-function getPhotoColumnForSlot(slot) {
-  return Number(slot) === 1 ? "photo_path" : `photo_${Number(slot)}_path`;
-}
-
-function getPhotoUploadedAtColumnForSlot(slot) {
-  return Number(slot) === 1 ? "photo_uploaded_at" : `photo_${Number(slot)}_uploaded_at`;
-}
-
-function getPhotoUploadedByColumnForSlot(slot) {
-  return Number(slot) === 1 ? "photo_uploaded_by" : `photo_${Number(slot)}_uploaded_by`;
-}
-
-function formatUploadedDate(value) {
-  const raw = String(value || "").trim();
-  if (!raw) return "";
-  const parsed = dayjs(raw);
-  return parsed.isValid() ? parsed.format("YYYY-MM-DD") : raw;
-}
-
-function getStudentPhotoSlots(student) {
-  const uploaderIds = Array.from(
-    new Set(
-      Array.from({ length: 6 }, (_, index) => Number(student[getPhotoUploadedByColumnForSlot(index + 1)] || 0))
-        .filter((id) => Number.isInteger(id) && id > 0)
-    )
-  );
-  const uploaderNameById = new Map();
-  if (uploaderIds.length) {
-    const placeholders = uploaderIds.map(() => "?").join(", ");
-    db.prepare(`SELECT id, display_name FROM users WHERE id IN (${placeholders})`).all(...uploaderIds).forEach((row) => {
-      uploaderNameById.set(Number(row.id), String(row.display_name || "").trim());
-    });
-  }
-  return Array.from({ length: 6 }, (_, index) => {
-    const slot = index + 1;
-    const reference = String(student[slot === 1 ? "photo_path" : `photo_${slot}_path`] || "").trim();
-    const uploadedAtRaw = slot === 1
-      ? String(student.photo_uploaded_at || "").trim()
-      : String(student[`photo_${slot}_uploaded_at`] || "").trim();
-    const uploadedById = Number(student[getPhotoUploadedByColumnForSlot(slot)] || 0);
-    return {
-      slot,
-      src: studentPhotoUrl(student.id, slot, reference),
-      uploadedAt: formatUploadedDate(uploadedAtRaw),
-      uploadedBy: uploaderNameById.get(uploadedById) || ""
-    };
-  });
-}
 
 function normalizeHexColor(input, fallback = "#3f6fae") {
   const raw = String(input || "").trim();
@@ -2902,7 +2823,6 @@ router.get("/students/:studentId", async (req, res) => {
       `).all(studentWithDisplay.family_id, studentPk)
     : [];
 
-  const photoSlots = getStudentPhotoSlots(studentWithDisplay);
   const qrCodePayload = buildStudentQrPayload(studentWithDisplay);
   const qrCodeImage = await generateStudentQrDataUrl(studentWithDisplay);
 
@@ -2913,7 +2833,6 @@ router.get("/students/:studentId", async (req, res) => {
     shortcutClasses,
     studentDetailGroups: Object.values(studentDetailGroups),
     editableStudentColumns: STUDENT_DETAIL_EDIT_COLUMNS,
-    photoSlots,
     qrCodePayload,
     qrCodeImage,
     success: req.query.success || null,
@@ -3099,46 +3018,6 @@ router.post("/students/:studentId/details", (req, res) => {
 
   tx();
   return res.redirect(`/teacher/students/${studentPk}?success=${encodeURIComponent(`Student details updated. ${changes.length} change(s) logged.`)}`);
-});
-
-router.post("/students/:studentId/photos/:slot/upload", photoUpload.single("photo_file"), (req, res) => {
-  try {
-    const studentPk = Number(req.params.studentId || 0);
-    const slot = Number(req.params.slot || 0);
-    if (!studentPk || slot < 1 || slot > 6) {
-      return res.redirect(`/teacher/students/${studentPk || ""}?error=${encodeURIComponent("Invalid photo slot")}`);
-    }
-    if (!req.file) {
-      return res.redirect(`/teacher/students/${studentPk}?error=${encodeURIComponent("Photo file is required")}`);
-    }
-
-    const photoColumn = getPhotoColumnForSlot(slot);
-    const uploadedAtColumn = getPhotoUploadedAtColumnForSlot(slot);
-    const uploadedByColumn = getPhotoUploadedByColumnForSlot(slot);
-    const existing = db.prepare(`SELECT ${photoColumn} AS current_photo FROM students WHERE id = ?`).get(studentPk);
-    if (!existing) {
-      return res.redirect(`/teacher/students/${studentPk}?error=${encodeURIComponent("Student not found")}`);
-    }
-
-    const nextPhotoPath = normalizePhotoPath(req.file);
-    const nowIso = dayjs().toISOString();
-    const uploaderId = Number(req.session && req.session.user && req.session.user.id) || null;
-    db.prepare(`UPDATE students SET ${photoColumn} = ?, ${uploadedAtColumn} = ?, ${uploadedByColumn} = ? WHERE id = ?`).run(
-      nextPhotoPath,
-      nowIso,
-      uploaderId,
-      studentPk
-    );
-
-    if (existing.current_photo && existing.current_photo !== nextPhotoPath) {
-      removeStudentPhoto(existing.current_photo);
-    }
-
-    return res.redirect(`/teacher/students/${studentPk}?success=${encodeURIComponent(`Photo ${slot} updated`)}`);
-  } catch (error) {
-    const studentPk = Number(req.params.studentId || 0);
-    return res.redirect(`/teacher/students/${studentPk || ""}?error=${encodeURIComponent(error.message || "Unable to upload photo")}`);
-  }
 });
 
 router.get("/students/code/:externalStudentId", (req, res) => {
@@ -3407,19 +3286,6 @@ router.post("/calendar/delete/:eventId", (req, res) => {
 
   const monthKey = dayjs(target.event_date).isValid() ? dayjs(target.event_date).format("YYYY-MM") : dayjs().format("YYYY-MM");
   return res.redirect(`/teacher/calendar?month=${monthKey}&success=${encodeURIComponent("Event deleted")}`);
-});
-
-router.get("/students/:studentId/photos/:slot", (req, res) => {
-  const studentPk = Number(req.params.studentId || 0);
-  const slot = Number(req.params.slot || 0);
-  if (!studentPk || slot < 1 || slot > 6) return res.status(404).send("Student photo not found");
-  const photoColumn = getPhotoColumnForSlot(slot);
-  const student = db.prepare(`SELECT ${photoColumn} AS reference FROM students WHERE id = ?`).get(studentPk);
-  const photoPath = student ? resolveStudentPhotoPath(student.reference) : null;
-  if (!photoPath || !fs.existsSync(photoPath)) return res.status(404).send("Student photo not found");
-  res.set("Cache-Control", "private, no-store");
-  res.set("X-Content-Type-Options", "nosniff");
-  return res.sendFile(photoPath);
 });
 
 function parseNumberArray(raw) {

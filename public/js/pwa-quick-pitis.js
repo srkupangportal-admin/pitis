@@ -53,7 +53,7 @@
     byId('studentName').textContent = student.nickname;
     byId('studentFullName').textContent = '';
     byId('studentTotal').textContent = `${Number(student.total_points || 0)} PITIS`;
-    byId('studentPhoto').src = student.photo_src || '/images/student-placeholder.svg';
+    byId('studentAvatar').src = student.photo_src || '/images/student-placeholder.svg';
     updateReviewState();
   }
 

@@ -818,27 +818,6 @@
               <img id="adminStudentAvatarPreview" src="<%= selectedStudent.avatar_path || '/images/student-placeholder.svg' %>" alt="Current student avatar" style="width:72px;height:72px;border-radius:50%;object-fit:cover;" />
               <span><span class="muted" style="display:block;">Used on PITIS, leaderboards, attendance and the PWA.</span><input type="file" name="avatar_file" accept="image/jpeg,image/png,image/webp" /></span>
             </label>
-            <strong style="display:block;margin-bottom:10px;">Private Reference Photos</strong>
-            <div id="adminStudentPhotoSlots" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(120px,1fr));gap:12px;">
-              <% for (let slot = 1; slot <= 6; slot += 1) { %>
-                <% const slotSrc = selectedStudent.photo_slots && selectedStudent.photo_slots[slot - 1] ? selectedStudent.photo_slots[slot - 1].src : ''; %>
-                <% const slotUploadedAt = slot === 1 ? (selectedStudent.photo_uploaded_at || '') : (selectedStudent['photo_' + slot + '_uploaded_at'] || ''); %>
-                <label style="display:flex;flex-direction:column;gap:8px;">
-                  <span>Photo <%= slot %></span>
-                  <span class="admin-student-photo-slot" data-photo-slot="<%= slot %>" style="aspect-ratio:1/1;border:1px dashed #c7ced6;border-radius:12px;display:flex;align-items:center;justify-content:center;overflow:hidden;background:#f6f8fb;">
-                    <% if (slotSrc) { %>
-                      <img src="<%= slotSrc %>" alt="Student photo <%= slot %>" style="width:100%;height:100%;object-fit:cover;" />
-                    <% } else { %>
-                      <span class="muted" style="font-size:12px;text-align:center;padding:8px;">No photo</span>
-                    <% } %>
-                  </span>
-                  <span class="muted" data-photo-uploaded-at="<%= slot %>" style="font-size:12px;">
-                    <%= slotUploadedAt ? 'Uploaded: ' + String(slotUploadedAt).slice(0, 10) : 'No upload yet' %>
-                  </span>
-                  <input type="file" name="<%= slot === 1 ? 'photo_file' : 'photo_' + slot + '_file' %>" accept="image/*" capture="environment" />
-                </label>
-              <% } %>
-            </div>
           </div>
           <button class="btn" type="submit">Save Student Changes</button>
         </form>
@@ -1572,19 +1551,6 @@
         <div style="grid-column:1 / -1;">
           <strong style="display:block;margin-bottom:10px;">Customized Avatar</strong>
           <label style="display:block;max-width:420px;margin-bottom:18px;">Avatar image<input type="file" name="avatar_file" accept="image/jpeg,image/png,image/webp" /><span class="muted">Used outside the protected Student Details page.</span></label>
-          <strong style="display:block;margin-bottom:10px;">Private Reference Photos</strong>
-          <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(120px,1fr));gap:12px;">
-            <% for (let slot = 1; slot <= 6; slot += 1) { %>
-              <label style="display:flex;flex-direction:column;gap:8px;">
-                <span>Photo <%= slot %></span>
-                <span style="aspect-ratio:1/1;border:1px dashed #c7ced6;border-radius:12px;display:flex;align-items:center;justify-content:center;background:#f6f8fb;">
-                  <span class="muted" style="font-size:12px;text-align:center;padding:8px;">No photo</span>
-                </span>
-                <span class="muted" style="font-size:12px;">No upload yet</span>
-                <input type="file" name="<%= slot === 1 ? 'photo_file' : 'photo_' + slot + '_file' %>" accept="image/*" capture="environment" />
-              </label>
-            <% } %>
-          </div>
         </div>
         <button class="btn" type="submit">Add Student</button>
       </form>
@@ -2597,7 +2563,6 @@
       var adminStudentHideBtn = document.getElementById('adminStudentHideBtn');
       var adminStudentEditorWrap = document.getElementById('adminStudentEditorWrap');
       var adminStudentEditForm = document.getElementById('adminStudentEditForm');
-      var adminStudentPhotoSlotsWrap = document.getElementById('adminStudentPhotoSlots');
       var adminStudentAvatarPreview = document.getElementById('adminStudentAvatarPreview');
       var adminStudentFeeFields = ['yiuran_sekolah_paid', 'yuran_pibg_paid', 'insuran_paid'];
       var adminInformationBulkForm = document.getElementById('adminInformationBulkForm');
@@ -2732,45 +2697,6 @@
           });
       }
 
-      function buildAdminStudentPhotoSlots(student) {
-        if (!student) return [];
-        if (Array.isArray(student.photo_slots)) return student.photo_slots;
-        return Array.from({ length: 6 }, function (_, index) {
-          var slot = index + 1;
-          var pathField = slot === 1 ? 'photo_path' : ('photo_' + slot + '_path');
-          var uploadedAtField = slot === 1 ? 'photo_uploaded_at' : ('photo_' + slot + '_uploaded_at');
-          var src = String(student[pathField] || '').trim();
-          var uploadedAtRaw = String(student[uploadedAtField] || '').trim();
-          return {
-            slot: slot,
-            src: src,
-            uploadedAt: uploadedAtRaw ? uploadedAtRaw.slice(0, 10) : ''
-          };
-        });
-      }
-
-      function renderStudentPhotoSlots(slots) {
-        if (!adminStudentPhotoSlotsWrap) return;
-        var slotMap = {};
-        (slots || []).forEach(function (slot) {
-          slotMap[String(slot.slot)] = slot;
-        });
-        adminStudentPhotoSlotsWrap.querySelectorAll('[data-photo-slot]').forEach(function (node) {
-          var slotId = String(node.getAttribute('data-photo-slot') || '');
-          var slot = slotMap[slotId] || null;
-          if (slot && slot.src) {
-            node.innerHTML = '<img src="' + String(slot.src).replace(/"/g, '&quot;') + '" alt="Student photo ' + slotId + '" style="width:100%;height:100%;object-fit:cover;" />';
-          } else {
-            node.innerHTML = '<span class="muted" style="font-size:12px;text-align:center;padding:8px;">No photo</span>';
-          }
-        });
-        adminStudentPhotoSlotsWrap.querySelectorAll('[data-photo-uploaded-at]').forEach(function (node) {
-          var slotId = String(node.getAttribute('data-photo-uploaded-at') || '');
-          var slot = slotMap[slotId] || null;
-          node.textContent = slot && slot.uploadedAt ? ('Uploaded: ' + slot.uploadedAt) : 'No upload yet';
-        });
-      }
-
 
       function toggleAdminStudentEditor(show) {
         if (!adminStudentEditorWrap) return;
@@ -2794,7 +2720,6 @@
           setFormValue(fieldName, 0);
         });
         adminStudentEditForm.querySelectorAll('input[type="file"]').forEach(function (fileInput) { fileInput.value = ''; });
-        renderStudentPhotoSlots([]);
         if (adminStudentAvatarPreview) adminStudentAvatarPreview.src = '/images/student-placeholder.svg';
         toggleAdminStudentEditor(false);
         syncStudentManageButton();
@@ -2813,7 +2738,6 @@
         adminStudentEditForm.querySelectorAll('input[type="file"]').forEach(function (fileInput) {
           fileInput.value = '';
         });
-        renderStudentPhotoSlots(buildAdminStudentPhotoSlots(student));
         if (adminStudentAvatarPreview) adminStudentAvatarPreview.src = student.avatar_path || '/images/student-placeholder.svg';
         syncStudentManageButton();
       }

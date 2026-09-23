@@ -34,67 +34,8 @@
     <% } %>
 
     <div class="card student-detail">
-      <% const primaryPhoto = student.photo_path || ''; %>
-      <% const latestPhotoSlot = (photoSlots || []).reduce((latest, slot) => {
-           if (!slot || !slot.src) return latest;
-           if (!latest) return slot;
-           const slotDate = String(slot.uploadedAt || '');
-           const latestDate = String(latest.uploadedAt || '');
-           return slotDate >= latestDate ? slot : latest;
-         }, null); %>
-      <% if (latestPhotoSlot) { %>
-        <button type="button" class="reward-gallery-thumb-btn student-photo-hero-btn" data-student-photo-open="<%= latestPhotoSlot.slot - 1 %>" aria-label="Open latest student photo">
-          <img src="<%= latestPhotoSlot.src %>" alt="Latest student photo" class="avatar" />
-        </button>
-      <% } else { %>
-        <img src="<%= primaryPhoto || '/images/student-placeholder.svg' %>" alt="Student photo" class="avatar" />
-      <% } %>
+      <img src="<%= student.avatar_path || '/images/student-placeholder.svg' %>" alt="Avatar for <%= student.display_name_with_age %>" class="avatar" />
       <h2><%= student.display_name_with_age %></h2>
-      <div class="student-photo-upload-shell">
-        <div class="section-toggle-head">
-          <div>
-            <h3 style="margin-bottom: 6px;">Manage Student Photos</h3>
-            <p class="muted" style="margin-bottom: 0;">Open this section to upload new photos or replace existing ones.</p>
-          </div>
-          <div class="inline-filters">
-            <button class="btn" type="button" id="showStudentPhotoUploadBtn">Show Photo Upload</button>
-            <button class="btn secondary" type="button" id="hideStudentPhotoUploadBtn" style="display:none;">Hide</button>
-          </div>
-        </div>
-        <div id="studentPhotoUploadWrap" style="display:none; margin-top:12px;">
-          <p class="muted" style="margin-bottom: 10px;">Tap an existing thumbnail to view it larger. Use the upload button below each slot to add or replace a photo.</p>
-          <div class="student-photo-grid">
-            <% (photoSlots || []).forEach((slot) => { %>
-              <form method="post" action="/teacher/students/<%= student.id %>/photos/<%= slot.slot %>/upload" enctype="multipart/form-data" class="student-photo-card">
-                <div class="student-photo-card-head">Photo <%= slot.slot %></div>
-                <div>
-                  <input type="file" name="photo_file" accept="image/*" capture="environment" id="studentPhotoCameraSlot<%= slot.slot %>" style="position:absolute;left:-9999px;width:1px;height:1px;opacity:0;" onchange="if (this.files && this.files[0]) { this.form.submit(); }" />
-                  <input type="file" name="photo_file" accept="image/*" id="studentPhotoGallerySlot<%= slot.slot %>" style="position:absolute;left:-9999px;width:1px;height:1px;opacity:0;" onchange="if (this.files && this.files[0]) { this.form.submit(); }" />
-                  <% if (slot.src) { %>
-                    <button type="button" class="reward-gallery-thumb-btn student-photo-preview-btn" data-student-photo-open="<%= slot.slot - 1 %>" aria-label="Open larger image for student photo <%= slot.slot %>">
-                      <span class="student-photo-thumb-wrap">
-                        <img src="<%= slot.src %>" alt="Student photo thumbnail <%= slot.slot %>" class="student-photo-thumb" />
-                      </span>
-                    </button>
-                  <% } else { %>
-                    <label for="studentPhotoGallerySlot<%= slot.slot %>" class="student-photo-empty">
-                      <span class="muted">Photo <%= slot.slot %><br />Placeholder</span>
-                    </label>
-                  <% } %>
-                </div>
-                <div class="student-photo-meta">
-                  <div><strong>Uploaded:</strong> <%= slot.uploadedAt || 'No upload yet' %></div>
-                  <div><strong>By:</strong> <%= slot.uploadedBy || '-' %></div>
-                </div>
-                <div class="student-photo-upload-actions">
-                  <label for="studentPhotoCameraSlot<%= slot.slot %>" class="btn secondary student-photo-upload-btn"><%= slot.src ? 'Open Camera' : 'Take Photo' %></label>
-                  <label for="studentPhotoGallerySlot<%= slot.slot %>" class="btn secondary student-photo-upload-btn"><%= slot.src ? 'Choose Gallery' : 'Choose Photo' %></label>
-                </div>
-              </form>
-            <% }) %>
-          </div>
-        </div>
-      </div>
       <form method="post" action="/teacher/students/<%= student.id %>/details" class="student-fee-status-form student-detail-edit-form" id="studentDetailEditForm">
         <div class="button-row student-detail-edit-actions">
           <button class="btn secondary" type="button" id="studentDetailEditBtn">Edit Details</button>
@@ -184,38 +125,8 @@
       </details>
     </div>
   </main>
-  <div id="studentPhotoModal" class="reward-modal hidden" aria-hidden="true">
-    <div class="reward-modal-card reward-gallery-modal-card">
-      <div class="reward-photo-modal-head">
-        <h3 id="studentPhotoModalTitle">Student Photo Preview</h3>
-        <button type="button" class="btn subtle secondary" id="studentPhotoModalClose">Close</button>
-      </div>
-      <div class="reward-gallery-modal-visual">
-        <img id="studentPhotoModalImage" class="reward-gallery-modal-image hidden" src="" alt="Student photo preview" />
-        <div id="studentPhotoModalPlaceholder" class="reward-gallery-modal-placeholder hidden">No image available</div>
-      </div>
-      <div class="reward-gallery-modal-meta">
-        <strong id="studentPhotoModalMetaSlot"></strong>
-        <div class="muted" id="studentPhotoModalMetaUploaded"></div>
-        <div class="muted" id="studentPhotoModalMetaUploader"></div>
-      </div>
-    </div>
-  </div>
   <script>
     (function () {
-      var photoSlots = <%- JSON.stringify(photoSlots || []).replace(/</g, '\\u003c') %>;
-      var studentName = <%- JSON.stringify(String(student.full_name || '')).replace(/</g, '\\u003c') %>;
-      var photoModal = document.getElementById('studentPhotoModal');
-      var photoModalTitle = document.getElementById('studentPhotoModalTitle');
-      var photoModalImage = document.getElementById('studentPhotoModalImage');
-      var photoModalPlaceholder = document.getElementById('studentPhotoModalPlaceholder');
-      var photoModalMetaSlot = document.getElementById('studentPhotoModalMetaSlot');
-      var photoModalMetaUploaded = document.getElementById('studentPhotoModalMetaUploaded');
-      var photoModalMetaUploader = document.getElementById('studentPhotoModalMetaUploader');
-      var photoModalClose = document.getElementById('studentPhotoModalClose');
-      var showStudentPhotoUploadBtn = document.getElementById('showStudentPhotoUploadBtn');
-      var hideStudentPhotoUploadBtn = document.getElementById('hideStudentPhotoUploadBtn');
-      var studentPhotoUploadWrap = document.getElementById('studentPhotoUploadWrap');
       var studentDetailEditForm = document.getElementById('studentDetailEditForm');
       var studentDetailEditBtn = document.getElementById('studentDetailEditBtn');
       var studentDetailSaveBtn = document.getElementById('studentDetailSaveBtn');
@@ -273,67 +184,6 @@
       var studentFeeStatusForm = document.getElementById('studentFeeStatusForm');
       var studentFeeStatusMessage = document.getElementById('studentFeeStatusMessage');
 
-      function toggleSimpleSection(wrap, showBtn, hideBtn, show) {
-        if (wrap) wrap.style.display = show ? 'block' : 'none';
-        if (showBtn) showBtn.style.display = show ? 'none' : 'inline-flex';
-        if (hideBtn) hideBtn.style.display = show ? 'inline-flex' : 'none';
-      }
-
-      function openStudentPhotoModal(slot) {
-        if (!slot || !photoModal) return;
-        if (photoModalTitle) photoModalTitle.textContent = 'Student Photo ' + String(slot.slot || '');
-        if (photoModalMetaSlot) photoModalMetaSlot.textContent = studentName;
-        if (photoModalMetaUploaded) photoModalMetaUploaded.textContent = 'Uploaded: ' + (slot.uploadedAt || 'No upload yet');
-        if (photoModalMetaUploader) photoModalMetaUploader.textContent = 'By: ' + (slot.uploadedBy || '-');
-        if (slot.src && photoModalImage) {
-          photoModalImage.src = slot.src;
-          photoModalImage.classList.remove('hidden');
-          if (photoModalPlaceholder) photoModalPlaceholder.classList.add('hidden');
-        } else {
-          if (photoModalImage) {
-            photoModalImage.src = '';
-            photoModalImage.classList.add('hidden');
-          }
-          if (photoModalPlaceholder) photoModalPlaceholder.classList.remove('hidden');
-        }
-        photoModal.classList.remove('hidden');
-        photoModal.setAttribute('aria-hidden', 'false');
-      }
-
-      function closeStudentPhotoModal() {
-        if (!photoModal) return;
-        photoModal.classList.add('hidden');
-        photoModal.setAttribute('aria-hidden', 'true');
-        if (photoModalImage) {
-          photoModalImage.src = '';
-          photoModalImage.classList.add('hidden');
-        }
-      }
-
-      document.querySelectorAll('[data-student-photo-open]').forEach(function (btn) {
-        btn.addEventListener('click', function () {
-          var idx = Number(btn.getAttribute('data-student-photo-open') || -1);
-          if (idx < 0 || !photoSlots[idx]) return;
-          openStudentPhotoModal(photoSlots[idx]);
-        });
-      });
-
-      if (photoModalClose) {
-        photoModalClose.addEventListener('click', closeStudentPhotoModal);
-      }
-
-      if (showStudentPhotoUploadBtn) {
-        showStudentPhotoUploadBtn.addEventListener('click', function () {
-          toggleSimpleSection(studentPhotoUploadWrap, showStudentPhotoUploadBtn, hideStudentPhotoUploadBtn, true);
-        });
-      }
-
-      if (hideStudentPhotoUploadBtn) {
-        hideStudentPhotoUploadBtn.addEventListener('click', function () {
-          toggleSimpleSection(studentPhotoUploadWrap, showStudentPhotoUploadBtn, hideStudentPhotoUploadBtn, false);
-        });
-      }
-
       if (studentFeeStatusForm) {
         studentFeeStatusForm.addEventListener('submit', function (event) {
           event.preventDefault();
@@ -365,15 +215,6 @@
         });
       }
 
-      if (photoModal) {
-        photoModal.addEventListener('click', function (event) {
-          if (event.target === photoModal) closeStudentPhotoModal();
-        });
-      }
-
-      document.addEventListener('keydown', function (event) {
-        if (event.key === 'Escape') closeStudentPhotoModal();
-      });
     })();
   </script>
   <script src="/js/inactivity.js"></script>

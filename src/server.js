@@ -13,7 +13,6 @@ const dayjs = require("dayjs");
 const { getServerConfig, loadEnvFile } = require("./config/env");
 loadEnvFile();
 const { db, initializeDatabase, updateDailySnapshot } = require("./db/init");
-const { migrateLegacyStudentPhotos } = require("./services/studentPhotoStorageService");
 
 const authRoutes = require("./routes/authRoutes");
 const publicRoutes = require("./routes/publicRoutes");
@@ -42,7 +41,6 @@ const { sameOriginOnly } = require("./middleware/sameOrigin");
 const serverConfig = getServerConfig();
 
 initializeDatabase();
-migrateLegacyStudentPhotos(db);
 initializeNotificationTables();
 initializePitisProgressTables();
 initializeNotificationScheduler();

@@ -188,10 +188,10 @@
   <div id="photoPreviewModal" class="reward-modal hidden" aria-hidden="true">
     <div class="reward-modal-card reward-photo-modal-card">
       <div class="reward-photo-modal-head">
-        <h3 id="photoPreviewName">Student Photo</h3>
+        <h3 id="photoPreviewName">Student Avatar</h3>
         <button type="button" class="btn subtle secondary" id="photoPreviewClose">Close</button>
       </div>
-      <img id="photoPreviewImage" class="reward-photo-preview" src="" alt="Student photo preview" />
+      <img id="photoPreviewImage" class="reward-photo-preview" src="" alt="Student avatar preview" />
     </div>
   </div>
 
@@ -312,8 +312,8 @@
       function openPhotoPreview(src, name) {
         if (!photoPreviewModal || !photoPreviewImage) return;
         photoPreviewImage.src = src || '';
-        photoPreviewImage.alt = (name || 'Student') + ' photo preview';
-        if (photoPreviewName) photoPreviewName.textContent = name || 'Student Photo';
+        photoPreviewImage.alt = (name || 'Student') + ' avatar preview';
+        if (photoPreviewName) photoPreviewName.textContent = name || 'Student Avatar';
         photoPreviewModal.classList.remove('hidden');
         photoPreviewModal.setAttribute('aria-hidden', 'false');
       }

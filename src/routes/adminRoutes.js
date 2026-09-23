@@ -9,14 +9,6 @@ const os = require("os");
 const path = require("path");
 const { db, initializeDatabase } = require("../db/init");
 const { requireRole } = require("../middleware/auth");
-const {
-  PRIVATE_STUDENT_PHOTO_DIR,
-  createStudentPhotoFilename,
-  ensurePrivateStudentPhotoDirectory,
-  removeStudentPhoto,
-  studentPhotoUrl,
-  toPrivatePhotoReference
-} = require("../services/studentPhotoStorageService");
 const { initializeNotificationTables } = require("../services/notificationService");
 const { initializePitisProgressTables } = require("../services/pitisProgressService");
 const { beginMaintenance, endMaintenance } = require("../services/maintenanceService");
@@ -145,7 +137,6 @@ function assignCalendarEventLabels(eventId, labelIds) {
   tx();
 }
 
-ensurePrivateStudentPhotoDirectory();
 const STUDENT_AVATAR_DIR = path.join(__dirname, "..", "..", "public", "uploads", "avatars");
 fs.mkdirSync(STUDENT_AVATAR_DIR, { recursive: true });
 
@@ -154,32 +145,22 @@ if (!fs.existsSync(INFORMATION_UPLOAD_DIR)) {
   fs.mkdirSync(INFORMATION_UPLOAD_DIR, { recursive: true });
 }
 
-const photoStorage = multer.diskStorage({
-  destination: (_req, file, cb) => cb(null, file.fieldname === "avatar_file" ? STUDENT_AVATAR_DIR : PRIVATE_STUDENT_PHOTO_DIR),
-  filename: (_req, file, cb) => cb(null, createStudentPhotoFilename(file.originalname))
-});
-
-const photoUpload = multer({
-  storage: photoStorage,
-  limits: { fileSize: 5 * 1024 * 1024 },
-  fileFilter: (_req, file, cb) => {
-    if (file.fieldname === "avatar_file" && !["image/jpeg", "image/png", "image/webp"].includes(file.mimetype || "")) {
-      return cb(new Error("Avatars must be JPEG, PNG, or WebP images"));
-    }
-    if ((file.mimetype || "").startsWith("image/")) return cb(null, true);
-    return cb(new Error("Only image files are allowed"));
+const avatarStorage = multer.diskStorage({
+  destination: (_req, _file, cb) => cb(null, STUDENT_AVATAR_DIR),
+  filename: (_req, file, cb) => {
+    const ext = path.extname(file.originalname || "").toLowerCase();
+    cb(null, `${crypto.randomUUID()}${[".jpg", ".jpeg", ".png", ".webp"].includes(ext) ? ext : ".jpg"}`);
   }
 });
 
-const STUDENT_PHOTO_UPLOAD_FIELDS = [
-  { name: "photo_file", maxCount: 1 },
-  { name: "photo_2_file", maxCount: 1 },
-  { name: "photo_3_file", maxCount: 1 },
-  { name: "photo_4_file", maxCount: 1 },
-  { name: "photo_5_file", maxCount: 1 },
-  { name: "photo_6_file", maxCount: 1 }
-];
-const STUDENT_UPLOAD_FIELDS = [{ name: "avatar_file", maxCount: 1 }, ...STUDENT_PHOTO_UPLOAD_FIELDS];
+const avatarUpload = multer({
+  storage: avatarStorage,
+  limits: { fileSize: 5 * 1024 * 1024 },
+  fileFilter: (_req, file, cb) => {
+    if (["image/jpeg", "image/png", "image/webp"].includes(file.mimetype || "")) return cb(null, true);
+    return cb(new Error("Avatars must be JPEG, PNG, or WebP images"));
+  }
+});
 
 const informationStorage = multer.diskStorage({
   destination: (_req, _file, cb) => cb(null, INFORMATION_UPLOAD_DIR),
@@ -200,10 +181,6 @@ const informationUpload = multer({
   }
 });
 
-function normalizePhotoPath(file) {
-  return file ? toPrivatePhotoReference(file.filename) : "";
-}
-
 function normalizeAvatarPath(file) {
   return file ? `/uploads/avatars/${path.basename(file.filename)}` : "";
 }
@@ -215,10 +192,6 @@ function removeManagedAvatarIfExists(avatarPath) {
   if (fs.existsSync(target)) {
     try { fs.unlinkSync(target); } catch (_) {}
   }
-}
-
-function removeManagedPhotoIfExists(photoPath) {
-  removeStudentPhoto(photoPath);
 }
 
 function formatStudentExportDate(value) {
@@ -623,59 +596,6 @@ function buildStudentBaseValues(body, classId) {
     yuran_pibg_paid: body.yuran_pibg_paid ? 1 : 0,
     insuran_paid: body.insuran_paid ? 1 : 0
   };
-}
-
-function getPhotoColumnForSlot(slot) {
-  return Number(slot) === 1 ? "photo_path" : "photo_" + Number(slot) + "_path";
-}
-
-function getPhotoUploadedAtColumnForSlot(slot) {
-  return Number(slot) === 1 ? "photo_uploaded_at" : "photo_" + Number(slot) + "_uploaded_at";
-}
-
-function getPhotoUploadedByColumnForSlot(slot) {
-  return Number(slot) === 1 ? "photo_uploaded_by" : "photo_" + Number(slot) + "_uploaded_by";
-}
-
-function getUploadedPhoto(req, fieldName) {
-  if (!req.files || !req.files[fieldName] || !req.files[fieldName][0]) return null;
-  return req.files[fieldName][0];
-}
-
-function formatUploadedDate(value) {
-  const raw = String(value || "").trim();
-  if (!raw) return "";
-  const parsed = dayjs(raw);
-  return parsed.isValid() ? parsed.format("YYYY-MM-DD") : raw;
-}
-
-function getStudentPhotoSlots(student) {
-  const uploaderIds = Array.from(
-    new Set(
-      Array.from({ length: 6 }, (_, index) => Number(student[getPhotoUploadedByColumnForSlot(index + 1)] || 0))
-        .filter((id) => Number.isInteger(id) && id > 0)
-    )
-  );
-  const uploaderNameById = new Map();
-  if (uploaderIds.length) {
-    const placeholders = uploaderIds.map(() => "?").join(", ");
-    db.prepare(`SELECT id, display_name FROM users WHERE id IN (${placeholders})`).all(...uploaderIds).forEach((row) => {
-      uploaderNameById.set(Number(row.id), String(row.display_name || "").trim());
-    });
-  }
-  return Array.from({ length: 6 }, (_, index) => {
-    const slot = index + 1;
-    const pathColumn = getPhotoColumnForSlot(slot);
-    const uploadedAtColumn = getPhotoUploadedAtColumnForSlot(slot);
-    const reference = String(student[pathColumn] || "").trim();
-    const uploadedById = Number(student[getPhotoUploadedByColumnForSlot(slot)] || 0);
-    return {
-      slot,
-      src: studentPhotoUrl(student.id, slot, reference),
-      uploadedAt: formatUploadedDate(student[uploadedAtColumn]),
-      uploadedBy: uploaderNameById.get(uploadedById) || ""
-    };
-  });
 }
 
 function getStudentForAdminEdit(studentPk, classId) {
@@ -1097,13 +1017,7 @@ router.get("/classes/:classId/edit-data", (req, res) => {
 
   return res.json({
     students,
-    selectedStudent: selectedStudent
-      ? {
-          ...selectedStudent,
-          photo_src: studentPhotoUrl(selectedStudent.id, 1, selectedStudent.photo_path),
-          photo_slots: getStudentPhotoSlots(selectedStudent)
-        }
-      : null
+    selectedStudent
   });
 });
 
@@ -1120,13 +1034,7 @@ router.get("/students/:studentPk/edit-data", (req, res) => {
     return res.status(404).json({ error: "Student not found" });
   }
 
-  return res.json({
-    student: {
-      ...student,
-      photo_src: studentPhotoUrl(student.id, 1, student.photo_path),
-      photo_slots: getStudentPhotoSlots(student)
-    }
-  });
+  return res.json({ student });
 });
 
 router.get("/staff/template", (_req, res) => {
@@ -1624,7 +1532,7 @@ router.post("/informations/upload", informationUpload.single("information_pdf"),
   return res.redirect("/admin/dashboard?success=Information+PDF+uploaded");
 });
 
-router.post("/students/add", photoUpload.fields(STUDENT_UPLOAD_FIELDS), (req, res) => {
+router.post("/students/add", avatarUpload.single("avatar_file"), (req, res) => {
   const classId = Number(req.body.class_id);
   const baseValues = buildStudentBaseValues(req.body, classId);
 
@@ -1633,24 +1541,9 @@ router.post("/students/add", photoUpload.fields(STUDENT_UPLOAD_FIELDS), (req, re
   }
 
   const now = dayjs().toISOString();
-  const insertColumns = ["name", "full_name", "student_id", "qr_token", "no_sb", "no_bruhims", "bangsa", "ugama", "kerakyatan", "gender", "dob", "age", "level", "notes", "emergency_contact", "email", "alamat", "nama_ayah", "pekerjaan_ayah", "dob_ayah", "taraf_ayah", "no_telefon_ayah", "bangsa_ayah", "ugama_ayah", "kerakyatan_ayah", "nama_ibu", "pekerjaan_ibu", "dob_ibu", "taraf_ibu", "no_telefon_ibu", "bangsa_ibu", "ugama_ibu", "kerakyatan_ibu", "family_id", "yiuran_sekolah_paid", "yuran_pibg_paid", "insuran_paid", "avatar_path", "photo_path", "photo_uploaded_at", "photo_uploaded_by", "photo_2_path", "photo_2_uploaded_at", "photo_2_uploaded_by", "photo_3_path", "photo_3_uploaded_at", "photo_3_uploaded_by", "photo_4_path", "photo_4_uploaded_at", "photo_4_uploaded_by", "photo_5_path", "photo_5_uploaded_at", "photo_5_uploaded_by", "photo_6_path", "photo_6_uploaded_at", "photo_6_uploaded_by", "class_id", "created_at"];
+  const insertColumns = ["name", "full_name", "student_id", "qr_token", "no_sb", "no_bruhims", "bangsa", "ugama", "kerakyatan", "gender", "dob", "age", "level", "notes", "emergency_contact", "email", "alamat", "nama_ayah", "pekerjaan_ayah", "dob_ayah", "taraf_ayah", "no_telefon_ayah", "bangsa_ayah", "ugama_ayah", "kerakyatan_ayah", "nama_ibu", "pekerjaan_ibu", "dob_ibu", "taraf_ibu", "no_telefon_ibu", "bangsa_ibu", "ugama_ibu", "kerakyatan_ibu", "family_id", "yiuran_sekolah_paid", "yuran_pibg_paid", "insuran_paid", "avatar_path", "class_id", "created_at"];
   const insertValues = { ...baseValues };
-  insertValues.avatar_path = normalizeAvatarPath(getUploadedPhoto(req, "avatar_file")) || null;
-  const uploadedPhotoFiles = new Map(
-    STUDENT_PHOTO_UPLOAD_FIELDS.map((field, index) => {
-      const slot = index + 1;
-      return [slot, getUploadedPhoto(req, field.name)];
-    })
-  );
-
-  uploadedPhotoFiles.forEach((file, slot) => {
-    const pathColumn = getPhotoColumnForSlot(slot);
-    const uploadedAtColumn = getPhotoUploadedAtColumnForSlot(slot);
-    const uploadedByColumn = getPhotoUploadedByColumnForSlot(slot);
-    insertValues[pathColumn] = file ? normalizePhotoPath(file) : null;
-    insertValues[uploadedAtColumn] = file ? now : null;
-    insertValues[uploadedByColumn] = file ? (Number(req.session && req.session.user && req.session.user.id) || null) : null;
-  });
+  insertValues.avatar_path = normalizeAvatarPath(req.file) || null;
 
   Object.assign(insertValues, {
     qr_token: createStudentQrToken(),
@@ -1693,7 +1586,7 @@ router.post("/students/add", photoUpload.fields(STUDENT_UPLOAD_FIELDS), (req, re
 });
 
 
-router.post("/students/update/:studentPk", photoUpload.fields(STUDENT_UPLOAD_FIELDS), (req, res) => {
+router.post("/students/update/:studentPk", avatarUpload.single("avatar_file"), (req, res) => {
   const wantsJson = String(req.headers.accept || "").includes("application/json");
 
   function sendUpdateResponse(statusCode, payload, redirectUrl) {
@@ -1716,7 +1609,7 @@ router.post("/students/update/:studentPk", photoUpload.fields(STUDENT_UPLOAD_FIE
       );
     }
 
-    const existing = db.prepare("SELECT id, avatar_path, photo_path, photo_uploaded_at, photo_uploaded_by, photo_2_path, photo_2_uploaded_at, photo_2_uploaded_by, photo_3_path, photo_3_uploaded_at, photo_3_uploaded_by, photo_4_path, photo_4_uploaded_at, photo_4_uploaded_by, photo_5_path, photo_5_uploaded_at, photo_5_uploaded_by, photo_6_path, photo_6_uploaded_at, photo_6_uploaded_by FROM students WHERE id = ?").get(studentPk);
+    const existing = db.prepare("SELECT id, avatar_path FROM students WHERE id = ?").get(studentPk);
     if (!existing) {
       return sendUpdateResponse(404, { success: false, error: "Student not found" }, "/admin/dashboard?error=Student+not+found");
     }
@@ -1730,25 +1623,10 @@ router.post("/students/update/:studentPk", photoUpload.fields(STUDENT_UPLOAD_FIE
        ON CONFLICT(student_pk, sibling_student_pk) DO NOTHING`
     );
     const findByFamily = db.prepare("SELECT id FROM students WHERE family_id = ?");
-    const orderedColumns = ["name", "full_name", "student_id", "no_sb", "no_bruhims", "bangsa", "ugama", "kerakyatan", "gender", "dob", "age", "level", "notes", "emergency_contact", "email", "alamat", "nama_ayah", "pekerjaan_ayah", "dob_ayah", "taraf_ayah", "no_telefon_ayah", "bangsa_ayah", "ugama_ayah", "kerakyatan_ayah", "nama_ibu", "pekerjaan_ibu", "dob_ibu", "taraf_ibu", "no_telefon_ibu", "bangsa_ibu", "ugama_ibu", "kerakyatan_ibu", "family_id", "yiuran_sekolah_paid", "yuran_pibg_paid", "insuran_paid", "avatar_path", "photo_path", "photo_uploaded_at", "photo_uploaded_by", "photo_2_path", "photo_2_uploaded_at", "photo_2_uploaded_by", "photo_3_path", "photo_3_uploaded_at", "photo_3_uploaded_by", "photo_4_path", "photo_4_uploaded_at", "photo_4_uploaded_by", "photo_5_path", "photo_5_uploaded_at", "photo_5_uploaded_by", "photo_6_path", "photo_6_uploaded_at", "photo_6_uploaded_by", "class_id"];
+    const orderedColumns = ["name", "full_name", "student_id", "no_sb", "no_bruhims", "bangsa", "ugama", "kerakyatan", "gender", "dob", "age", "level", "notes", "emergency_contact", "email", "alamat", "nama_ayah", "pekerjaan_ayah", "dob_ayah", "taraf_ayah", "no_telefon_ayah", "bangsa_ayah", "ugama_ayah", "kerakyatan_ayah", "nama_ibu", "pekerjaan_ibu", "dob_ibu", "taraf_ibu", "no_telefon_ibu", "bangsa_ibu", "ugama_ibu", "kerakyatan_ibu", "family_id", "yiuran_sekolah_paid", "yuran_pibg_paid", "insuran_paid", "avatar_path", "class_id"];
     const updateValues = { ...baseValues };
-    const avatarFile = getUploadedPhoto(req, "avatar_file");
+    const avatarFile = req.file;
     updateValues.avatar_path = avatarFile ? normalizeAvatarPath(avatarFile) : existing.avatar_path || null;
-    const uploadedPhotoFiles = new Map(
-      STUDENT_PHOTO_UPLOAD_FIELDS.map((field, index) => {
-        const slot = index + 1;
-        return [slot, getUploadedPhoto(req, field.name)];
-      })
-    );
-
-    uploadedPhotoFiles.forEach((file, slot) => {
-      const pathColumn = getPhotoColumnForSlot(slot);
-      const uploadedAtColumn = getPhotoUploadedAtColumnForSlot(slot);
-      const uploadedByColumn = getPhotoUploadedByColumnForSlot(slot);
-      updateValues[pathColumn] = file ? normalizePhotoPath(file) : existing[pathColumn] || null;
-      updateValues[uploadedAtColumn] = file ? now : existing[uploadedAtColumn] || null;
-      updateValues[uploadedByColumn] = file ? (Number(req.session && req.session.user && req.session.user.id) || null) : existing[uploadedByColumn] || null;
-    });
 
     const updateStudent = db.prepare(
       `UPDATE students
@@ -1770,13 +1648,9 @@ router.post("/students/update/:studentPk", photoUpload.fields(STUDENT_UPLOAD_FIE
         ).run(updateValues.yuran_pibg_paid, updateValues.family_id);
       }
 
-      uploadedPhotoFiles.forEach((file, slot) => {
-        if (!file) return;
-        const pathColumn = getPhotoColumnForSlot(slot);
-        if (existing[pathColumn] && existing[pathColumn] !== updateValues[pathColumn]) {
-          removeManagedPhotoIfExists(existing[pathColumn]);
-        }
-      });
+      if (avatarFile && existing.avatar_path && existing.avatar_path !== updateValues.avatar_path) {
+        removeManagedAvatarIfExists(existing.avatar_path);
+      }
 
       deleteSiblingLinks.run(studentPk, studentPk);
       syncFamilyLinks(studentPk, updateValues.family_id, now, linkSibling, findByFamily);
