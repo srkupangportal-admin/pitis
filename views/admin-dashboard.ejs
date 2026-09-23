@@ -1650,7 +1650,7 @@
               <a class="btn secondary" href="/admin/backup/download">Download Portable Backup ZIP</a>
               <a class="btn secondary" href="/admin/backup/download-json">Download JSON Backup</a>
             </div>
-            <div class="muted">The portable ZIP downloads through the browser and includes the database, managed uploads, a readable snapshot, manifest, and restore instructions for moving to a replacement server.</div>
+            <div class="muted">The portable ZIP includes an integrity-checked database, managed uploads, a readable snapshot, SHA-256 file manifest, and restore instructions for moving to a replacement server.</div>
           </form>
         </div>
 
@@ -1714,6 +1714,7 @@
                   <th>Backup Name</th>
                   <th>Created</th>
                   <th>Type</th>
+                  <th>Integrity</th>
                   <th>Folder Path</th>
                   <th>Action</th>
                 </tr>
@@ -1724,6 +1725,7 @@
                     <td><%= item.name %></td>
                     <td><%= item.created_at || '-' %></td>
                     <td><%= item.trigger_type || '-' %></td>
+                    <td><%= item.integrity_protection || 'Legacy backup' %></td>
                     <td><%= item.path || '-' %></td>
                     <td>
                       <div class="inline-filters">

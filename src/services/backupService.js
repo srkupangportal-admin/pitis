@@ -2,6 +2,8 @@ const fs = require("fs");
 const path = require("path");
 const os = require("os");
 const zlib = require("zlib");
+const crypto = require("crypto");
+const Database = require("better-sqlite3");
 const dayjs = require("dayjs");
 const { db } = require("../db/init");
 const { dbPath } = require("../db/database");
@@ -449,7 +451,10 @@ function listSavedBackups(destinationPath) {
         path: backupPath,
         created_at: (manifest && manifest.created_at) || stats.mtime.toISOString(),
         trigger_type: (manifest && manifest.trigger_type) || "",
-        has_manifest: !!manifest
+        has_manifest: !!manifest,
+        integrity_protection: manifest && Number(manifest.manifest_version) >= 2 && Array.isArray(manifest.files)
+          ? "SHA-256 manifest"
+          : "Legacy backup"
       };
     })
     .sort((a, b) => String(b.created_at || "").localeCompare(String(a.created_at || "")));
@@ -521,6 +526,88 @@ function collectDirectoryFiles(rootPath, currentPath = rootPath) {
     });
   });
   return files;
+}
+
+function sha256Buffer(buffer) {
+  return crypto.createHash("sha256").update(buffer).digest("hex");
+}
+
+function buildBackupFileInventory(rootPath) {
+  return collectDirectoryFiles(rootPath)
+    .filter((file) => file.relativePath !== "backup-manifest.json")
+    .map((file) => {
+      const data = fs.readFileSync(file.absolutePath);
+      return { path: file.relativePath, size: data.length, sha256: sha256Buffer(data) };
+    })
+    .sort((a, b) => a.path.localeCompare(b.path));
+}
+
+function verifySqliteDatabase(databasePath) {
+  const checkDb = new Database(databasePath, { fileMustExist: true });
+  try {
+    checkDb.pragma("journal_mode = DELETE");
+    const rows = checkDb.pragma("integrity_check");
+    const messages = rows.map((row) => String(row.integrity_check || Object.values(row)[0] || ""));
+    if (messages.length !== 1 || messages[0].toLowerCase() !== "ok") {
+      throw new Error(`SQLite integrity check failed: ${messages.join("; ") || "unknown result"}`);
+    }
+    return "ok";
+  } finally {
+    checkDb.close();
+  }
+}
+
+function validateManifestFiles(manifest, observedFiles) {
+  const manifestVersion = Number(manifest && manifest.manifest_version || 0);
+  if (!Array.isArray(manifest && manifest.files)) {
+    if (manifestVersion >= 2) throw new Error("Backup manifest file inventory is missing");
+    return false;
+  }
+
+  const expected = new Map();
+  manifest.files.forEach((record) => {
+    const entryName = normalizeArchiveEntryName(record && record.path);
+    if (entryName === "backup-manifest.json" || expected.has(entryName)) {
+      throw new Error("Backup manifest contains an invalid or duplicate file entry");
+    }
+    const size = Number(record.size);
+    const sha256 = String(record.sha256 || "").toLowerCase();
+    if (!Number.isSafeInteger(size) || size < 0 || !/^[0-9a-f]{64}$/.test(sha256)) {
+      throw new Error(`Backup manifest metadata is invalid for ${entryName}`);
+    }
+    expected.set(entryName, { size, sha256 });
+  });
+
+  for (const [entryName, expectedFile] of expected) {
+    const actual = observedFiles.get(entryName);
+    if (!actual) throw new Error(`Backup ZIP is missing ${entryName}`);
+    if (actual.size !== expectedFile.size || actual.sha256 !== expectedFile.sha256) {
+      throw new Error(`Backup SHA-256 verification failed for ${entryName}`);
+    }
+  }
+  for (const entryName of observedFiles.keys()) {
+    if (entryName !== "backup-manifest.json" && !expected.has(entryName)) {
+      throw new Error(`Backup ZIP contains an unlisted file: ${entryName}`);
+    }
+  }
+  return true;
+}
+
+function validatePortableBackupIntegrity(payload, manifest, observedFiles) {
+  const backupVersion = Number(payload && payload.meta && payload.meta.backup_version || 0);
+  const manifestVersion = Number(manifest && manifest.manifest_version || 0);
+  if (backupVersion >= 4 && manifestVersion < 2) {
+    throw new Error("Backup integrity manifest is missing or outdated");
+  }
+  if (manifestVersion >= 2) {
+    if (String(manifest.hash_algorithm || "").toUpperCase() !== "SHA-256") {
+      throw new Error("Backup manifest uses an unsupported hash algorithm");
+    }
+    if (String(manifest.database_integrity || "").toLowerCase() !== "ok") {
+      throw new Error("Backup database integrity was not verified");
+    }
+  }
+  validateManifestFiles(manifest, observedFiles);
 }
 
 function createZipArchive(sourcePath, destinationZipPath) {
@@ -649,6 +736,7 @@ function readPortableBackupArchive(buffer) {
     if (files.size >= 20000 || totalExpandedBytes > 2 * 1024 * 1024 * 1024) {
       throw new Error("Backup ZIP is too large to restore safely");
     }
+    if (files.has(entryName)) throw new Error(`Backup ZIP contains a duplicate file: ${entryName}`);
     files.set(entryName, data);
     offset = dataEnd;
   }
@@ -670,6 +758,9 @@ function readPortableBackupArchive(buffer) {
   if (!ensureValidBackupPayload(payload) || manifest.app !== "srkupangcodex-school-app") {
     throw new Error("Backup ZIP is not a valid SR Kupang Portal backup");
   }
+  const observedFiles = new Map();
+  files.forEach((data, entryName) => observedFiles.set(entryName, { size: data.length, sha256: sha256Buffer(data) }));
+  validatePortableBackupIntegrity(payload, manifest, observedFiles);
 
   const uploads = [];
   files.forEach((data, entryName) => {
@@ -740,6 +831,7 @@ function preparePortableBackupArchiveRestore(zipFilePath) {
   let totalExpandedBytes = 0;
   let snapshotBuffer = null;
   let manifestBuffer = null;
+  const observedFiles = new Map();
 
   try {
     const archiveSize = fs.fstatSync(fd).size;
@@ -770,6 +862,8 @@ function preparePortableBackupArchiveRestore(zipFilePath) {
       if (entryCount > 20000 || totalExpandedBytes > 2 * 1024 * 1024 * 1024) {
         throw new Error("Backup ZIP is too large to restore safely");
       }
+      if (observedFiles.has(entryName)) throw new Error(`Backup ZIP contains a duplicate file: ${entryName}`);
+      observedFiles.set(entryName, { size: data.length, sha256: sha256Buffer(data) });
       if (entryName === "snapshot.json") snapshotBuffer = data;
       if (entryName === "backup-manifest.json") manifestBuffer = data;
       if (entryName.startsWith("public/uploads/")) {
@@ -806,6 +900,12 @@ function preparePortableBackupArchiveRestore(zipFilePath) {
   if (!ensureValidBackupPayload(payload) || manifest.app !== "srkupangcodex-school-app") {
     removeDirectoryRecursive(stagingPath);
     throw new Error("Backup ZIP is not a valid SR Kupang Portal backup");
+  }
+  try {
+    validatePortableBackupIntegrity(payload, manifest, observedFiles);
+  } catch (error) {
+    removeDirectoryRecursive(stagingPath);
+    throw error;
   }
 
   const rollbackPath = path.join(publicRoot, `.uploads-rollback-${token}`);
@@ -957,7 +1057,7 @@ function makeBackupSnapshot() {
   return {
     meta: {
       app: "srkupangcodex-school-app",
-      backup_version: 3,
+      backup_version: 4,
       created_at: dayjs().toISOString()
     },
     data
@@ -1016,33 +1116,17 @@ async function runBackup(options = {}) {
     fs.mkdirSync(targetPath, { recursive: true });
     fs.mkdirSync(path.join(targetPath, "data"), { recursive: true });
 
-    await db.backup(path.join(targetPath, "data", "data.db"));
+    const databaseBackupPath = path.join(targetPath, "data", "data.db");
+    await db.backup(databaseBackupPath);
+    const databaseIntegrity = verifySqliteDatabase(databaseBackupPath);
 
     const snapshot = makeBackupSnapshot();
     fs.writeFileSync(path.join(targetPath, "snapshot.json"), JSON.stringify(snapshot, null, 2), "utf8");
 
-    if (fs.existsSync(PUBLIC_UPLOADS_DIR)) {
+    if (options.include_uploads !== false && fs.existsSync(PUBLIC_UPLOADS_DIR)) {
       copyDirectoryRecursive(PUBLIC_UPLOADS_DIR, path.join(targetPath, "public", "uploads"));
     }
 
-    fs.writeFileSync(
-      path.join(targetPath, "backup-manifest.json"),
-      JSON.stringify({
-        app: "srkupangcodex-school-app",
-        created_at: startedAt,
-        trigger_type: triggerType,
-        destination_root: destinationRoot,
-        backup_name: backupName,
-        includes: [
-          "data/data.db",
-          "snapshot.json",
-          "public/uploads",
-          "backup-manifest.json",
-          "RESTORE-INSTRUCTIONS.txt"
-        ]
-      }, null, 2),
-      "utf8"
-    );
     fs.writeFileSync(
       path.join(targetPath, "RESTORE-INSTRUCTIONS.txt"),
       [
@@ -1056,6 +1140,23 @@ async function runBackup(options = {}) {
         "",
         "The ZIP contains the database snapshot and managed files from public/uploads."
       ].join("\r\n"),
+      "utf8"
+    );
+    const files = buildBackupFileInventory(targetPath);
+    fs.writeFileSync(
+      path.join(targetPath, "backup-manifest.json"),
+      JSON.stringify({
+        app: "srkupangcodex-school-app",
+        manifest_version: 2,
+        backup_version: snapshot.meta.backup_version,
+        created_at: startedAt,
+        trigger_type: triggerType,
+        destination_root: destinationRoot,
+        backup_name: backupName,
+        database_integrity: databaseIntegrity,
+        hash_algorithm: "SHA-256",
+        files
+      }, null, 2),
       "utf8"
     );
 
