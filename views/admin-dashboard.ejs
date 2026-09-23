@@ -813,10 +813,15 @@
             </span>
           </label>
           <div style="grid-column:1 / -1;">
-            <strong style="display:block;margin-bottom:10px;">Student Photos</strong>
+            <strong style="display:block;margin-bottom:10px;">Customized Avatar</strong>
+            <label style="display:flex;align-items:center;gap:12px;max-width:420px;margin-bottom:18px;">
+              <img id="adminStudentAvatarPreview" src="<%= selectedStudent.avatar_path || '/images/student-placeholder.svg' %>" alt="Current student avatar" style="width:72px;height:72px;border-radius:50%;object-fit:cover;" />
+              <span><span class="muted" style="display:block;">Used on PITIS, leaderboards, attendance and the PWA.</span><input type="file" name="avatar_file" accept="image/jpeg,image/png,image/webp" /></span>
+            </label>
+            <strong style="display:block;margin-bottom:10px;">Private Reference Photos</strong>
             <div id="adminStudentPhotoSlots" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(120px,1fr));gap:12px;">
               <% for (let slot = 1; slot <= 6; slot += 1) { %>
-                <% const slotSrc = selectedStudent[slot === 1 ? 'photo_path' : ('photo_' + slot + '_path')] || ''; %>
+                <% const slotSrc = selectedStudent.photo_slots && selectedStudent.photo_slots[slot - 1] ? selectedStudent.photo_slots[slot - 1].src : ''; %>
                 <% const slotUploadedAt = slot === 1 ? (selectedStudent.photo_uploaded_at || '') : (selectedStudent['photo_' + slot + '_uploaded_at'] || ''); %>
                 <label style="display:flex;flex-direction:column;gap:8px;">
                   <span>Photo <%= slot %></span>
@@ -1565,7 +1570,9 @@
           <% }) %>
         <% }) %>
         <div style="grid-column:1 / -1;">
-          <strong style="display:block;margin-bottom:10px;">Student Photos</strong>
+          <strong style="display:block;margin-bottom:10px;">Customized Avatar</strong>
+          <label style="display:block;max-width:420px;margin-bottom:18px;">Avatar image<input type="file" name="avatar_file" accept="image/jpeg,image/png,image/webp" /><span class="muted">Used outside the protected Student Details page.</span></label>
+          <strong style="display:block;margin-bottom:10px;">Private Reference Photos</strong>
           <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(120px,1fr));gap:12px;">
             <% for (let slot = 1; slot <= 6; slot += 1) { %>
               <label style="display:flex;flex-direction:column;gap:8px;">
@@ -2591,6 +2598,7 @@
       var adminStudentEditorWrap = document.getElementById('adminStudentEditorWrap');
       var adminStudentEditForm = document.getElementById('adminStudentEditForm');
       var adminStudentPhotoSlotsWrap = document.getElementById('adminStudentPhotoSlots');
+      var adminStudentAvatarPreview = document.getElementById('adminStudentAvatarPreview');
       var adminStudentFeeFields = ['yiuran_sekolah_paid', 'yuran_pibg_paid', 'insuran_paid'];
       var adminInformationBulkForm = document.getElementById('adminInformationBulkForm');
       var toggleAllInfoFiles = document.getElementById('toggleAllInfoFiles');
@@ -2726,6 +2734,7 @@
 
       function buildAdminStudentPhotoSlots(student) {
         if (!student) return [];
+        if (Array.isArray(student.photo_slots)) return student.photo_slots;
         return Array.from({ length: 6 }, function (_, index) {
           var slot = index + 1;
           var pathField = slot === 1 ? 'photo_path' : ('photo_' + slot + '_path');
@@ -2786,6 +2795,7 @@
         });
         adminStudentEditForm.querySelectorAll('input[type="file"]').forEach(function (fileInput) { fileInput.value = ''; });
         renderStudentPhotoSlots([]);
+        if (adminStudentAvatarPreview) adminStudentAvatarPreview.src = '/images/student-placeholder.svg';
         toggleAdminStudentEditor(false);
         syncStudentManageButton();
       }
@@ -2804,6 +2814,7 @@
           fileInput.value = '';
         });
         renderStudentPhotoSlots(buildAdminStudentPhotoSlots(student));
+        if (adminStudentAvatarPreview) adminStudentAvatarPreview.src = student.avatar_path || '/images/student-placeholder.svg';
         syncStudentManageButton();
       }
 

@@ -146,6 +146,8 @@ function assignCalendarEventLabels(eventId, labelIds) {
 }
 
 ensurePrivateStudentPhotoDirectory();
+const STUDENT_AVATAR_DIR = path.join(__dirname, "..", "..", "public", "uploads", "avatars");
+fs.mkdirSync(STUDENT_AVATAR_DIR, { recursive: true });
 
 const INFORMATION_UPLOAD_DIR = path.join(__dirname, "..", "..", "public", "uploads", "informations");
 if (!fs.existsSync(INFORMATION_UPLOAD_DIR)) {
@@ -153,7 +155,7 @@ if (!fs.existsSync(INFORMATION_UPLOAD_DIR)) {
 }
 
 const photoStorage = multer.diskStorage({
-  destination: (_req, _file, cb) => cb(null, PRIVATE_STUDENT_PHOTO_DIR),
+  destination: (_req, file, cb) => cb(null, file.fieldname === "avatar_file" ? STUDENT_AVATAR_DIR : PRIVATE_STUDENT_PHOTO_DIR),
   filename: (_req, file, cb) => cb(null, createStudentPhotoFilename(file.originalname))
 });
 
@@ -161,6 +163,9 @@ const photoUpload = multer({
   storage: photoStorage,
   limits: { fileSize: 5 * 1024 * 1024 },
   fileFilter: (_req, file, cb) => {
+    if (file.fieldname === "avatar_file" && !["image/jpeg", "image/png", "image/webp"].includes(file.mimetype || "")) {
+      return cb(new Error("Avatars must be JPEG, PNG, or WebP images"));
+    }
     if ((file.mimetype || "").startsWith("image/")) return cb(null, true);
     return cb(new Error("Only image files are allowed"));
   }
@@ -174,6 +179,7 @@ const STUDENT_PHOTO_UPLOAD_FIELDS = [
   { name: "photo_5_file", maxCount: 1 },
   { name: "photo_6_file", maxCount: 1 }
 ];
+const STUDENT_UPLOAD_FIELDS = [{ name: "avatar_file", maxCount: 1 }, ...STUDENT_PHOTO_UPLOAD_FIELDS];
 
 const informationStorage = multer.diskStorage({
   destination: (_req, _file, cb) => cb(null, INFORMATION_UPLOAD_DIR),
@@ -196,6 +202,19 @@ const informationUpload = multer({
 
 function normalizePhotoPath(file) {
   return file ? toPrivatePhotoReference(file.filename) : "";
+}
+
+function normalizeAvatarPath(file) {
+  return file ? `/uploads/avatars/${path.basename(file.filename)}` : "";
+}
+
+function removeManagedAvatarIfExists(avatarPath) {
+  const value = String(avatarPath || "").trim();
+  if (!value.startsWith("/uploads/avatars/")) return;
+  const target = path.join(STUDENT_AVATAR_DIR, path.basename(value));
+  if (fs.existsSync(target)) {
+    try { fs.unlinkSync(target); } catch (_) {}
+  }
 }
 
 function removeManagedPhotoIfExists(photoPath) {
@@ -1605,7 +1624,7 @@ router.post("/informations/upload", informationUpload.single("information_pdf"),
   return res.redirect("/admin/dashboard?success=Information+PDF+uploaded");
 });
 
-router.post("/students/add", photoUpload.fields(STUDENT_PHOTO_UPLOAD_FIELDS), (req, res) => {
+router.post("/students/add", photoUpload.fields(STUDENT_UPLOAD_FIELDS), (req, res) => {
   const classId = Number(req.body.class_id);
   const baseValues = buildStudentBaseValues(req.body, classId);
 
@@ -1614,8 +1633,9 @@ router.post("/students/add", photoUpload.fields(STUDENT_PHOTO_UPLOAD_FIELDS), (r
   }
 
   const now = dayjs().toISOString();
-  const insertColumns = ["name", "full_name", "student_id", "qr_token", "no_sb", "no_bruhims", "bangsa", "ugama", "kerakyatan", "gender", "dob", "age", "level", "notes", "emergency_contact", "email", "alamat", "nama_ayah", "pekerjaan_ayah", "dob_ayah", "taraf_ayah", "no_telefon_ayah", "bangsa_ayah", "ugama_ayah", "kerakyatan_ayah", "nama_ibu", "pekerjaan_ibu", "dob_ibu", "taraf_ibu", "no_telefon_ibu", "bangsa_ibu", "ugama_ibu", "kerakyatan_ibu", "family_id", "yiuran_sekolah_paid", "yuran_pibg_paid", "insuran_paid", "photo_path", "photo_uploaded_at", "photo_uploaded_by", "photo_2_path", "photo_2_uploaded_at", "photo_2_uploaded_by", "photo_3_path", "photo_3_uploaded_at", "photo_3_uploaded_by", "photo_4_path", "photo_4_uploaded_at", "photo_4_uploaded_by", "photo_5_path", "photo_5_uploaded_at", "photo_5_uploaded_by", "photo_6_path", "photo_6_uploaded_at", "photo_6_uploaded_by", "class_id", "created_at"];
+  const insertColumns = ["name", "full_name", "student_id", "qr_token", "no_sb", "no_bruhims", "bangsa", "ugama", "kerakyatan", "gender", "dob", "age", "level", "notes", "emergency_contact", "email", "alamat", "nama_ayah", "pekerjaan_ayah", "dob_ayah", "taraf_ayah", "no_telefon_ayah", "bangsa_ayah", "ugama_ayah", "kerakyatan_ayah", "nama_ibu", "pekerjaan_ibu", "dob_ibu", "taraf_ibu", "no_telefon_ibu", "bangsa_ibu", "ugama_ibu", "kerakyatan_ibu", "family_id", "yiuran_sekolah_paid", "yuran_pibg_paid", "insuran_paid", "avatar_path", "photo_path", "photo_uploaded_at", "photo_uploaded_by", "photo_2_path", "photo_2_uploaded_at", "photo_2_uploaded_by", "photo_3_path", "photo_3_uploaded_at", "photo_3_uploaded_by", "photo_4_path", "photo_4_uploaded_at", "photo_4_uploaded_by", "photo_5_path", "photo_5_uploaded_at", "photo_5_uploaded_by", "photo_6_path", "photo_6_uploaded_at", "photo_6_uploaded_by", "class_id", "created_at"];
   const insertValues = { ...baseValues };
+  insertValues.avatar_path = normalizeAvatarPath(getUploadedPhoto(req, "avatar_file")) || null;
   const uploadedPhotoFiles = new Map(
     STUDENT_PHOTO_UPLOAD_FIELDS.map((field, index) => {
       const slot = index + 1;
@@ -1673,7 +1693,7 @@ router.post("/students/add", photoUpload.fields(STUDENT_PHOTO_UPLOAD_FIELDS), (r
 });
 
 
-router.post("/students/update/:studentPk", photoUpload.fields(STUDENT_PHOTO_UPLOAD_FIELDS), (req, res) => {
+router.post("/students/update/:studentPk", photoUpload.fields(STUDENT_UPLOAD_FIELDS), (req, res) => {
   const wantsJson = String(req.headers.accept || "").includes("application/json");
 
   function sendUpdateResponse(statusCode, payload, redirectUrl) {
@@ -1696,7 +1716,7 @@ router.post("/students/update/:studentPk", photoUpload.fields(STUDENT_PHOTO_UPLO
       );
     }
 
-    const existing = db.prepare("SELECT id, photo_path, photo_uploaded_at, photo_uploaded_by, photo_2_path, photo_2_uploaded_at, photo_2_uploaded_by, photo_3_path, photo_3_uploaded_at, photo_3_uploaded_by, photo_4_path, photo_4_uploaded_at, photo_4_uploaded_by, photo_5_path, photo_5_uploaded_at, photo_5_uploaded_by, photo_6_path, photo_6_uploaded_at, photo_6_uploaded_by FROM students WHERE id = ?").get(studentPk);
+    const existing = db.prepare("SELECT id, avatar_path, photo_path, photo_uploaded_at, photo_uploaded_by, photo_2_path, photo_2_uploaded_at, photo_2_uploaded_by, photo_3_path, photo_3_uploaded_at, photo_3_uploaded_by, photo_4_path, photo_4_uploaded_at, photo_4_uploaded_by, photo_5_path, photo_5_uploaded_at, photo_5_uploaded_by, photo_6_path, photo_6_uploaded_at, photo_6_uploaded_by FROM students WHERE id = ?").get(studentPk);
     if (!existing) {
       return sendUpdateResponse(404, { success: false, error: "Student not found" }, "/admin/dashboard?error=Student+not+found");
     }
@@ -1710,8 +1730,10 @@ router.post("/students/update/:studentPk", photoUpload.fields(STUDENT_PHOTO_UPLO
        ON CONFLICT(student_pk, sibling_student_pk) DO NOTHING`
     );
     const findByFamily = db.prepare("SELECT id FROM students WHERE family_id = ?");
-    const orderedColumns = ["name", "full_name", "student_id", "no_sb", "no_bruhims", "bangsa", "ugama", "kerakyatan", "gender", "dob", "age", "level", "notes", "emergency_contact", "email", "alamat", "nama_ayah", "pekerjaan_ayah", "dob_ayah", "taraf_ayah", "no_telefon_ayah", "bangsa_ayah", "ugama_ayah", "kerakyatan_ayah", "nama_ibu", "pekerjaan_ibu", "dob_ibu", "taraf_ibu", "no_telefon_ibu", "bangsa_ibu", "ugama_ibu", "kerakyatan_ibu", "family_id", "yiuran_sekolah_paid", "yuran_pibg_paid", "insuran_paid", "photo_path", "photo_uploaded_at", "photo_uploaded_by", "photo_2_path", "photo_2_uploaded_at", "photo_2_uploaded_by", "photo_3_path", "photo_3_uploaded_at", "photo_3_uploaded_by", "photo_4_path", "photo_4_uploaded_at", "photo_4_uploaded_by", "photo_5_path", "photo_5_uploaded_at", "photo_5_uploaded_by", "photo_6_path", "photo_6_uploaded_at", "photo_6_uploaded_by", "class_id"];
+    const orderedColumns = ["name", "full_name", "student_id", "no_sb", "no_bruhims", "bangsa", "ugama", "kerakyatan", "gender", "dob", "age", "level", "notes", "emergency_contact", "email", "alamat", "nama_ayah", "pekerjaan_ayah", "dob_ayah", "taraf_ayah", "no_telefon_ayah", "bangsa_ayah", "ugama_ayah", "kerakyatan_ayah", "nama_ibu", "pekerjaan_ibu", "dob_ibu", "taraf_ibu", "no_telefon_ibu", "bangsa_ibu", "ugama_ibu", "kerakyatan_ibu", "family_id", "yiuran_sekolah_paid", "yuran_pibg_paid", "insuran_paid", "avatar_path", "photo_path", "photo_uploaded_at", "photo_uploaded_by", "photo_2_path", "photo_2_uploaded_at", "photo_2_uploaded_by", "photo_3_path", "photo_3_uploaded_at", "photo_3_uploaded_by", "photo_4_path", "photo_4_uploaded_at", "photo_4_uploaded_by", "photo_5_path", "photo_5_uploaded_at", "photo_5_uploaded_by", "photo_6_path", "photo_6_uploaded_at", "photo_6_uploaded_by", "class_id"];
     const updateValues = { ...baseValues };
+    const avatarFile = getUploadedPhoto(req, "avatar_file");
+    updateValues.avatar_path = avatarFile ? normalizeAvatarPath(avatarFile) : existing.avatar_path || null;
     const uploadedPhotoFiles = new Map(
       STUDENT_PHOTO_UPLOAD_FIELDS.map((field, index) => {
         const slot = index + 1;
@@ -2249,6 +2271,9 @@ router.post("/backup/restore", uploadRestore.single("backup_file"), async (req, 
       return req.session.destroy(() => {
         res.redirect("/login");
       });
+      if (avatarFile && existing.avatar_path && existing.avatar_path !== updateValues.avatar_path) {
+        removeManagedAvatarIfExists(existing.avatar_path);
+      }
     }
 
     const tx = db.transaction((backupData) => {

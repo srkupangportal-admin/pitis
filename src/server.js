@@ -154,6 +154,7 @@ function createApp(config) {
   });
   app.use("/uploads/photos", express.static(path.join(publicRoot, "uploads", "photos"), { dotfiles: "deny", index: false }));
   app.use("/uploads/rewards", express.static(path.join(publicRoot, "uploads", "rewards"), { dotfiles: "deny", index: false }));
+  app.use("/uploads/avatars", express.static(path.join(publicRoot, "uploads", "avatars"), { dotfiles: "deny", index: false }));
   app.use("/vendor/html5-qrcode", express.static(path.join(__dirname, "..", "node_modules", "html5-qrcode")));
   app.use(maintenanceMiddleware);
 
