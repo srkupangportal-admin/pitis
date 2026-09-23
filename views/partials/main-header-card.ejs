@@ -96,7 +96,7 @@
         Quick Menu
       </button>
       <nav id="mainHeaderMobileShortcuts" class="main-header-mobile-panel hidden" aria-label="Mobile shortcuts">
-        <button type="button" class="btn pwa-install-button" data-pwa-install hidden aria-hidden="true">Install SRK Portal</button>
+        <button type="button" class="btn pwa-install-button" data-pwa-install hidden aria-hidden="true">Install PITIS</button>
         <% if (isAuthenticated) { %><a class="btn notification-bell" href="/notifications">&#128276; Notifications</a><a class="btn" href="/notification-settings">Notification Settings</a><a class="btn" href="/reminders">Reminders</a><% } %>
         <% mainHeaderShortcuts.forEach(function (item) { %>
           <a class="btn <%= item.className || '' %>" href="<%= item.href %>"><%= item.label %></a>

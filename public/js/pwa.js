@@ -16,7 +16,7 @@
     });
   }
 
-  function showIosInstallHelp() {
+  function showInstallHelp() {
     const existing = document.getElementById('pwaInstallHelp');
     if (existing) {
       existing.hidden = false;
@@ -26,24 +26,30 @@
     help.id = 'pwaInstallHelp';
     help.className = 'pwa-install-help';
     help.setAttribute('role', 'status');
-    help.innerHTML = '<strong>Add SRK Portal to this device</strong><span>In Safari, tap Share, then Add to Home Screen.</span><button type="button" aria-label="Close install instructions">Close</button>';
+    help.innerHTML = isIos
+      ? '<strong>Add PITIS to this device</strong><span>In Safari, tap Share, then Add to Home Screen.</span><button type="button" aria-label="Close install instructions">Close</button>'
+      : '<strong>Install PITIS</strong><span>Open your browser menu and choose Install app or Add to Home screen. If PITIS is already installed, open it from your home screen.</span><button type="button" aria-label="Close install instructions">Close</button>';
     help.querySelector('button').addEventListener('click', () => help.remove());
     document.body.appendChild(help);
   }
 
   async function install() {
     if (deferredInstallPrompt) {
-      deferredInstallPrompt.prompt();
-      await deferredInstallPrompt.userChoice.catch(() => null);
-      deferredInstallPrompt = null;
-      setInstallButtonVisibility(false);
-      return;
+      try {
+        await deferredInstallPrompt.prompt();
+        await deferredInstallPrompt.userChoice;
+        deferredInstallPrompt = null;
+        setInstallButtonVisibility(false);
+        return;
+      } catch {
+        deferredInstallPrompt = null;
+      }
     }
-    if (isIos) showIosInstallHelp();
+    showInstallHelp();
   }
 
   function prepare() {
-    if (!isStandalone && isIos) setInstallButtonVisibility(true);
+    if (!isStandalone) setInstallButtonVisibility(true);
     installButtons().forEach((button) => button.addEventListener('click', install));
 
     window.addEventListener('beforeinstallprompt', (event) => {

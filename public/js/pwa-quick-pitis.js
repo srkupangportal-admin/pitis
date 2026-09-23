@@ -250,12 +250,23 @@
     byId('installApp').hidden = false;
   });
   byId('installApp').addEventListener('click', async () => {
-    if (!state.installPrompt) return;
+    if (!state.installPrompt) {
+      const isIos = /iphone|ipad|ipod/i.test(navigator.userAgent);
+      alert(isIos
+        ? 'To install PITIS, open this page in Safari, tap Share, then tap Add to Home Screen.'
+        : 'Open your browser menu and choose Install app or Add to Home screen. If PITIS is already installed, open it from your home screen.');
+      return;
+    }
     state.installPrompt.prompt();
     await state.installPrompt.userChoice.catch(() => null);
     state.installPrompt = null;
     byId('installApp').hidden = true;
   });
+
+  const isStandalone = window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone === true;
+  if (!isStandalone) {
+    byId('installApp').hidden = false;
+  }
 
   if ('serviceWorker' in navigator) navigator.serviceWorker.register('/service-worker.js').catch(() => {});
 
