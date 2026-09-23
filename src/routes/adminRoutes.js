@@ -740,7 +740,6 @@ router.get("/dashboard", async (req, res) => {
 
   const selectedStudentId = Number(req.query.student_pk) || (studentsInClass[0] ? studentsInClass[0].id : null);
   const selectedStudent = selectedStudentId ? getStudentForAdminEdit(selectedStudentId, selectedClassId) : null;
-  const selectedStudentPhotoSlots = selectedStudent ? getStudentPhotoSlots(selectedStudent) : [];
 
   const activeEvents = db
     .prepare(
@@ -858,7 +857,6 @@ router.get("/dashboard", async (req, res) => {
     studentsInClass,
     selectedStudentId,
     selectedStudent,
-    selectedStudentPhotoSlots: selectedStudent ? getStudentPhotoSlots(selectedStudent) : [],
     activeEvents,
     deletedEvents,
     infoFolders,
@@ -2145,9 +2143,6 @@ router.post("/backup/restore", uploadRestore.single("backup_file"), async (req, 
       return req.session.destroy(() => {
         res.redirect("/login");
       });
-      if (avatarFile && existing.avatar_path && existing.avatar_path !== updateValues.avatar_path) {
-        removeManagedAvatarIfExists(existing.avatar_path);
-      }
     }
 
     const tx = db.transaction((backupData) => {
