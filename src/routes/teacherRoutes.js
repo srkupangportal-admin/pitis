@@ -1966,8 +1966,15 @@ router.get("/reward/:classId", (req, res) => {
     )
     .all(classId);
 
-  const reasons = db.prepare("SELECT id, reason, reason_type, is_custom FROM point_reasons ORDER BY reason_type ASC, reason ASC").all();
-  const customReasons = reasons.filter((r) => Number(r.is_custom) === 1);
+  const reasons = db.prepare(`
+    SELECT pr.id, pr.reason, pr.reason_type, pr.is_custom,
+           CASE WHEN COALESCE(pr.is_custom, 0) = 0
+                  OR EXISTS (SELECT 1 FROM users creator WHERE creator.id = pr.created_by AND creator.role = 'admin')
+                THEN 1 ELSE 0 END AS is_default
+    FROM point_reasons pr
+    ORDER BY pr.reason_type ASC, is_default DESC, pr.reason COLLATE NOCASE ASC, pr.id ASC
+  `).all();
+  const customReasons = reasons.filter((r) => Number(r.is_default) !== 1);
   const canAttributeAwards = req.session.user.role === "admin";
   const awardTeachers = canAttributeAwards
     ? db.prepare(

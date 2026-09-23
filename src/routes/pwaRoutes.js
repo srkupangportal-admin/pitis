@@ -44,9 +44,12 @@ router.get("/api/bootstrap", (req, res) => {
     ORDER BY c.name COLLATE NOCASE
   `).all();
   const reasons = db.prepare(`
-    SELECT id, reason, reason_type, is_custom
-    FROM point_reasons
-    ORDER BY reason_type, reason COLLATE NOCASE
+    SELECT pr.id, pr.reason, pr.reason_type, pr.is_custom,
+           CASE WHEN COALESCE(pr.is_custom, 0) = 0
+                  OR EXISTS (SELECT 1 FROM users creator WHERE creator.id = pr.created_by AND creator.role = 'admin')
+                THEN 1 ELSE 0 END AS is_default
+    FROM point_reasons pr
+    ORDER BY pr.reason_type, is_default DESC, pr.reason COLLATE NOCASE, pr.id
   `).all();
   res.json({
     user: {

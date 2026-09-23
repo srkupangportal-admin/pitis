@@ -61,7 +61,7 @@
     reasonSelect.innerHTML = '';
     option(reasonSelect, '', state.action ? 'Select reason' : 'Choose PITIS first');
     const type = state.action === 'award' ? 'positive' : state.action === 'deduct' ? 'negative' : '';
-    state.reasons.filter((reason) => reason.reason_type === type).forEach((reason) => option(reasonSelect, reason.id, reason.reason));
+    state.reasons.filter((reason) => reason.reason_type === type).forEach((reason) => option(reasonSelect, reason.id, reason.reason + (Number(reason.is_default) === 1 ? ' · Default' : '')));
     reasonSelect.disabled = !type || customToggle.checked;
     updateReviewState();
   }

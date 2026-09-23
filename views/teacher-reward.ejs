@@ -139,7 +139,7 @@
           <select name="reason" id="modalReason">
             <option value="">Select reason</option>
             <% reasons.forEach(r => { %>
-              <option value="<%= r.reason %>" data-reason-id="<%= r.id %>" data-is-custom="<%= Number(r.is_custom) === 1 ? '1' : '0' %>" data-reason-type="<%= r.reason_type %>"><%= r.reason %></option>
+              <option value="<%= r.reason %>" data-reason-id="<%= r.id %>" data-is-custom="<%= Number(r.is_default) === 1 ? '0' : '1' %>" data-reason-type="<%= r.reason_type %>"><%= r.reason %><%= Number(r.is_default) === 1 ? ' · Default' : '' %></option>
             <% }) %>
           </select>
         </label>

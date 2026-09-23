@@ -860,6 +860,7 @@ router.get("/dashboard", async (req, res) => {
   `).all();
   const pointReasons = db.prepare(`
     SELECT pr.id, pr.reason, pr.reason_type, COALESCE(pr.is_custom, 0) AS is_custom, pr.created_at,
+           CASE WHEN COALESCE(pr.is_custom, 0) = 0 OR u.role = 'admin' THEN 1 ELSE 0 END AS is_default,
            COALESCE(u.display_name, u.username, 'System') AS created_by_name,
            COALESCE(usage.total_usage, 0) AS total_usage
     FROM point_reasons pr
@@ -869,7 +870,7 @@ router.get("/dashboard", async (req, res) => {
       FROM point_logs
       GROUP BY reason
     ) usage ON usage.reason = pr.reason
-    ORDER BY pr.reason_type ASC, LOWER(pr.reason) ASC, pr.id ASC
+    ORDER BY pr.reason_type ASC, is_default DESC, LOWER(pr.reason) ASC, pr.id ASC
   `).all();
   const userLoginReportRows = getUserLoginReportRows(10).map((row) => ({
     ...row,

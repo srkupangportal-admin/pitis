@@ -959,6 +959,7 @@
                     <option value="positive" <%= reason.reason_type === 'positive' ? 'selected' : '' %>>Positive</option>
                     <option value="negative" <%= reason.reason_type === 'negative' ? 'selected' : '' %>>Negative</option>
                   </select>
+                  <span class="status-badge" style="min-width:90px; flex:0 1 110px;"><%= Number(reason.is_default) === 1 ? 'Default' : 'Custom' %></span>
                   <span class="muted" style="min-width:120px; flex:0 1 140px;">Used: <%= reason.total_usage %></span>
                   <span class="muted" style="min-width:180px; flex:1 1 220px;">Added by: <%= reason.created_by_name || 'System' %></span>
                   <button class="btn secondary" type="submit" data-async-dashboard-submit="1">Save</button>
