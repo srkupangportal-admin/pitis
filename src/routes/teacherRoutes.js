@@ -71,6 +71,7 @@ router.use("/students", (req, res, next) => {
   if (!["teacher", "admin"].includes(req.session.user.role)) {
     return res.status(403).send("Student details are restricted to teachers and administrators.");
   }
+  res.set("Cache-Control", "private, no-store");
   return next();
 });
 
@@ -1863,7 +1864,7 @@ router.get("/tools/class/:classId/students", (req, res) => {
   if (classKey === "all-school") {
     const students = db
       .prepare(
-        `SELECT s.id, s.student_id, s.no_sb, s.full_name, COALESCE(NULLIF(s.name, ''), s.full_name) AS nickname, s.class_id, c.name AS class_name,
+        `SELECT s.id, COALESCE(NULLIF(s.name, ''), s.full_name) AS nickname, s.class_id, c.name AS class_name,
                 NULLIF(s.avatar_path, '') AS photo_src
          FROM students s
          JOIN classes c ON c.id = s.class_id
@@ -1882,7 +1883,7 @@ router.get("/tools/class/:classId/students", (req, res) => {
 
   const students = db
     .prepare(
-      `SELECT s.id, s.student_id, s.no_sb, s.full_name, COALESCE(NULLIF(s.name, ''), s.full_name) AS nickname, s.class_id, c.name AS class_name,
+       `SELECT s.id, COALESCE(NULLIF(s.name, ''), s.full_name) AS nickname, s.class_id, c.name AS class_name,
                NULLIF(s.avatar_path, '') AS photo_src
        FROM students s
        JOIN classes c ON c.id = s.class_id
@@ -1927,8 +1928,7 @@ router.post("/tools/random-selector/award", (req, res) => {
     success: true,
     student: {
       id: student.id,
-      nickname: student.nickname,
-      full_name: student.full_name
+      nickname: student.nickname
     },
     points,
     reason
@@ -1953,7 +1953,7 @@ router.get("/reward/:classId", (req, res) => {
 
   const students = db
     .prepare(
-      `SELECT s.id, COALESCE(NULLIF(s.name, ''), s.full_name) AS nickname, s.full_name, NULLIF(s.avatar_path, '') AS photo_src, COALESCE(SUM(pl.points), 0) AS total_points
+      `SELECT s.id, COALESCE(NULLIF(s.name, ''), s.full_name) AS nickname, NULLIF(s.avatar_path, '') AS photo_src, COALESCE(SUM(pl.points), 0) AS total_points
        FROM students s
        LEFT JOIN point_logs pl ON pl.student_id = s.id
        WHERE s.class_id = ?

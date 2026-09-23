@@ -113,6 +113,17 @@
     </div>
   </div>
 </header>
+<% if (isAuthenticated && !canViewStudentDetails) { %>
+  <script>
+    document.addEventListener('DOMContentLoaded', function () {
+      document.querySelectorAll('a[href^="/teacher/students/"]').forEach(function (link) {
+        link.removeAttribute('href');
+        link.setAttribute('aria-disabled', 'true');
+        link.classList.add('student-detail-restricted');
+      });
+    });
+  </script>
+<% } %>
 <% if (isAuthenticated) { %>
   <nav class="portal-top-shortcuts" aria-label="Top shortcuts">
     <% mainHeaderShortcuts.forEach(function (item) { %>

@@ -86,7 +86,6 @@ router.get("/api/classes/:classId/students", (req, res) => {
   const students = db.prepare(`
     SELECT s.id,
            COALESCE(NULLIF(s.name, ''), s.full_name) AS nickname,
-           s.full_name,
            NULLIF(s.avatar_path, '') AS photo_src,
            COALESCE(SUM(pl.points), 0) AS total_points
     FROM students s
@@ -104,9 +103,9 @@ router.post("/api/scan", (req, res) => {
   try {
     const parsed = parseStudentQrPayload(qrText);
     const student = db.prepare(`
-      SELECT s.id, s.class_id, s.student_id, s.qr_token,
+      SELECT s.id, s.class_id,
              COALESCE(NULLIF(s.name, ''), s.full_name) AS nickname,
-             s.full_name, NULLIF(s.avatar_path, '') AS photo_src,
+             NULLIF(s.avatar_path, '') AS photo_src,
              c.name AS class_name,
              COALESCE((SELECT SUM(points) FROM point_logs WHERE student_id = s.id), 0) AS total_points
       FROM students s
@@ -139,7 +138,7 @@ router.post("/api/transactions", (req, res) => {
   if (customReason.length > 120) return res.status(400).json({ error: "Reason must be 120 characters or fewer." });
 
   const student = db.prepare(`
-    SELECT id, class_id, COALESCE(NULLIF(name, ''), full_name) AS nickname, full_name
+    SELECT id, class_id, COALESCE(NULLIF(name, ''), full_name) AS nickname
     FROM students WHERE id = ? AND class_id = ?
   `).get(studentId, classId);
   if (!student) return res.status(404).json({ error: "Student was not found in that class." });
@@ -195,7 +194,7 @@ router.post("/api/transactions", (req, res) => {
   recordPwaActivity(req.session.user.id, "transaction_count", Number(student.class_id));
   return res.status(201).json({
     ok: true,
-    student: { id: student.id, name: student.nickname || student.full_name, total_points: total },
+    student: { id: student.id, name: student.nickname, total_points: total },
     transaction: { action, amount, points, reason },
     reason: customReason ? { id: createdReasonId, reason, reason_type: reasonType, is_custom: 1 } : null
   });

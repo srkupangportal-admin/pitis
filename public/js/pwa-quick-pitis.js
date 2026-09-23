@@ -50,8 +50,8 @@
     const student = selectedStudent();
     byId('studentCard').hidden = !student;
     if (!student) return updateReviewState();
-    byId('studentName').textContent = student.nickname || student.full_name;
-    byId('studentFullName').textContent = student.full_name || '';
+    byId('studentName').textContent = student.nickname;
+    byId('studentFullName').textContent = '';
     byId('studentTotal').textContent = `${Number(student.total_points || 0)} PITIS`;
     byId('studentPhoto').src = student.photo_src || '/images/student-placeholder.svg';
     updateReviewState();
@@ -98,7 +98,7 @@
       state.students = data.students || [];
       studentSelect.innerHTML = '';
       option(studentSelect, '', 'Select student');
-      state.students.forEach((student) => option(studentSelect, student.id, `${student.nickname || student.full_name} — ${student.total_points} PITIS`));
+      state.students.forEach((student) => option(studentSelect, student.id, `${student.nickname} — ${student.total_points} PITIS`));
       studentSelect.disabled = false;
     } catch (error) {
       studentSelect.innerHTML = '';
@@ -127,7 +127,7 @@
       studentSelect.value = String(data.student.id);
       updateStudentCard();
       scanDialog.close();
-      showStatus(`${data.student.nickname || data.student.full_name} selected by QR.`, 'success');
+      showStatus(`${data.student.nickname} selected by QR.`, 'success');
     } catch (error) {
       byId('scanStatus').textContent = error.message;
     } finally {
@@ -198,7 +198,7 @@
     const student = selectedStudent();
     const selectedReason = customToggle.checked ? customReason.value.trim() : reasonSelect.options[reasonSelect.selectedIndex].textContent;
     const verb = state.action === 'award' ? 'Award' : 'Deduct';
-    byId('confirmSummary').textContent = `${verb} ${state.amount} PITIS ${state.action === 'award' ? 'to' : 'from'} ${student.nickname || student.full_name} for “${selectedReason}”?`;
+    byId('confirmSummary').textContent = `${verb} ${state.amount} PITIS ${state.action === 'award' ? 'to' : 'from'} ${student.nickname} for “${selectedReason}”?`;
     dialog.showModal();
   });
 

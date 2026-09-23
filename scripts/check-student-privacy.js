@@ -31,6 +31,8 @@ const photoStorage = read("src/services/studentPhotoStorageService.js");
 
 assert(!leaderboardQueries.includes("photo_path"), "Leaderboard queries must never use student reference photos");
 assert(!pwaRoutes.includes("photo_path"), "PWA routes must never use student reference photos");
+assert(!pwaRoutes.includes("SELECT s.id, s.class_id, s.student_id"), "PWA scan responses must not select registration identifiers");
+assert(!pwaRoutes.includes("s.full_name, NULLIF(s.avatar_path"), "PWA student responses must not expose full legal names");
 assert(leaderboardQueries.includes("s.avatar_path"), "Leaderboard queries must use student avatars");
 assert(pwaRoutes.includes("s.avatar_path"), "PWA routes must use student avatars");
 assert(teacherRoutes.includes('router.use("/students"'), "Student details route privacy boundary is missing");
