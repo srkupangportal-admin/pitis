@@ -1591,6 +1591,40 @@ body.calendar-clean-grid .calendar-side-column .calendar-add-form {
   }
 }
 
+/* Compact Apple iCal layout: retain the classic chrome while keeping each
+   week easy to scan and avoiding oversized empty date cells. */
+body.calendar-ical-reference.calendar-ical-compact .calendar-week-block {
+  border-bottom: 2px solid #d7dce7 !important;
+}
+
+body.calendar-ical-reference.calendar-ical-compact .calendar-day {
+  min-height: 44px;
+  padding: 6px 8px;
+}
+
+body.calendar-ical-reference.calendar-ical-compact .calendar-spans {
+  min-height: calc(var(--lanes) * 25px + 6px);
+  padding: 2px 0 4px;
+  border-top: 1px solid #eceef3 !important;
+}
+
+body.calendar-ical-reference.calendar-ical-compact .event-span {
+  min-height: 21px;
+  padding: 2px 6px;
+  border-radius: 4px;
+  font-weight: 650;
+}
+
+body.calendar-ical-reference.calendar-ical-compact .event-span:hover {
+  filter: brightness(.94) saturate(1.08);
+}
+
+@media (max-width: 640px) {
+  body.calendar-ical-reference.calendar-ical-compact .calendar-day {
+    min-height: 42px;
+  }
+}
+
 /* Informations: Finder/File Explorer-inspired directory tree. */
 html body.information-explorer-page { background: #f3f5f7; }
 body.information-explorer-page .container { max-width: 1380px; }
