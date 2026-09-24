@@ -10,6 +10,7 @@
   "background_color": "#f2f6f5",
   "theme_color": "#123b63",
   "icons": [
-    { "src": "/images/brunei-school-logo.jpg", "type": "image/jpeg", "purpose": "any" }
+    { "src": "/images/pitis-icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any maskable" },
+    { "src": "/images/pitis-icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any maskable" }
   ]
 }
