@@ -3531,6 +3531,173 @@ body.landing-home .portal-sidebar h1::before {
 .leaderboard-mountain-stage{position:relative;overflow:hidden;background:linear-gradient(#9bd9f3 0 54%,#cde9b4 54% 70%,#6ca45f 70%)}.leaderboard-mountain-stage:before,.leaderboard-mountain-stage:after{content:"";position:absolute;bottom:-15%;width:75%;height:87%;background:#557d58;clip-path:polygon(0 100%,20% 62%,36% 72%,54% 37%,67% 56%,83% 14%,100% 100%)}.leaderboard-mountain-stage:before{left:-5%}.leaderboard-mountain-stage:after{right:-7%;background:#3f684b;transform:scaleX(-1)}.mountain-route{position:absolute;inset:0;z-index:2;width:100%;height:100%}.mountain-route path{fill:none;stroke:#f3d587;stroke-width:14;stroke-linecap:round;stroke-dasharray:12 20;filter:drop-shadow(0 3px 0 rgba(72,66,43,.25))}.mountain-sun{position:absolute;right:7%;top:7%;width:clamp(50px,8vw,100px);aspect-ratio:1;border-radius:50%;background:#ffe37b;box-shadow:0 0 0 18px rgba(255,227,123,.22)}.mountain-cloud{position:absolute;width:12vw;height:3vw;min-width:90px;min-height:25px;border-radius:99px;background:rgba(255,255,255,.78)}.cloud-one{left:8%;top:9%}.cloud-two{left:47%;top:15%;transform:scale(.7)}.mountain-summit{position:absolute;z-index:4;right:3%;top:3%;display:grid;text-align:center;font-size:clamp(32px,5vw,62px);filter:drop-shadow(0 4px 5px rgba(0,0,0,.2))}.mountain-summit span{font-size:clamp(9px,1vw,14px);font-weight:900;letter-spacing:.15em;color:#fff}.mountain-basecamp{position:absolute;z-index:4;left:2%;bottom:3%;display:grid;padding:10px 16px;border-radius:16px;background:#fff4d2;color:#6c501f;box-shadow:0 8px 18px rgba(0,0,0,.18)}.mountain-basecamp span{font-size:.75rem}
 .mountain-student{position:absolute;z-index:6;left:var(--base-x);top:var(--base-y);display:grid;grid-template-columns:auto auto;grid-template-rows:auto auto;align-items:center;opacity:.9;transform:translate(-50%,-50%) scale(.52);transition:left 1.45s cubic-bezier(.25,.8,.25,1),top 1.45s cubic-bezier(.25,.8,.25,1),transform .5s,opacity .3s;filter:drop-shadow(0 5px 5px rgba(0,0,0,.3))}.mountain-student.is-climbing{left:var(--target-x);top:var(--target-y);opacity:1;transform:translate(-50%,-50%) scale(1)}.mountain-student img{grid-column:1/3;width:clamp(42px,5.2vw,78px);aspect-ratio:1;object-fit:cover;border-radius:24%;border:3px solid #fff;box-shadow:0 0 0 3px #e2b83c}.mountain-student b{position:absolute;left:-6px;top:-6px;z-index:2;display:grid;place-items:center;width:clamp(22px,2.2vw,32px);aspect-ratio:1;border-radius:50%;background:#143f31;color:#fff;font-size:clamp(10px,1.1vw,14px)}.mountain-student span{grid-column:1/3;justify-self:center;margin-top:3px;max-width:clamp(64px,8vw,112px);padding:3px 7px;border-radius:8px;background:rgba(255,255,255,.92);color:#123f32;font-size:clamp(9px,1vw,14px);font-weight:900;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 @media(max-width:760px){.leaderboard-daily-spotlight{grid-template-columns:70px 1fr auto}.daily-spotlight-label{grid-column:1/4}.leaderboard-daily-spotlight img{width:70px}.daily-spotlight-score{padding:8px;border-left:0}.leaderboard-presentation-awards{grid-template-columns:1fr}.leaderboard-presentation-awards .leaderboard-recognition-card:nth-child(n+2){display:none}.leaderboard-mountain-toolbar{gap:5px}.leaderboard-mountain-toolbar .btn{padding:7px 8px;font-size:.72rem}}
+
+/* Compact class leaderboard: three leaders, four-column ranking grid, recognition rail. */
+.leaderboard-ref .leaderboard-class-leaders-layout {
+  grid-template-columns: minmax(0, 1fr) clamp(190px, 19vw, 245px);
+  gap: clamp(12px, 1.6vw, 20px);
+}
+.leaderboard-ref .leaderboard-class-main .leaderboard-podium.animated-podium {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  align-items: stretch;
+  max-width: none;
+  min-height: 0;
+  margin: 10px 0 14px;
+  gap: clamp(10px, 1.4vw, 18px);
+}
+.leaderboard-ref .animated-podium-card {
+  position: relative;
+  display: grid;
+  grid-template-columns: clamp(48px, 5vw, 68px) minmax(0, 1fr);
+  grid-template-rows: auto 1fr;
+  align-items: center;
+  gap: 7px 10px;
+  min-width: 0;
+  min-height: 118px;
+  padding: 12px;
+  color: #173f32;
+  background: #fff;
+  border: 2px solid #55a646;
+  border-radius: 16px;
+  box-shadow: 3px 4px 0 rgba(34, 83, 48, .14);
+  transform: none !important;
+}
+.leaderboard-ref .animated-podium-card.first { border-color: #c99b23; background: #fffaf0; }
+.leaderboard-ref .animated-podium-card.second { border-color: #7c978c; }
+.leaderboard-ref .animated-podium-card.third { border-color: #a56e47; }
+.leaderboard-ref .animated-podium-card .podium-medal {
+  position: absolute;
+  top: 8px;
+  left: 8px;
+  z-index: 2;
+  display: grid;
+  width: 30px;
+  height: 30px;
+  place-items: center;
+  border-radius: 50%;
+  color: #fff;
+  background: #236447;
+  font-size: .88rem;
+  font-weight: 900;
+}
+.leaderboard-ref .animated-podium-card .podium-crown { top: 5px; right: 8px; left: auto; font-size: 1.35rem; }
+.leaderboard-ref .animated-podium-card .podium-student {
+  display: grid;
+  grid-column: 1 / -1;
+  grid-template-columns: clamp(48px, 5vw, 68px) minmax(0, 1fr);
+  grid-template-rows: auto auto auto;
+  align-items: center;
+  gap: 2px 10px;
+  min-width: 0;
+  min-height: 0;
+  padding: 0;
+  background: transparent;
+  border: 0;
+}
+.leaderboard-ref .animated-podium-card .leaderboard-photo-button { grid-row: 1 / 4; width: clamp(48px, 5vw, 68px); height: clamp(48px, 5vw, 68px); }
+.leaderboard-ref .animated-podium-card .podium-photo,
+.leaderboard-ref .animated-podium-card.first .podium-photo { width: 100%; height: 100%; border-width: 2px; border-radius: 14px; }
+.leaderboard-ref .animated-podium-card .podium-name {
+  min-width: 0;
+  max-width: 100%;
+  color: #173f32;
+  font-size: clamp(.96rem, 1.25vw, 1.22rem);
+  line-height: 1.08;
+  overflow: hidden;
+  overflow-wrap: anywhere;
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+}
+.leaderboard-ref .animated-podium-card .podium-class-chip { display: none; }
+.leaderboard-ref .animated-podium-card .pitis-tier { justify-self: start; min-width: 0; max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.leaderboard-ref .animated-podium-card .podium-points { justify-self: start; max-width: 100%; padding: 4px 8px; font-size: clamp(.82rem, 1vw, 1rem); white-space: nowrap; }
+.leaderboard-ref .animated-podium-card .podium-step { display: none; }
+
+.leaderboard-ref .leaderboard-ranked-student-grid {
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: clamp(8px, 1vw, 12px);
+  padding: clamp(10px, 1.2vw, 14px);
+  background: #f8fbf7;
+  border: 1px solid #b8d9ae;
+  border-radius: 16px;
+}
+.leaderboard-ref .leaderboard-ranked-card {
+  grid-template-columns: 44px minmax(0, 1fr);
+  grid-template-rows: auto auto auto;
+  align-content: center;
+  gap: 3px 9px;
+  min-width: 0;
+  min-height: 112px;
+  padding: 9px;
+  overflow: hidden;
+  border: 1.5px solid #55a646;
+  border-radius: 13px;
+  background: #fff;
+  box-shadow: 2px 3px 0 rgba(34, 83, 48, .11);
+}
+.leaderboard-ref .leaderboard-ranked-number { grid-column: 1; grid-row: 1; min-width: 0; font-size: clamp(.9rem, 1vw, 1.05rem); }
+.leaderboard-ref .leaderboard-ranked-card .leaderboard-photo-button { grid-column: 1; grid-row: 2 / 4; width: 44px; height: 44px; }
+.leaderboard-ref .leaderboard-ranked-card .avatar-photo { width: 44px; height: 44px; border-radius: 11px; }
+.leaderboard-ref .leaderboard-ranked-copy { grid-column: 2; grid-row: 1 / 3; align-self: center; overflow: hidden; }
+.leaderboard-ref .leaderboard-ranked-copy a { color: inherit; text-decoration: none; }
+.leaderboard-ref .leaderboard-ranked-copy strong {
+  font-size: clamp(.88rem, 1.05vw, 1.08rem);
+  line-height: 1.08;
+  overflow: hidden;
+  overflow-wrap: anywhere;
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+}
+.leaderboard-ref .leaderboard-ranked-copy span { font-size: clamp(.62rem, .7vw, .74rem); line-height: 1.18; }
+.leaderboard-ref .leaderboard-ranked-copy span:last-child { display: none; }
+.leaderboard-ref .leaderboard-ranked-card > .pitis-tier { display: none; }
+.leaderboard-ref .leaderboard-ranked-card .pitis-total-badge {
+  grid-column: 2;
+  grid-row: 3;
+  justify-self: start;
+  min-width: 0;
+  max-width: 100%;
+  padding: 4px 7px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  font-size: clamp(.72rem, .82vw, .86rem);
+  white-space: nowrap;
+}
+.leaderboard-ref .leaderboard-class-leaders-layout > .leaderboard-recognition-grid { gap: 10px; padding-top: 10px; }
+.leaderboard-ref .leaderboard-class-leaders-layout .leaderboard-recognition-card {
+  min-width: 0;
+  min-height: 112px;
+  padding: 9px !important;
+  overflow: hidden;
+  border: 1.5px solid #55a646;
+  border-radius: 13px;
+  background: #fff;
+  box-shadow: 2px 3px 0 rgba(34, 83, 48, .11);
+}
+.leaderboard-ref .leaderboard-recognition-copy { overflow: hidden; }
+.leaderboard-ref .leaderboard-recognition-copy .leaderboard-recognition-award,
+.leaderboard-ref .leaderboard-recognition-copy b { font-size: clamp(.82rem, .95vw, 1rem) !important; overflow-wrap: anywhere; }
+.leaderboard-ref .leaderboard-recognition-copy em,
+.leaderboard-ref .leaderboard-recognition-copy small { font-size: clamp(.62rem, .7vw, .72rem) !important; overflow-wrap: anywhere; }
+
+@media (max-width: 1100px) {
+  .leaderboard-ref .leaderboard-ranked-student-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+}
+@media (max-width: 900px) {
+  .leaderboard-ref .leaderboard-class-leaders-layout { grid-template-columns: 1fr; }
+  .leaderboard-ref .leaderboard-class-leaders-layout > .leaderboard-recognition-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+}
+@media (max-width: 700px) {
+  .leaderboard-ref .leaderboard-class-main .leaderboard-podium.animated-podium { grid-template-columns: 1fr; }
+  .leaderboard-ref .leaderboard-ranked-student-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .leaderboard-ref .leaderboard-class-leaders-layout > .leaderboard-recognition-grid { grid-template-columns: 1fr; }
+}
+@media (max-width: 420px) {
+  .leaderboard-ref .leaderboard-ranked-student-grid { grid-template-columns: 1fr; }
+}
 @media(prefers-reduced-motion:reduce){.mountain-student{transition:none}.mountain-student.is-climbing{opacity:1}}
 .leaderboard-mountain-stage{background:linear-gradient(#9bd9f3 0 61%,#cde9b4 61% 76%,#6ca45f 76%)}
 .leaderboard-mountain-stage:before,.leaderboard-mountain-stage:after{bottom:-10%;width:78%;height:108%;clip-path:polygon(0 100%,16% 58%,30% 69%,46% 28%,58% 49%,73% 6%,100% 100%)}

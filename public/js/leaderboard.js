@@ -350,12 +350,12 @@
     latestRankedRows = ranked;
 
     var top = ranked.slice(0, 3);
-    var rest = ranked.slice();
+    var rest = ranked.slice(3);
     if (sortMode === "asc") rest.reverse();
 
     var arrangedTop = [
-      top[1] ? { row: top[1], place: 2, slot: "second" } : null,
       top[0] ? { row: top[0], place: 1, slot: "first" } : null,
+      top[1] ? { row: top[1], place: 2, slot: "second" } : null,
       top[2] ? { row: top[2], place: 3, slot: "third" } : null
     ].filter(Boolean);
     var podiumSignature = arrangedTop.map(function (entry) {
