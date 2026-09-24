@@ -120,6 +120,7 @@
         previous_weekly_points: Number(row.previous_weekly_points || 0),
         positive_weeks_4: Number(row.positive_weeks_4 || 0),
         weekly_award_count: Number(row.weekly_award_count || 0),
+        tier: row.tier || tierFor(row.total_points),
         leaderboard_points: pts,
         rank: rank,
         class_name: row.class_name || "",

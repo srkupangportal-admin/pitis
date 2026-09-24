@@ -8,7 +8,8 @@ const { parseStudentQrPayload } = require("../services/qrCodeService");
 const {
   getLeaderboardSlideshowDurationMs,
   getLeaderboardSlideshowMode,
-  getLeaderboardSlideshowStudentCount
+  getLeaderboardSlideshowStudentCount,
+  getPitisTier
 } = require("../services/portalSettingsService");
 const { buildSipPitisDashboard } = require("../services/sipPitisDashboardService");
 const {
@@ -24,17 +25,8 @@ const {
 const router = express.Router();
 const serverConfig = getServerConfig();
 
-function pitisTier(totalPoints) {
-  const points = Number(totalPoints || 0);
-  if (points >= 320) return { key: "gold", label: "Gold", range: "320+" };
-  if (points >= 240) return { key: "silver", label: "Silver", range: "240–319" };
-  if (points >= 160) return { key: "bronze", label: "Bronze", range: "160–239" };
-  if (points >= 80) return { key: "rising", label: "Rising", range: "80–159" };
-  return { key: "starter", label: "Starter", range: "0–79" };
-}
-
 function addPitisTiers(rows) {
-  return (rows || []).map((row) => ({ ...row, tier: pitisTier(row.total_points) }));
+  return (rows || []).map((row) => ({ ...row, tier: getPitisTier(row.total_points) }));
 }
 
 function selectDailyFairSpotlights(rows, scopeKey, todayValue = dayjs().format("YYYY-MM-DD")) {

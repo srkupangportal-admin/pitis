@@ -983,6 +983,27 @@
           </label>
           <button class="btn secondary" type="submit" data-async-dashboard-submit="1">Save Duration</button>
         </form>
+        <hr />
+        <form method="post" action="/admin/leaderboard/tier-settings" class="form" data-async-dashboard-form="1">
+          <h3>PITIS Tier Ranges</h3>
+          <p class="muted">Enter the minimum accumulated PITIS required for each tier. Starter automatically covers zero up to one point below Rising.</p>
+          <div class="inline-filters">
+            <label>Rising minimum
+              <input type="number" name="rising_min" min="1" step="1" value="<%= pitisTierSettings.risingMin %>" required />
+            </label>
+            <label>Bronze minimum
+              <input type="number" name="bronze_min" min="2" step="1" value="<%= pitisTierSettings.bronzeMin %>" required />
+            </label>
+            <label>Silver minimum
+              <input type="number" name="silver_min" min="3" step="1" value="<%= pitisTierSettings.silverMin %>" required />
+            </label>
+            <label>Gold minimum
+              <input type="number" name="gold_min" min="4" step="1" value="<%= pitisTierSettings.goldMin %>" required />
+            </label>
+          </div>
+          <p class="muted">Current ranges: Starter 0–<%= pitisTierSettings.risingMin - 1 %>, Rising <%= pitisTierSettings.risingMin %>–<%= pitisTierSettings.bronzeMin - 1 %>, Bronze <%= pitisTierSettings.bronzeMin %>–<%= pitisTierSettings.silverMin - 1 %>, Silver <%= pitisTierSettings.silverMin %>–<%= pitisTierSettings.goldMin - 1 %>, Gold <%= pitisTierSettings.goldMin %>+.</p>
+          <button class="btn secondary" type="submit" data-async-dashboard-submit="1">Save Tier Ranges</button>
+        </form>
       </div>
     </section>
 

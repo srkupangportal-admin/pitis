@@ -49,7 +49,9 @@ const {
 const { getUserLoginReportRows } = require("../services/userLoginLogService");
 const {
   getLeaderboardSlideshowDurationMs,
-  setLeaderboardSlideshowDurationSeconds
+  getPitisTierSettings,
+  setLeaderboardSlideshowDurationSeconds,
+  setPitisTierSettings
 } = require("../services/portalSettingsService");
 const { getPhotoActivityReportRows } = require("../services/photoActivityLogService");
 const { getAdminAuditRows } = require("../services/adminAuditService");
@@ -878,6 +880,7 @@ router.get("/dashboard", async (req, res) => {
     adminAuditFilters,
     adminCommandCentre,
     leaderboardSlideshowDurationSeconds: getLeaderboardSlideshowDurationMs() / 1000,
+    pitisTierSettings: getPitisTierSettings(),
     dashboardDevices,
     dashboardDeviceStatuses: ADMIN_DEVICE_STATUSES,
     dashboardDeviceCategoryOptions: getDashboardDeviceCategories(true),
@@ -2285,6 +2288,20 @@ router.post("/backup/restore", uploadRestore.single("backup_file"), async (req, 
     if (uploadsRestore) uploadsRestore.cleanup();
     if (databaseRestore) databaseRestore.cleanup();
     res.redirect(`/admin/dashboard?error=${encodeURIComponent(`Restore failed: ${err.message}`)}`);
+  }
+});
+
+router.post("/leaderboard/tier-settings", (req, res) => {
+  try {
+    const settings = setPitisTierSettings({
+      risingMin: req.body.rising_min,
+      bronzeMin: req.body.bronze_min,
+      silverMin: req.body.silver_min,
+      goldMin: req.body.gold_min
+    }, req.session && req.session.user ? req.session.user.id : null);
+    return res.redirect(`/admin/dashboard?success=${encodeURIComponent(`PITIS tier ranges saved. Gold now starts at ${settings.goldMin}.`)}`);
+  } catch (err) {
+    return res.redirect(`/admin/dashboard?error=${encodeURIComponent(`Tier settings update failed: ${err.message}`)}`);
   }
 });
 

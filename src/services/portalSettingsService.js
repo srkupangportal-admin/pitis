@@ -12,6 +12,18 @@ const MAX_LEADERBOARD_SLIDESHOW_DURATION_MS = 30000;
 const MIN_LEADERBOARD_SLIDESHOW_STUDENT_COUNT = 1;
 const MAX_LEADERBOARD_SLIDESHOW_STUDENT_COUNT = 12;
 const LEADERBOARD_SLIDESHOW_MODES = new Set(["points", "class"]);
+const PITIS_TIER_DEFAULTS = Object.freeze({
+  risingMin: 80,
+  bronzeMin: 160,
+  silverMin: 240,
+  goldMin: 320
+});
+const PITIS_TIER_KEYS = Object.freeze({
+  risingMin: "pitis_tier_rising_min",
+  bronzeMin: "pitis_tier_bronze_min",
+  silverMin: "pitis_tier_silver_min",
+  goldMin: "pitis_tier_gold_min"
+});
 const PITIS_NOTIFICATION_DEFAULTS = Object.freeze({
   noAwardEnabled: true,
   noAwardTime: "09:30",
@@ -114,6 +126,47 @@ function setPitisNotificationAutomationSettings(input, updatedBy = null) {
   return { schoolDaysOnly: true, ...settings };
 }
 
+function normalizePitisTierSettings(input = {}, { fallback = true } = {}) {
+  const settings = {};
+  for (const field of Object.keys(PITIS_TIER_DEFAULTS)) {
+    const value = Number.parseInt(String(input[field] ?? "").trim(), 10);
+    if (!Number.isInteger(value) || value < 1) {
+      if (!fallback) throw new Error("Tier minimums must be positive whole numbers");
+      settings[field] = PITIS_TIER_DEFAULTS[field];
+    } else {
+      settings[field] = value;
+    }
+  }
+  if (!(settings.risingMin < settings.bronzeMin
+    && settings.bronzeMin < settings.silverMin
+    && settings.silverMin < settings.goldMin)) {
+    if (!fallback) throw new Error("Tier minimums must increase from Rising to Bronze, Silver and Gold");
+    return { ...PITIS_TIER_DEFAULTS };
+  }
+  return settings;
+}
+
+function getPitisTierSettings() {
+  const stored = {};
+  for (const [field, key] of Object.entries(PITIS_TIER_KEYS)) stored[field] = getAppSetting(key, PITIS_TIER_DEFAULTS[field]);
+  return normalizePitisTierSettings(stored);
+}
+
+function setPitisTierSettings(input, updatedBy = null) {
+  const settings = normalizePitisTierSettings(input, { fallback: false });
+  for (const [field, key] of Object.entries(PITIS_TIER_KEYS)) setAppSetting(key, settings[field], updatedBy);
+  return settings;
+}
+
+function getPitisTier(totalPoints, settings = getPitisTierSettings()) {
+  const points = Number(totalPoints || 0);
+  if (points >= settings.goldMin) return { key: "gold", label: "Gold", range: `${settings.goldMin}+` };
+  if (points >= settings.silverMin) return { key: "silver", label: "Silver", range: `${settings.silverMin}–${settings.goldMin - 1}` };
+  if (points >= settings.bronzeMin) return { key: "bronze", label: "Bronze", range: `${settings.bronzeMin}–${settings.silverMin - 1}` };
+  if (points >= settings.risingMin) return { key: "rising", label: "Rising", range: `${settings.risingMin}–${settings.bronzeMin - 1}` };
+  return { key: "starter", label: "Starter", range: `0–${settings.risingMin - 1}` };
+}
+
 function getLeaderboardSlideshowDurationMs() {
   return clampDurationMs(getAppSetting(LEADERBOARD_SLIDESHOW_DURATION_KEY, DEFAULT_LEADERBOARD_SLIDESHOW_DURATION_MS));
 }
@@ -159,12 +212,16 @@ module.exports = {
   MIN_LEADERBOARD_SLIDESHOW_DURATION_MS,
   MIN_LEADERBOARD_SLIDESHOW_STUDENT_COUNT,
   PITIS_NOTIFICATION_DEFAULTS,
+  PITIS_TIER_DEFAULTS,
   getLeaderboardSlideshowMode,
   getLeaderboardSlideshowDurationMs,
   getLeaderboardSlideshowStudentCount,
   getPitisNotificationAutomationSettings,
+  getPitisTier,
+  getPitisTierSettings,
   setLeaderboardSlideshowMode,
   setLeaderboardSlideshowDurationSeconds,
   setLeaderboardSlideshowStudentCount,
-  setPitisNotificationAutomationSettings
+  setPitisNotificationAutomationSettings,
+  setPitisTierSettings
 };
