@@ -1,0 +1,12 @@
+[
+  {
+    "relation": ["delegate_permission/common.handle_all_urls"],
+    "target": {
+      "namespace": "android_app",
+      "package_name": "com.srkupang.pitis",
+      "sha256_cert_fingerprints": [
+        "87:07:9D:17:7D:FD:13:71:31:31:09:FF:D5:21:99:9A:BD:37:93:57:CF:7D:52:F7:8E:45:2D:FF:23:42:2D:B0"
+      ]
+    }
+  }
+]

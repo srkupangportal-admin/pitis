@@ -38,6 +38,7 @@ const { adminAuditMiddleware } = require("./services/adminAuditService");
 const { SqliteSessionStore } = require("./services/sessionStore");
 const { maintenanceMiddleware } = require("./services/maintenanceService");
 const { sameOriginOnly } = require("./middleware/sameOrigin");
+const { mobilePwaEntry } = require("./middleware/mobilePwaEntry");
 const serverConfig = getServerConfig();
 
 initializeDatabase();
@@ -145,6 +146,10 @@ function createApp(config) {
   app.use(express.urlencoded({ extended: true, limit: "1mb" }));
   app.use(express.json({ limit: "1mb" }));
   const publicRoot = path.join(__dirname, "..", "public");
+  app.get("/.well-known/assetlinks.json", (req, res) => {
+    res.type("application/json");
+    res.sendFile(path.join(publicRoot, ".well-known", "assetlinks.json"));
+  });
   const publicStatic = express.static(publicRoot);
   app.use((req, res, next) => {
     if (req.path === "/uploads" || req.path.startsWith("/uploads/")) return next();
@@ -212,6 +217,7 @@ function createApp(config) {
   // a valid integration request into a browser login redirect.
   registerClassCompassIntegrationRoutes(app);
 
+  app.use(mobilePwaEntry);
   app.use(authRoutes);
   app.use(publicRoutes);
   app.use("/pwa", pwaRoutes);

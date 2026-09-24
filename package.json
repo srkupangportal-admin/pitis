@@ -9,6 +9,7 @@
     "test:notifications": "node scripts/check-notification-schedule.js",
     "test:leaderboard-totals": "node scripts/check-leaderboard-totals.js",
     "test:student-privacy": "node scripts/check-student-privacy.js",
+    "test:mobile-routing": "node scripts/check-mobile-pwa-routing.js",
     "check:git-safety": "node scripts/check-git-safety.js",
     "check:git-history": "node scripts/check-git-safety.js --history"
   },
