@@ -8,6 +8,8 @@ Run `npx web-push generate-vapid-keys` once on an administrator workstation. Put
 
 Users open Notification Settings and explicitly enable each browser/device. Login sessions and push subscriptions are independent; a user may keep multiple active devices. iPhone/iPad Web Push requires iOS/iPadOS 16.4 or newer and the portal installed on the Home Screen.
 
+PITIS detects iPhone/iPad browser tabs and shows the required **Share → Add to Home Screen** instructions instead of presenting a non-working permission button. After PITIS is opened from the Home Screen, the same enable button used on Android requests permission and registers the device. Notification Settings checks the current browser subscription, repairs its server record when possible, and offers every user a rate-limited test notification.
+
 If a user selects **Remind Me Next Week** in the portal invitation, that browser stores a seven-day deferral and shows the invitation again when permission is still undecided. A browser-level denial cannot be reset by SchoolPortal. Administrators can open **Notification Devices** to see active users without an enabled device and send an in-portal setup reminder; this creates notification history but does not override browser permission.
 
 ## Calendar and reminders

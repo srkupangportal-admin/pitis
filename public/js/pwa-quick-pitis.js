@@ -235,9 +235,14 @@
   });
 
   byId('enableNotifications').addEventListener('click', async () => {
+    const push = await window.PortalNotifications.status().catch(() => window.PortalNotifications.guidance());
+    if (push.state === 'install-required') {
+      window.location.href = '/notification-settings#ios-install';
+      return;
+    }
     try {
-      await window.PortalNotifications.enable();
-      showStatus('Push notifications enabled on this device.', 'success');
+      const enabled = await window.PortalNotifications.enable();
+      showStatus(enabled.message, 'success');
       byId('enableNotifications').textContent = 'Notifications enabled';
     } catch (error) {
       showStatus(error.message, 'error');
@@ -245,6 +250,13 @@
   });
 
   if ('serviceWorker' in navigator) navigator.serviceWorker.register('/service-worker.js').catch(() => {});
+
+  window.PortalNotifications.status().then((push) => {
+    const button = byId('enableNotifications');
+    if (push.state === 'enabled') button.textContent = 'Notifications enabled';
+    else if (push.state === 'install-required') button.textContent = 'iPhone notification setup';
+    else if (push.state === 'blocked') button.textContent = 'Notifications blocked';
+  }).catch(() => {});
 
   request('/pwa/api/bootstrap').then((data) => {
     state.reasons = data.reasons || [];

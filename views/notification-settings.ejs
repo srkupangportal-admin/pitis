@@ -11,7 +11,12 @@
   <main class="container"><section class="card">
     <h2>Notification Settings</h2>
     <p id="pushStatus" class="muted">Checking this device…</p>
-    <button class="btn" id="enablePush">Enable notifications on this device</button>
+    <div id="iosInstallSteps" class="notification-install-guide" hidden>
+      <strong>Install PITIS on iPhone or iPad</strong>
+      <ol><li>Tap the browser's <b>Share</b> button.</li><li>Choose <b>Add to Home Screen</b>.</li><li>Tap <b>Add</b>, then close the browser.</li><li>Open <b>PITIS</b> from its new Home Screen icon.</li><li>Return here and tap <b>Enable notifications</b>.</li></ol>
+      <p class="muted">Requires iOS or iPadOS 16.4 or newer. Chrome and Safari use the same Home Screen process.</p>
+    </div>
+    <div class="button-row"><button class="btn" id="enablePush">Enable notifications on this device</button><button class="btn secondary" id="testPush" hidden>Send test notification</button></div>
     <h3>Preferences</h3>
     <form id="preferences" class="notification-preferences"></form>
     <h3>Registered devices</h3>
@@ -66,17 +71,16 @@
       });
       const status = document.getElementById('pushStatus');
       const button = document.getElementById('enablePush');
-      if (!('Notification' in window)) {
-        status.textContent = 'Web Push is not supported by this browser.';
-        button.disabled = true;
-      } else if (Notification.permission === 'granted') {
-        status.textContent = 'Browser permission granted.';
-      } else if (Notification.permission === 'denied') {
-        status.textContent = "Notifications are blocked. Open this site's browser settings and change Notifications to Allow.";
-        button.disabled = true;
-      } else {
-        status.textContent = 'Push notifications are not enabled on this device.';
-      }
+      const testButton = document.getElementById('testPush');
+      const guide = document.getElementById('iosInstallSteps');
+      const push = await PortalNotifications.status().catch(() => PortalNotifications.guidance());
+      status.textContent = push.message;
+      status.dataset.state = push.state;
+      guide.hidden = push.state !== 'install-required';
+      button.hidden = push.state === 'install-required';
+      button.disabled = !push.canEnable;
+      button.textContent = push.state === 'permission-only' ? 'Repair notification subscription' : 'Enable notifications on this device';
+      testButton.hidden = push.state !== 'enabled';
     }
 
     document.getElementById('enablePush').onclick = async () => {
@@ -86,6 +90,16 @@
       } catch (error) {
         document.getElementById('pushStatus').textContent = error.message;
       }
+    };
+    document.getElementById('testPush').onclick = async () => {
+      const button = document.getElementById('testPush');
+      button.disabled = true;
+      try {
+        await PortalNotifications.json('/api/notifications/test', { method: 'POST', body: '{}' });
+        document.getElementById('pushStatus').textContent = 'Test sent. It should appear shortly; lock the screen or leave PITIS open in the background if needed.';
+      } catch (error) {
+        document.getElementById('pushStatus').textContent = error.message;
+      } finally { setTimeout(() => { button.disabled = false; }, 30000); }
     };
     load();
   </script>
