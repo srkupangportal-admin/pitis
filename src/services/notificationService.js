@@ -4,6 +4,7 @@ const dayjs=require('dayjs');
 const {db}=require('../db/init');
 const {buildWeeklySummary}=require('./pitisProgressService');
 const {buildOfficialWeeks}=require('./sipPitisDashboardService');
+const {getPitisNotificationAutomationSettings}=require('./portalSettingsService');
 
 function safeUrl(value){const url=String(value||'/').trim();return url.startsWith('/')&&!url.startsWith('//')?url:'/';}
 function initializeNotificationTables(){db.exec(`
@@ -31,26 +32,29 @@ async function processWeeklyPitisSummaries(){const users=db.prepare("SELECT id F
 function isOfficialSchoolDay(dateValue){return buildOfficialWeeks(dateValue).some(week=>week.days.some(day=>day.date===dateValue&&day.type==='school_day'))}
 function activeTeachers(){return db.prepare("SELECT id,display_name,username FROM users WHERE is_active=1 AND role='teacher' AND COALESCE(user_type,role)='teacher' ORDER BY id").all()}
 function activePitisUsers(){return db.prepare("SELECT id,display_name,username FROM users WHERE is_active=1 AND role IN ('teacher','staff','admin') ORDER BY id").all()}
+function notificationText(template,teacherName){return String(template||'').replaceAll('{teacher}',teacherName)}
 async function processPitisDailyNotifications(nowValue=dayjs()){
   const now=dayjs(nowValue);if(!now.isValid())return {schoolDay:false,reminders:0,firstAward:false};
   const dateValue=now.format('YYYY-MM-DD');if(!isOfficialSchoolDay(dateValue))return {schoolDay:false,reminders:0,firstAward:false};
+  const automation=getPitisNotificationAutomationSettings();
   const entityId=Number(dateValue.replace(/-/g,''));let reminders=0,firstAward=false;
   const first=db.prepare(`SELECT pl.id,pl.awarded_by,u.display_name,u.username,u.role,COALESCE(u.user_type,u.role) user_type FROM point_logs pl JOIN users u ON u.id=pl.awarded_by WHERE pl.points>0 AND date(pl.awarded_at,'+8 hours')=date(?) ORDER BY pl.awarded_at,pl.id LIMIT 1`).get(dateValue);
-  if(first&&first.role==='teacher'&&first.user_type==='teacher'){
+  if(automation.firstAwardEnabled&&first&&first.role==='teacher'&&first.user_type==='teacher'){
     const claim=db.prepare("INSERT OR IGNORE INTO pitis_notification_events(event_date,event_type,winner_user_id,created_at) VALUES(?,'first_award',?,?)").run(dateValue,first.awarded_by,now.toISOString());
     if(claim.changes){
       firstAward=true;const winnerName=first.display_name||first.username||'A teacher';
       for(const user of activePitisUsers()){
         const winner=Number(user.id)===Number(first.awarded_by);
-        await notifyUser(user.id,{type:'pitis_first_award',title:winner?'First PITIS award today!':"Today's PITIS recognition has started",message:winner?`Great start, ${winnerName}! You made the school's first PITIS award today. Keep the positive momentum going.`:`${winnerName} made the first PITIS award today. Follow their lead and recognise a student when you can.`,url:'/pwa',entityType:'pitis_first_award_day',entityId,preferenceKey:'pitis_first_award'});
+        await notifyUser(user.id,{type:'pitis_first_award',title:winner?automation.winnerTitle:automation.peerTitle,message:notificationText(winner?automation.winnerMessage:automation.peerMessage,winnerName),url:'/pwa',entityType:'pitis_first_award_day',entityId,preferenceKey:'pitis_first_award'});
       }
     }
   }
-  if(now.hour()>9||(now.hour()===9&&now.minute()>=30)){
+  const [reminderHour,reminderMinute]=automation.noAwardTime.split(':').map(Number);
+  if(automation.noAwardEnabled&&(now.hour()*60+now.minute()>=reminderHour*60+reminderMinute)){
     for(const teacher of activeTeachers()){
       const awarded=db.prepare("SELECT 1 FROM point_logs WHERE awarded_by=? AND points>0 AND date(awarded_at,'+8 hours')=date(?) LIMIT 1").get(teacher.id,dateValue);
       if(awarded)continue;
-      const notification=await notifyUser(teacher.id,{type:'pitis_0930_reminder',title:'A positive start is still waiting',message:'A small recognition can brighten a student’s day. Award your first PITIS when you are ready.',url:'/pwa',entityType:'pitis_0930_day',entityId,preferenceKey:'pitis_0930_reminder'});
+      const notification=await notifyUser(teacher.id,{type:'pitis_0930_reminder',title:automation.noAwardTitle,message:automation.noAwardMessage,url:'/pwa',entityType:'pitis_0930_day',entityId,preferenceKey:'pitis_0930_reminder'});
       if(notification)reminders+=1;
     }
   }

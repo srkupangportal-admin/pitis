@@ -7,6 +7,7 @@ const QRCode = require("qrcode");
 const { db, updateDailySnapshot } = require("../db/init");
 const { requireRole } = require("../middleware/auth");
 const { notifyUser, scheduleEvent } = require("../services/notificationService");
+const { synchronizeManualNonSchoolEvents } = require("../services/schoolCalendarService");
 const { isTeacherUser, buildTeacherProgressSummary } = require("../services/pitisProgressService");
 const { buildStudentQrPayload, generateStudentQrDataUrl, parseStudentQrPayload } = require("../services/qrCodeService");
 const {
@@ -90,6 +91,12 @@ function includesBirthdayLabel(labelIds) {
   if (!labelIds.length) return false;
   const placeholders = labelIds.map(() => "?").join(",");
   return !!db.prepare(`SELECT 1 FROM calendar_labels WHERE id IN (${placeholders}) AND LOWER(name)='birthday' LIMIT 1`).get(...labelIds);
+}
+
+function includesSchoolClosureLabel(labelIds) {
+  if (!labelIds.length) return false;
+  const placeholders = labelIds.map(() => "?").join(",");
+  return !!db.prepare(`SELECT 1 FROM calendar_labels WHERE id IN (${placeholders}) AND LOWER(TRIM(name))='school closure' LIMIT 1`).get(...labelIds);
 }
 
 function eventMatchesSelectedLabels(event, selectedLabelIds) {
@@ -3198,6 +3205,9 @@ router.post("/calendar/add", (req, res) => {
   const taggedUserIds = resolveTaggedUserIds(tagScope, req.body.tag_teacher_ids, req.body.tag_staff_ids);
 
   if (!title || !eventDate) return res.status(400).send("Title and start date are required");
+  if (includesSchoolClosureLabel(labelIds) && req.session.user.role !== "admin") {
+    return res.status(403).send("Only an administrator can add a School Closure event");
+  }
   if (dayjs(endDate).isBefore(dayjs(eventDate), "day")) return res.status(400).send("End date cannot be earlier than start date");
 
   const now = dayjs().toISOString();
@@ -3216,6 +3226,7 @@ router.post("/calendar/add", (req, res) => {
   });
 
   tx();
+  synchronizeManualNonSchoolEvents(req.session.user.id);
   taggedUserIds.forEach(userId => notifyUser(userId, { type: "calendar_tag", title: "Calendar", message: `You were added to ${title}.`, url: `/teacher/calendar?event=${eventId}`, entityType: "calendar_event", entityId: eventId, createdBy: req.session.user.id }));
   scheduleEvent(eventId, includesBirthdayLabel(labelIds) ? [] : taggedUserIds, eventDate, String(req.body.event_time || "09:00"));
   const monthKey = dayjs(eventDate).format("YYYY-MM");
@@ -3257,6 +3268,7 @@ router.post("/calendar/update/:eventId", (req, res) => {
   });
 
   tx();
+  synchronizeManualNonSchoolEvents(req.session.user.id);
   newlyTagged.forEach(userId => notifyUser(userId, { type: "calendar_tag", title: "Calendar", message: `You were added to ${title}.`, url: `/teacher/calendar?event=${eventId}`, entityType: "calendar_event", entityId: eventId, createdBy: req.session.user.id }));
   scheduleEvent(eventId, includesBirthdayLabel(labelIds) ? [] : taggedUserIds, eventDate, String(req.body.event_time || "09:00"));
   const monthKey = dayjs(eventDate).format("YYYY-MM");
@@ -3274,7 +3286,10 @@ router.post("/calendar/delete/:eventId", (req, res) => {
   if (String(target.event_source || "manual") !== "manual") {
     return res.status(403).send("System events cannot be deleted");
   }
-  if (Number(target.created_by) !== Number(req.session.user.id)) {
+  if (includesSchoolClosureLabel(labelIds) && req.session.user.role !== "admin") {
+    return res.status(403).send("Only an administrator can assign the School Closure label");
+  }
+  if (Number(target.created_by) !== Number(req.session.user.id) && req.session.user.role !== "admin") {
     return res.status(403).send("Only the event creator or an administrator can delete this event");
   }
 
@@ -3283,6 +3298,7 @@ router.post("/calendar/delete/:eventId", (req, res) => {
     db.prepare("UPDATE calendar_events SET is_deleted=1,deleted_by=?,deleted_at=? WHERE id=? AND is_deleted=0").run(req.session.user.id, now, eventId);
     db.prepare("DELETE FROM calendar_notification_jobs WHERE event_id=? AND status='pending'").run(eventId);
   })();
+  synchronizeManualNonSchoolEvents(req.session.user.id);
 
   const monthKey = dayjs(target.event_date).isValid() ? dayjs(target.event_date).format("YYYY-MM") : dayjs().format("YYYY-MM");
   return res.redirect(`/teacher/calendar?month=${monthKey}&success=${encodeURIComponent("Event deleted")}`);

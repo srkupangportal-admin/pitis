@@ -623,6 +623,7 @@ function seedCalendarLabels() {
   const defaults = [
     { name: "Public Holiday", color: "#e74c3c", description: "National/public holiday" },
     { name: "Cuti Penggal", color: "#f39c12", description: "School term break" },
+    { name: "School Closure", color: "#7c3aed", description: "An announced non-school day that is excluded from PITIS reporting and reminders" },
     { name: "Birthday", color: "#f1c40f", description: "Student birthday" },
     { name: "Device Booking", color: "#3498db", description: "Booked school multimedia device" },
     { name: "PD", color: "#2ecc71", description: "Professional development" },

@@ -10,6 +10,7 @@
     "test:leaderboard-totals": "node scripts/check-leaderboard-totals.js",
     "test:student-privacy": "node scripts/check-student-privacy.js",
     "test:mobile-routing": "node scripts/check-mobile-pwa-routing.js",
+    "test:school-closure": "node scripts/check-school-closure-calendar.js",
     "check:git-safety": "node scripts/check-git-safety.js",
     "check:git-history": "node scripts/check-git-safety.js --history"
   },

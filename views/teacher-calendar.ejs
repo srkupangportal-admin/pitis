@@ -212,7 +212,7 @@
               <div class="calendar-label-list calendar-label-dropdown-list">
                 <% labels.forEach(lb => { %>
                   <label class="calendar-label-option">
-                    <input type="checkbox" name="label_ids" value="<%= lb.id %>" />
+                    <input type="checkbox" name="label_ids" value="<%= lb.id %>" <%= lb.name === 'School Closure' && user.role !== 'admin' ? 'disabled' : '' %> />
                     <span class="calendar-label-chip" style="--label-color:<%= lb.color %>"><%= lb.name %></span>
                   </label>
                 <% }) %>
@@ -354,7 +354,7 @@
                                 <div class="calendar-label-list calendar-label-dropdown-list">
                                   <% labels.forEach(lb => { %>
                                     <label class="calendar-label-option">
-                                      <input type="checkbox" name="label_ids" value="<%= lb.id %>" <%= (ev.labels || []).some(x => Number(x.id) === Number(lb.id)) ? 'checked' : '' %> />
+                                      <input type="checkbox" name="label_ids" value="<%= lb.id %>" <%= (ev.labels || []).some(x => Number(x.id) === Number(lb.id)) ? 'checked' : '' %> <%= lb.name === 'School Closure' && user.role !== 'admin' ? 'disabled' : '' %> />
                                       <span class="calendar-label-chip" style="--label-color:<%= lb.color %>"><%= lb.name %></span>
                                     </label>
                                   <% }) %>

@@ -156,6 +156,12 @@ function seedOfficialSchoolCalendar2026() {
   const publicHolidayLabelId = ensureCalendarLabel("Public Holiday", "#d9534f", "Official public holiday", createdBy);
   const schoolTermLabelId = ensureCalendarLabel("School Term", "#2f855a", "Official school term", createdBy);
   const termHolidayLabelId = ensureCalendarLabel("Term Holiday", "#f0ad4e", "Official school term holiday", createdBy);
+  ensureCalendarLabel(
+    "School Closure",
+    "#7c3aed",
+    "An announced non-school day that is excluded from PITIS reporting and reminders",
+    createdBy
+  );
 
   PUBLIC_HOLIDAYS_2026.forEach((holiday) => insertCalendarEventIfMissing(holiday, "public_holiday", publicHolidayLabelId, createdBy));
   SCHOOL_TERMS_2026.forEach((term) => insertCalendarEventIfMissing({
@@ -216,8 +222,121 @@ function seedOfficialSchoolCalendar2026() {
     });
   });
   tx();
-  recomputeSchoolWeeks();
+  synchronizeManualNonSchoolEvents(createdBy);
   return true;
+}
+
+function getOfficialDayValues(calendarDate) {
+  const date = dayjs(calendarDate);
+  const term = findTerm(calendarDate);
+  const publicHoliday = findRangeItem(PUBLIC_HOLIDAYS_2026, calendarDate);
+  const termHoliday = findRangeItem(TERM_HOLIDAYS_2026, calendarDate);
+  const isSchoolDay = !!term && SCHOOL_DAY_NUMBERS.has(date.day()) ? 1 : 0;
+  const isPublicHoliday = publicHoliday ? 1 : 0;
+  const isTermHoliday = termHoliday ? 1 : 0;
+  const isAvailable = isSchoolDay && !isPublicHoliday && !isTermHoliday ? 1 : 0;
+  return {
+    termNumber: term ? term.term : null,
+    isSchoolDay,
+    isPublicHoliday,
+    isTermHoliday,
+    isAvailable,
+    eventType: publicHoliday
+      ? "public_holiday"
+      : termHoliday
+        ? "term_holiday"
+        : isSchoolDay
+          ? "normal_school_day"
+          : "non_school_day",
+    holidayName: publicHoliday ? publicHoliday.title : (termHoliday ? termHoliday.title : null),
+    editableFlag: publicHoliday ? Number(publicHoliday.editable) : 1
+  };
+}
+
+function synchronizeManualNonSchoolEvents(updatedBy = null) {
+  const eventRows = db.prepare(`
+    SELECT ce.id, ce.title, ce.details, ce.event_date, COALESCE(ce.end_date, ce.event_date) AS end_date,
+           ce.created_by, LOWER(TRIM(cl.name)) AS label_name
+    FROM calendar_events ce
+    JOIN users creator ON creator.id = ce.created_by AND creator.role = 'admin'
+    JOIN calendar_event_labels cel ON cel.event_id = ce.id
+    JOIN calendar_labels cl ON cl.id = cel.label_id
+    WHERE ce.is_deleted = 0
+      AND ce.event_source = 'manual'
+      AND LOWER(TRIM(cl.name)) IN ('school closure', 'public holiday', 'term holiday', 'cuti penggal')
+    ORDER BY CASE LOWER(TRIM(cl.name))
+      WHEN 'public holiday' THEN 1
+      WHEN 'term holiday' THEN 2
+      WHEN 'cuti penggal' THEN 2
+      ELSE 3
+    END DESC, ce.id ASC
+  `).all();
+
+  const resetRows = db.prepare(`
+    SELECT calendar_date
+    FROM calendar_school_days
+    WHERE calendar_year = ? AND source = 'calendar_event'
+  `).all(SCHOOL_CALENDAR_YEAR);
+  const resetDay = db.prepare(`
+    UPDATE calendar_school_days
+    SET term_number = ?, is_school_day = ?, is_public_holiday = ?, is_term_holiday = ?,
+        is_available_for_pitis = ?, event_type = ?, holiday_name = ?, exclusion_reason = NULL,
+        notes = 'Official 2026 school calendar', editable_flag = ?, source = 'moe_2026',
+        updated_at = ?, updated_by = ?
+    WHERE calendar_date = ? AND source = 'calendar_event'
+  `);
+  const applyEvent = db.prepare(`
+    UPDATE calendar_school_days
+    SET is_public_holiday = ?, is_term_holiday = ?, is_available_for_pitis = 0,
+        event_type = ?, holiday_name = ?, exclusion_reason = ?, notes = ?,
+        source = 'calendar_event', updated_at = ?, updated_by = ?
+    WHERE calendar_date = ? AND calendar_year = ? AND source <> 'admin'
+  `);
+  const now = dayjs().toISOString();
+  let affectedDays = 0;
+
+  db.transaction(() => {
+    resetRows.forEach(({ calendar_date: calendarDate }) => {
+      const official = getOfficialDayValues(calendarDate);
+      resetDay.run(
+        official.termNumber,
+        official.isSchoolDay,
+        official.isPublicHoliday,
+        official.isTermHoliday,
+        official.isAvailable,
+        official.eventType,
+        official.holidayName,
+        official.editableFlag,
+        now,
+        updatedBy || null,
+        calendarDate
+      );
+    });
+
+    eventRows.forEach((event) => {
+      const isPublicHoliday = event.label_name === "public holiday" ? 1 : 0;
+      const isTermHoliday = ["term holiday", "cuti penggal"].includes(event.label_name) ? 1 : 0;
+      const eventType = isPublicHoliday ? "public_holiday" : (isTermHoliday ? "term_holiday" : "school_closure");
+      dateRange(event.event_date, event.end_date).forEach((calendarDate) => {
+        const result = applyEvent.run(
+          isPublicHoliday,
+          isTermHoliday,
+          eventType,
+          event.title,
+          event.title,
+          event.details || `Applied from calendar event #${event.id}`,
+          now,
+          updatedBy || event.created_by || null,
+          calendarDate,
+          SCHOOL_CALENDAR_YEAR
+        );
+        affectedDays += result.changes;
+      });
+    });
+  })();
+
+  recomputeSchoolWeeks();
+  return { events: eventRows.length, affectedDays };
 }
 
 function getSchoolCalendarFilters(query = {}) {
@@ -394,5 +513,6 @@ module.exports = {
   getSchoolCalendarFilters,
   recomputeSchoolWeeks,
   seedOfficialSchoolCalendar2026,
+  synchronizeManualNonSchoolEvents,
   updateSchoolCalendarDay
 };

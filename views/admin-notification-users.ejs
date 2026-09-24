@@ -4,7 +4,7 @@
 <body>
   <%- include('partials/main-header-card') %>
   <main class="container"><section class="card">
-    <div class="notification-heading"><div><h2>Notification Device Status</h2><p class="muted">Users need at least one active browser or device to receive Web Push alerts. In-portal notifications remain available without a device.</p></div><a class="btn secondary" href="/admin/notification-diagnostics">Diagnostics</a></div>
+    <div class="notification-heading"><div><h2>Notification Device Status</h2><p class="muted">Users need at least one active browser or device to receive Web Push alerts. In-portal notifications remain available without a device.</p></div><div class="button-row"><a class="btn" href="/admin/notification-automation">Automation Settings</a><a class="btn secondary" href="/admin/notification-diagnostics">Diagnostics</a></div></div>
     <% if (message) { %><p class="notice"><%= message %></p><% } %>
     <section class="card" style="margin:16px 0;">
       <h3>Download PITIS for Android</h3>

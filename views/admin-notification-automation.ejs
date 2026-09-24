@@ -1,0 +1,34 @@
+<!doctype html>
+<html lang="en">
+<head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>PITIS Notification Automation</title><link rel="stylesheet" href="/css/theme-c.css"><style>.notification-automation-form{margin-top:18px}.notification-automation-form fieldset{display:grid;gap:14px;margin:0}.notification-automation-form legend{padding:0 8px;font-size:1.15rem;font-weight:800}.notification-automation-form label:not(.notification-option){display:grid;gap:6px}.notification-school-day-rule{display:grid;gap:5px;margin:18px 0;padding:15px 17px;border:1px solid #b9d9c8;border-radius:12px;background:#edf8f2}.notification-school-day-rule strong{color:#175e43}.notification-school-day-rule span{color:#4d6259}.error-message{padding:12px;border-radius:10px;background:#ffe8e6;color:#8a2923}@media(min-width:900px){.notification-automation-form{grid-template-columns:1fr 1fr}.notification-automation-form>.button-row{grid-column:1/-1}}</style></head>
+<body>
+  <%- include('partials/main-header-card') %>
+  <main class="container">
+    <section class="card">
+      <div class="notification-heading"><div><h2>PITIS Notification Automation</h2><p class="muted">Control the daily PITIS prompts delivered to teachers and other active portal users.</p></div><a class="btn secondary" href="/admin/notification-users">Notification Devices</a></div>
+      <% if (saved) { %><p class="success-message">Notification automation settings saved.</p><% } %>
+      <% if (error) { %><p class="error-message"><%= error %></p><% } %>
+      <div class="notification-school-day-rule"><strong>Protected delivery rule</strong><span>These automations run only on official school days. Weekends, term holidays and public holidays are always exempted.</span></div>
+      <form method="post" action="/admin/notification-automation" class="stack notification-automation-form">
+        <fieldset class="card form">
+          <legend>No-award reminder</legend>
+          <label class="notification-option"><input type="checkbox" name="no_award_enabled" <%= settings.noAwardEnabled ? 'checked' : '' %>><span>Enable reminder for teachers who have not awarded positive PITIS</span></label>
+          <label>Notification time<input type="time" name="no_award_time" value="<%= settings.noAwardTime %>" required><small class="muted">Uses the school server's Brunei time and is checked approximately every minute.</small></label>
+          <label>Title<input type="text" name="no_award_title" maxlength="160" value="<%= settings.noAwardTitle %>" required></label>
+          <label>Message<textarea name="no_award_message" maxlength="500" rows="3" required><%= settings.noAwardMessage %></textarea></label>
+        </fieldset>
+        <fieldset class="card form">
+          <legend>First PITIS award of the day</legend>
+          <label class="notification-option"><input type="checkbox" name="first_award_enabled" <%= settings.firstAwardEnabled ? 'checked' : '' %>><span>Enable winner congratulations and school-wide encouragement</span></label>
+          <label>Winner title<input type="text" name="winner_title" maxlength="160" value="<%= settings.winnerTitle %>" required></label>
+          <label>Winner message<textarea name="winner_message" maxlength="500" rows="3" required><%= settings.winnerMessage %></textarea></label>
+          <label>Other users' title<input type="text" name="peer_title" maxlength="160" value="<%= settings.peerTitle %>" required></label>
+          <label>Other users' message<textarea name="peer_message" maxlength="500" rows="3" required><%= settings.peerMessage %></textarea></label>
+          <p class="muted">Use <code>{teacher}</code> in either message to insert the first-awarding teacher's display name.</p>
+        </fieldset>
+        <div class="button-row"><button class="btn" type="submit">Save Notification Settings</button><a class="btn secondary" href="/admin/notification-users">Cancel</a></div>
+      </form>
+    </section>
+  </main>
+</body>
+</html>
