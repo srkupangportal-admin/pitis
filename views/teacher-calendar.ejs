@@ -207,14 +207,17 @@
 
           <div class="calendar-label-picker">
             <div class="muted">Labels (optional, multi-select):</div>
-            <div class="calendar-label-list">
-              <% labels.forEach(lb => { %>
-                <label class="calendar-label-option">
-                  <input type="checkbox" name="label_ids" value="<%= lb.id %>" />
-                  <span class="calendar-label-chip" style="--label-color:<%= lb.color %>"><%= lb.name %></span>
-                </label>
-              <% }) %>
-            </div>
+            <details class="calendar-label-dropdown" data-label-dropdown>
+              <summary><span data-label-summary>Select labels</span></summary>
+              <div class="calendar-label-list calendar-label-dropdown-list">
+                <% labels.forEach(lb => { %>
+                  <label class="calendar-label-option">
+                    <input type="checkbox" name="label_ids" value="<%= lb.id %>" />
+                    <span class="calendar-label-chip" style="--label-color:<%= lb.color %>"><%= lb.name %></span>
+                  </label>
+                <% }) %>
+              </div>
+            </details>
           </div>
 
           <div class="calendar-label-picker">
@@ -345,14 +348,18 @@
                             <label>End Date<input type="date" name="end_date" value="<%= ev.end_date %>" /></label>
 
                             <div class="calendar-label-picker">
-                              <div class="calendar-label-list">
-                                <% labels.forEach(lb => { %>
-                                  <label class="calendar-label-option">
-                                    <input type="checkbox" name="label_ids" value="<%= lb.id %>" <%= (ev.labels || []).some(x => Number(x.id) === Number(lb.id)) ? 'checked' : '' %> />
-                                    <span class="calendar-label-chip" style="--label-color:<%= lb.color %>"><%= lb.name %></span>
-                                  </label>
-                                <% }) %>
-                              </div>
+                              <div class="muted">Labels (optional, multi-select):</div>
+                              <details class="calendar-label-dropdown" data-label-dropdown>
+                                <summary><span data-label-summary>Select labels</span></summary>
+                                <div class="calendar-label-list calendar-label-dropdown-list">
+                                  <% labels.forEach(lb => { %>
+                                    <label class="calendar-label-option">
+                                      <input type="checkbox" name="label_ids" value="<%= lb.id %>" <%= (ev.labels || []).some(x => Number(x.id) === Number(lb.id)) ? 'checked' : '' %> />
+                                      <span class="calendar-label-chip" style="--label-color:<%= lb.color %>"><%= lb.name %></span>
+                                    </label>
+                                  <% }) %>
+                                </div>
+                              </details>
                             </div>
 
                             <div class="calendar-label-picker">
@@ -453,6 +460,34 @@
         staffWrap.style.display = showStaffs ? '' : 'none';
       }
 
+      function updateLabelDropdown(dropdown) {
+        if (!dropdown) return;
+        var summary = dropdown.querySelector('[data-label-summary]');
+        if (!summary) return;
+        var selected = Array.from(dropdown.querySelectorAll('input[name="label_ids"]:checked'))
+          .map(function (input) {
+            var chip = input.closest('.calendar-label-option');
+            return chip ? String(chip.textContent || '').trim() : '';
+          })
+          .filter(Boolean);
+        if (!selected.length) summary.textContent = 'Select labels';
+        else if (selected.length <= 2) summary.textContent = selected.join(', ');
+        else summary.textContent = selected.length + ' labels selected';
+      }
+
+      document.querySelectorAll('[data-label-dropdown]').forEach(function (dropdown) {
+        updateLabelDropdown(dropdown);
+        dropdown.querySelectorAll('input[name="label_ids"]').forEach(function (input) {
+          input.addEventListener('change', function () { updateLabelDropdown(dropdown); });
+        });
+      });
+
+      document.addEventListener('click', function (event) {
+        document.querySelectorAll('[data-label-dropdown][open]').forEach(function (dropdown) {
+          if (!dropdown.contains(event.target)) dropdown.removeAttribute('open');
+        });
+      });
+
       document.querySelectorAll('form').forEach(function (form) {
         if (!form.querySelector('.tag-scope-select')) return;
         updateSelectVisibility(form);
@@ -536,6 +571,7 @@
         editForm.querySelectorAll('input[name="label_ids"]').forEach(function (cb) {
           cb.checked = selectedLabels.has(Number(cb.value));
         });
+        updateLabelDropdown(editForm.querySelector('[data-label-dropdown]'));
 
         var scope = String(ev.tag_scope || '');
         var scopeSelect = editForm.querySelector('select[name="tag_scope"]');

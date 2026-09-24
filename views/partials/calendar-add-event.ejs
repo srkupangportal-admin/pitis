@@ -21,14 +21,17 @@
 
     <div class="calendar-label-picker">
       <div class="muted">Labels (optional, multi-select):</div>
-      <div class="calendar-label-list">
-        <% labels.forEach(lb => { %>
-          <label class="calendar-label-option">
-            <input type="checkbox" name="label_ids" value="<%= lb.id %>" />
-            <span class="calendar-label-chip" style="--label-color:<%= lb.color %>"><%= lb.name %></span>
-          </label>
-        <% }) %>
-      </div>
+      <details class="calendar-label-dropdown" data-label-dropdown>
+        <summary><span data-label-summary>Select labels</span></summary>
+        <div class="calendar-label-list calendar-label-dropdown-list">
+          <% labels.forEach(lb => { %>
+            <label class="calendar-label-option">
+              <input type="checkbox" name="label_ids" value="<%= lb.id %>" />
+              <span class="calendar-label-chip" style="--label-color:<%= lb.color %>"><%= lb.name %></span>
+            </label>
+          <% }) %>
+        </div>
+      </details>
     </div>
 
     <div class="calendar-label-picker">

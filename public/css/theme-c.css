@@ -961,6 +961,58 @@ body.calendar-ref-dark .event-span span { color: inherit; }
 }
 .calendar-side-column .calendar-label-chip { color: var(--c-ink); background: transparent; border: 0; }
 
+.calendar-label-dropdown {
+  position: relative;
+  width: 100%;
+}
+.calendar-label-dropdown > summary {
+  display: flex;
+  min-height: 44px;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 9px 38px 9px 12px;
+  color: var(--c-ink);
+  background: var(--c-paper);
+  border: 1px solid var(--c-border);
+  border-radius: 8px;
+  font-weight: 700;
+  cursor: pointer;
+  list-style: none;
+}
+.calendar-label-dropdown > summary::-webkit-details-marker { display: none; }
+.calendar-label-dropdown > summary::after {
+  position: absolute;
+  right: 14px;
+  content: "\2304";
+  font-size: 1rem;
+  transform: translateY(-2px);
+}
+.calendar-label-dropdown[open] > summary::after { content: "\2303"; transform: translateY(3px); }
+.calendar-label-dropdown-list {
+  position: absolute;
+  z-index: 60;
+  top: calc(100% + 5px);
+  right: 0;
+  left: 0;
+  display: grid;
+  grid-template-columns: 1fr;
+  max-height: 260px;
+  overflow-y: auto;
+  padding: 8px;
+  background: #fff;
+  border: 1px solid var(--c-border);
+  border-radius: 8px;
+  box-shadow: 0 14px 28px rgba(36,49,44,.16);
+}
+.calendar-label-dropdown-list .calendar-label-option {
+  width: 100%;
+  justify-content: flex-start;
+  padding: 8px;
+  border-radius: 6px;
+}
+.calendar-label-dropdown-list .calendar-label-option:hover { background: var(--c-paper); }
+
 .calendar-side-column .calendar-filtered-events-summary { padding: 0; }
 .calendar-side-column .calendar-filtered-events-summary .calendar-header-row { margin: 0 0 10px; }
 .calendar-side-column .calendar-filtered-events-meta { display: none; }
