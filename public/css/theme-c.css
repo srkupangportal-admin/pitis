@@ -652,8 +652,8 @@ select option:checked {
 
 .reward-tile .reward-tile-head {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) auto;
-  align-items: end;
+  grid-template-columns: minmax(0, 1fr);
+  align-items: start;
   gap: 8px;
 }
 
@@ -662,6 +662,8 @@ select option:checked {
   flex-direction: column;
   align-items: flex-start;
   gap: 5px;
+  width: 100%;
+  overflow: visible;
 }
 
 .reward-tile .reward-thumb {
@@ -678,13 +680,20 @@ select option:checked {
 }
 
 .reward-tile .reward-photo-select-row .reward-select-check {
-  flex-direction: column;
+  flex-direction: row;
   align-items: center;
-  gap: 2px;
-  min-width: 48px;
-  flex: 0 0 48px;
+  justify-content: center;
+  gap: 6px;
+  min-width: 78px;
+  min-height: 42px;
+  flex: 0 0 78px;
   margin: 0;
-  padding-top: 2px;
+  padding: 7px 9px;
+  color: var(--c-forest-800);
+  background: var(--c-sage-soft);
+  border: 1px solid #bdcabf;
+  border-radius: 10px;
+  cursor: pointer;
 }
 
 .reward-tile .reward-photo-select-row .reward-select-check input {
@@ -699,6 +708,10 @@ select option:checked {
   white-space: nowrap;
   word-break: normal;
   overflow-wrap: normal;
+}
+
+.reward-tile .reward-points {
+  justify-self: end;
 }
 
 .attendance-class-shortcut-card:hover,
