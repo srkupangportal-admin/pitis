@@ -196,14 +196,20 @@
           <p><strong>Labels:</strong></p>
           <div id="calendarEventLabels" class="calendar-inline-labels"></div>
           <p><strong>Tagged users:</strong> <span id="calendarEventTaggedUsers"></span></p>
+          <p><strong>Attachments:</strong></p>
+          <div id="calendarEventAttachments" class="calendar-event-attachments"></div>
         </div>
 
-        <form id="calendarEventEditForm" method="post" class="form hidden">
+        <form id="calendarEventEditForm" method="post" enctype="multipart/form-data" class="form hidden">
           <label>Title<input type="text" name="title" required /></label>
           <label>Details<input type="text" name="details" /></label>
           <label>Start Date<input type="date" name="event_date" required /></label>
           <label>Start Time<input type="time" name="event_time" value="09:00" /><small>Tagged users receive three reminders by default: 5 days before, 3 days before, and on the event day. Birthdays are excluded.</small></label>
           <label>End Date<input type="date" name="end_date" /></label>
+          <label>Add Attachments
+            <input type="file" name="calendar_attachments" accept=".pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.csv,.txt,.jpg,.jpeg,.png,.webp" multiple />
+            <small>New files are added to the existing attachments and saved under Informations → Calendar uploads.</small>
+          </label>
 
           <div class="calendar-label-picker">
             <div class="muted">Labels (optional, multi-select):</div>
@@ -341,11 +347,15 @@
                       <% if (ev.canEdit) { %>
                         <details>
                           <summary class="btn subtle">Edit</summary>
-                          <form method="post" action="/teacher/calendar/update/<%= ev.id %>" class="form" style="margin-top:8px; min-width:260px;">
+                          <form method="post" action="/teacher/calendar/update/<%= ev.id %>" enctype="multipart/form-data" class="form" style="margin-top:8px; min-width:260px;">
                             <label>Title<input type="text" name="title" value="<%= ev.title %>" required /></label>
                             <label>Details<input type="text" name="details" value="<%= ev.details || '' %>" /></label>
                             <label>Start Date<input type="date" name="event_date" value="<%= ev.event_date %>" required /></label>
                             <label>End Date<input type="date" name="end_date" value="<%= ev.end_date %>" /></label>
+                            <label>Add Attachments
+                              <input type="file" name="calendar_attachments" accept=".pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.csv,.txt,.jpg,.jpeg,.png,.webp" multiple />
+                              <small>Existing attachments remain available.</small>
+                            </label>
 
                             <div class="calendar-label-picker">
                               <div class="muted">Labels (optional, multi-select):</div>
@@ -505,6 +515,7 @@
       var detailsEl = document.getElementById('calendarEventDetails');
       var labelsEl = document.getElementById('calendarEventLabels');
       var taggedUsersEl = document.getElementById('calendarEventTaggedUsers');
+      var attachmentsEl = document.getElementById('calendarEventAttachments');
       var editBtn = document.getElementById('calendarEventEditBtn');
       var deleteForm = document.getElementById('calendarEventDeleteForm');
       var closeBtn = document.getElementById('calendarEventCloseBtn');
@@ -559,6 +570,24 @@
         });
       }
 
+      function fillAttachments(attachments) {
+        if (!attachmentsEl) return;
+        attachmentsEl.innerHTML = '';
+        if (!attachments || !attachments.length) {
+          attachmentsEl.innerHTML = '<span class="muted">No attachments</span>';
+          return;
+        }
+        attachments.forEach(function (attachment) {
+          var link = document.createElement('a');
+          link.className = 'btn secondary';
+          link.href = attachment.file_path;
+          link.target = '_blank';
+          link.rel = 'noopener noreferrer';
+          link.textContent = attachment.file_name || attachment.title || 'Open attachment';
+          attachmentsEl.appendChild(link);
+        });
+      }
+
       function fillEditForm(ev) {
         if (!editForm) return;
         editForm.action = '/teacher/calendar/update/' + encodeURIComponent(ev.id);
@@ -599,6 +628,7 @@
         detailsEl.textContent = ev.details || '-';
         taggedUsersEl.textContent = formatTaggedUsersDisplay(ev.tag_scope, ev.tagged_users);
         fillLabels(ev.labels || []);
+        fillAttachments(ev.attachments || []);
 
         if (ev.canEdit) {
           editBtn.classList.remove('hidden');

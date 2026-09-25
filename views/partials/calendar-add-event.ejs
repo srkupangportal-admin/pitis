@@ -1,6 +1,6 @@
 <section class="card form calendar-add-form" id="calendarAddEvent">
   <h3>Add Event</h3>
-  <form method="post" action="/teacher/calendar/add">
+  <form method="post" action="/teacher/calendar/add" enctype="multipart/form-data">
     <div class="inline-filters">
       <label>Title
         <input type="text" name="title" required />
@@ -18,6 +18,11 @@
         <input type="date" name="end_date" />
       </label>
     </div>
+
+    <label>Attachments
+      <input type="file" name="calendar_attachments" accept=".pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.csv,.txt,.jpg,.jpeg,.png,.webp" multiple />
+      <small>Optional: up to 10 files, 25 MB each. Files are also saved under Informations → Calendar uploads.</small>
+    </label>
 
     <div class="calendar-label-picker">
       <div class="muted">Labels (optional, multi-select):</div>

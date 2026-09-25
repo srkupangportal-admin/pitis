@@ -4,10 +4,17 @@ const fs = require("fs");
 const path = require("path");
 const crypto = require("crypto");
 const QRCode = require("qrcode");
+const multer = require("multer");
 const { db, updateDailySnapshot } = require("../db/init");
 const { requireRole } = require("../middleware/auth");
 const { notifyUser, scheduleEvent } = require("../services/notificationService");
 const { synchronizeManualNonSchoolEvents } = require("../services/schoolCalendarService");
+const {
+  calendarAttachmentUpload,
+  getCalendarAttachmentsByEventIds,
+  removeUploadedCalendarFiles,
+  saveCalendarAttachments
+} = require("../services/calendarAttachmentService");
 const { isTeacherUser, buildTeacherProgressSummary } = require("../services/pitisProgressService");
 const { buildStudentQrPayload, generateStudentQrDataUrl, parseStudentQrPayload } = require("../services/qrCodeService");
 const {
@@ -335,10 +342,12 @@ function fetchManualEvents({ rangeStart, rangeEnd, allActive = false }) {
     ? db.prepare(baseQuery).all()
     : db.prepare(baseQuery).all(rangeStart.format("YYYY-MM-DD"), rangeEnd.format("YYYY-MM-DD"));
 
+  const attachmentsByEvent = getCalendarAttachmentsByEventIds(rows.map((event) => event.id));
   return rows.map((ev) => ({
     ...ev,
     labels: parseLabelsRaw(ev.labels_raw),
     tagged_users: parseTaggedUsersRaw(ev.tagged_users_raw),
+    attachments: attachmentsByEvent.get(Number(ev.id)) || [],
     is_system: String(ev.event_source || "manual") !== "manual"
   }));
 }
@@ -3195,7 +3204,7 @@ router.get("/calendar", (req, res) => {
   });
 });
 
-router.post("/calendar/add", (req, res) => {
+router.post("/calendar/add", calendarAttachmentUpload, (req, res) => {
   const title = (req.body.title || "").trim();
   const details = (req.body.details || "").trim();
   const eventDate = (req.body.event_date || "").trim();
@@ -3204,11 +3213,18 @@ router.post("/calendar/add", (req, res) => {
   const tagScope = String(req.body.tag_scope || "").trim().toLowerCase();
   const taggedUserIds = resolveTaggedUserIds(tagScope, req.body.tag_teacher_ids, req.body.tag_staff_ids);
 
-  if (!title || !eventDate) return res.status(400).send("Title and start date are required");
+  if (!title || !eventDate) {
+    removeUploadedCalendarFiles(req.files);
+    return res.status(400).send("Title and start date are required");
+  }
   if (includesSchoolClosureLabel(labelIds) && req.session.user.role !== "admin") {
+    removeUploadedCalendarFiles(req.files);
     return res.status(403).send("Only an administrator can add a School Closure event");
   }
-  if (dayjs(endDate).isBefore(dayjs(eventDate), "day")) return res.status(400).send("End date cannot be earlier than start date");
+  if (dayjs(endDate).isBefore(dayjs(eventDate), "day")) {
+    removeUploadedCalendarFiles(req.files);
+    return res.status(400).send("End date cannot be earlier than start date");
+  }
 
   const now = dayjs().toISOString();
   let eventId;
@@ -3226,6 +3242,7 @@ router.post("/calendar/add", (req, res) => {
   });
 
   tx();
+  saveCalendarAttachments(eventId, title, req.files, req.session.user.id);
   synchronizeManualNonSchoolEvents(req.session.user.id);
   taggedUserIds.forEach(userId => notifyUser(userId, { type: "calendar_tag", title: "Calendar", message: `You were added to ${title}.`, url: `/teacher/calendar?event=${eventId}`, entityType: "calendar_event", entityId: eventId, createdBy: req.session.user.id }));
   scheduleEvent(eventId, includesBirthdayLabel(labelIds) ? [] : taggedUserIds, eventDate, String(req.body.event_time || "09:00"));
@@ -3233,7 +3250,7 @@ router.post("/calendar/add", (req, res) => {
   res.redirect(`/teacher/calendar?month=${monthKey}&success=${encodeURIComponent("Event created")}`);
 });
 
-router.post("/calendar/update/:eventId", (req, res) => {
+router.post("/calendar/update/:eventId", calendarAttachmentUpload, (req, res) => {
   const eventId = Number(req.params.eventId);
   const title = (req.body.title || "").trim();
   const details = (req.body.details || "").trim();
@@ -3244,16 +3261,25 @@ router.post("/calendar/update/:eventId", (req, res) => {
   const taggedUserIds = resolveTaggedUserIds(tagScope, req.body.tag_teacher_ids, req.body.tag_staff_ids);
 
   if (!eventId || !title || !eventDate) {
+    removeUploadedCalendarFiles(req.files);
     return res.status(400).send("Event ID, title and start date are required");
   }
+  if (includesSchoolClosureLabel(labelIds) && req.session.user.role !== "admin") {
+    removeUploadedCalendarFiles(req.files);
+    return res.status(403).send("Only an administrator can assign the School Closure label");
+  }
   if (dayjs(endDate).isBefore(dayjs(eventDate), "day")) {
+    removeUploadedCalendarFiles(req.files);
     return res.status(400).send("End date cannot be earlier than start date");
   }
 
   const target = db
     .prepare("SELECT id FROM calendar_events WHERE id = ? AND is_deleted = 0 AND event_source = 'manual'")
     .get(eventId);
-  if (!target) return res.status(404).send("Event not found or not editable");
+  if (!target) {
+    removeUploadedCalendarFiles(req.files);
+    return res.status(404).send("Event not found or not editable");
+  }
 
   let newlyTagged = [];
   const tx = db.transaction(() => {
@@ -3268,6 +3294,7 @@ router.post("/calendar/update/:eventId", (req, res) => {
   });
 
   tx();
+  saveCalendarAttachments(eventId, title, req.files, req.session.user.id);
   synchronizeManualNonSchoolEvents(req.session.user.id);
   newlyTagged.forEach(userId => notifyUser(userId, { type: "calendar_tag", title: "Calendar", message: `You were added to ${title}.`, url: `/teacher/calendar?event=${eventId}`, entityType: "calendar_event", entityId: eventId, createdBy: req.session.user.id }));
   scheduleEvent(eventId, includesBirthdayLabel(labelIds) ? [] : taggedUserIds, eventDate, String(req.body.event_time || "09:00"));
@@ -3285,9 +3312,6 @@ router.post("/calendar/delete/:eventId", (req, res) => {
   if (!target) return res.status(404).send("Event not found");
   if (String(target.event_source || "manual") !== "manual") {
     return res.status(403).send("System events cannot be deleted");
-  }
-  if (includesSchoolClosureLabel(labelIds) && req.session.user.role !== "admin") {
-    return res.status(403).send("Only an administrator can assign the School Closure label");
   }
   if (Number(target.created_by) !== Number(req.session.user.id) && req.session.user.role !== "admin") {
     return res.status(403).send("Only the event creator or an administrator can delete this event");
@@ -4354,6 +4378,14 @@ router.get("/report/export", (req, res) => {
 
 router.use((err, req, res, next) => {
   if (!err) return next();
+
+  if (String(req.path || "").startsWith("/calendar/")) {
+    removeUploadedCalendarFiles(req.files);
+    const message = err instanceof multer.MulterError
+      ? `Attachment upload failed: ${err.message}`
+      : String(err.message || "Attachment upload failed");
+    return res.redirect(`/teacher/calendar?error=${encodeURIComponent(message)}`);
+  }
 
   const studentPk = encodeURIComponent(String((req.params || {}).studentId || ""));
   if (err instanceof multer.MulterError) {

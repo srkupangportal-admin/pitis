@@ -26,7 +26,7 @@
         <div>
           <span class="information-explorer-eyebrow">Shared documents</span>
           <h2>School Informations</h2>
-          <p class="muted">Browse school documents by folder. Select View to open a folder and reveal its PDF files.</p>
+          <p class="muted">Browse school documents by folder. Select View to open a folder and reveal its files.</p>
         </div>
         <div class="inline-filters info-sort-actions">
           <a class="btn <%= sort === 'date' ? '' : 'secondary' %>" href="/informations?sort=date">Upload Date</a>
@@ -68,7 +68,7 @@
         <span class="information-item-count"><%= groupedFiles.length %> folder<%= groupedFiles.length === 1 ? '' : 's' %></span>
       </header>
       <% if (!groupedFiles.length) { %>
-        <div class="muted">No information PDFs uploaded yet.</div>
+        <div class="muted">No information files uploaded yet.</div>
       <% } else { %>
         <div class="info-folder-list information-tree" role="tree" aria-label="School information folders">
           <% groupedFiles.forEach((group, idx) => { %>
@@ -109,10 +109,11 @@
               <% } %>
               <div class="info-file-list information-tree-children" id="folder-<%= idx %>" role="group" style="display:none;">
                 <% group.items.forEach(file => { %>
+                  <% const fileExtension = String(file.file_name || '').split('.').pop().toUpperCase().slice(0, 4) || 'FILE'; %>
                   <article class="info-file-item" role="treeitem">
                     <span class="information-tree-branch" aria-hidden="true"></span>
                     <a class="info-file-link" href="<%= file.file_path %>" target="_blank" rel="noopener noreferrer" title="<%= file.title %>">
-                      <span class="information-pdf-icon" aria-hidden="true">PDF</span>
+                      <span class="information-pdf-icon" aria-hidden="true"><%= fileExtension %></span>
                       <span class="information-file-copy">
                         <span class="info-file-name"><%= file.title %></span>
                         <small><%= file.uploaded_by_name ? ('Uploaded by ' + file.uploaded_by_name) : 'School document' %></small>

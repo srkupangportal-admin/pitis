@@ -688,6 +688,10 @@ function migrateInformationFilesTable() {
   if (!cols.includes("folder_id")) {
     db.exec("ALTER TABLE information_files ADD COLUMN folder_id INTEGER");
   }
+  if (!cols.includes("calendar_event_id")) {
+    db.exec("ALTER TABLE information_files ADD COLUMN calendar_event_id INTEGER");
+  }
+  db.exec("CREATE INDEX IF NOT EXISTS idx_information_files_calendar_event ON information_files(calendar_event_id)");
 }
 
 function migrateRewardsGalleryTable() {

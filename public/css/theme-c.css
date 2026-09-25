@@ -1837,6 +1837,19 @@ body.information-explorer-page .container { max-width: 1380px; }
 .information-file-copy { display: grid; min-width: 0; }
 .information-file-copy .info-file-name { overflow: hidden; font-size: .84rem; font-weight: 600; text-overflow: ellipsis; white-space: nowrap; }
 .information-file-copy small { color: #7b8790; font-size: .66rem; }
+
+.calendar-event-attachments {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.calendar-event-attachments .btn {
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
 .information-open-file { padding: 5px 9px; color: #2676c5; background: #eaf4ff; border-radius: 6px; font-size: .68rem; font-weight: 700; }
 .information-tree .info-folder-admin-list {
   margin: 0 12px 8px 72px;

@@ -11,6 +11,7 @@
     "test:student-privacy": "node scripts/check-student-privacy.js",
     "test:mobile-routing": "node scripts/check-mobile-pwa-routing.js",
     "test:school-closure": "node scripts/check-school-closure-calendar.js",
+    "test:calendar-attachments": "node scripts/check-calendar-attachments.js",
     "test:tier-settings": "node scripts/check-pitis-tier-settings.js",
     "check:git-safety": "node scripts/check-git-safety.js",
     "check:git-history": "node scripts/check-git-safety.js --history"
