@@ -1816,6 +1816,52 @@ function migrateQrQuizTables() {
   `);
 }
 
+function assignDefaultStudentAvatars() {
+  const defaultAvatarSql = `
+    CASE LOWER(TRIM(COALESCE(gender, '')))
+      WHEN 'male' THEN '/images/student-avatars/male-' || (((id - 1) % 4) + 1) || '.png'
+      WHEN 'female' THEN '/images/student-avatars/female-' || (((id - 1) % 4) + 1) || '.png'
+      ELSE NULL
+    END
+  `;
+
+  db.exec(`
+    UPDATE students
+    SET avatar_path = ${defaultAvatarSql}
+    WHERE NULLIF(TRIM(COALESCE(avatar_path, '')), '') IS NULL
+      AND LOWER(TRIM(COALESCE(gender, ''))) IN ('male', 'female');
+
+    CREATE TRIGGER IF NOT EXISTS trg_students_default_avatar_after_insert
+    AFTER INSERT ON students
+    WHEN NULLIF(TRIM(COALESCE(NEW.avatar_path, '')), '') IS NULL
+      AND LOWER(TRIM(COALESCE(NEW.gender, ''))) IN ('male', 'female')
+    BEGIN
+      UPDATE students
+      SET avatar_path = CASE LOWER(TRIM(COALESCE(NEW.gender, '')))
+        WHEN 'male' THEN '/images/student-avatars/male-' || (((NEW.id - 1) % 4) + 1) || '.png'
+        WHEN 'female' THEN '/images/student-avatars/female-' || (((NEW.id - 1) % 4) + 1) || '.png'
+      END
+      WHERE id = NEW.id;
+    END;
+
+    CREATE TRIGGER IF NOT EXISTS trg_students_default_avatar_after_gender_update
+    AFTER UPDATE OF gender ON students
+    WHEN LOWER(TRIM(COALESCE(NEW.gender, ''))) IN ('male', 'female')
+      AND (
+        NULLIF(TRIM(COALESCE(NEW.avatar_path, '')), '') IS NULL
+        OR NEW.avatar_path LIKE '/images/student-avatars/%'
+      )
+    BEGIN
+      UPDATE students
+      SET avatar_path = CASE LOWER(TRIM(COALESCE(NEW.gender, '')))
+        WHEN 'male' THEN '/images/student-avatars/male-' || (((NEW.id - 1) % 4) + 1) || '.png'
+        WHEN 'female' THEN '/images/student-avatars/female-' || (((NEW.id - 1) % 4) + 1) || '.png'
+      END
+      WHERE id = NEW.id;
+    END;
+  `);
+}
+
 function initializeDatabase() {
   createTables();
   migrateUsersTable();
@@ -1842,6 +1888,7 @@ function initializeDatabase() {
   migrateTeacherUsageAuditTables();
   migrateKioskTables();
   migrateQrQuizTables();
+  assignDefaultStudentAvatars();
   db.exec(`
     CREATE TABLE IF NOT EXISTS pwa_user_activity (
       user_id INTEGER PRIMARY KEY,

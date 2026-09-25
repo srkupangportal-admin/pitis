@@ -13,7 +13,12 @@ const db = new Database(dbPath, { readonly: true, fileMustExist: true });
 const studentColumns = db.prepare("PRAGMA table_info(students)").all().map((row) => row.name);
 const counts = db.prepare(`
   SELECT COUNT(*) AS students,
-         SUM(CASE WHEN NULLIF(TRIM(avatar_path), '') IS NOT NULL THEN 1 ELSE 0 END) AS avatars
+         SUM(CASE WHEN avatar_path LIKE '/images/student-avatars/%' THEN 1 ELSE 0 END) AS default_avatars,
+         SUM(CASE
+           WHEN NULLIF(TRIM(avatar_path), '') IS NOT NULL
+             AND avatar_path NOT LIKE '/images/student-avatars/%'
+           THEN 1 ELSE 0
+         END) AS custom_avatars
   FROM students
 `).get();
 db.close();
@@ -55,4 +60,4 @@ assert(serverSource.includes('app.use("/uploads/avatars"'), "Customized avatars 
 assert(adminRoutes.includes('avatarUpload.single("avatar_file")'), "Admin avatar upload is not configured");
 assert(adminRoutes.includes('["image/jpeg", "image/png", "image/webp"]'), "Avatar uploads must be restricted to safe raster formats");
 
-console.log(`Student privacy check passed: ${counts.students} students, no real-photo fields or files, ${counts.avatars || 0} customized avatars.`);
+console.log(`Student privacy check passed: ${counts.students} students, no real-photo fields or files, ${counts.default_avatars || 0} default avatars, ${counts.custom_avatars || 0} customized avatars.`);
