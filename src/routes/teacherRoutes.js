@@ -16,6 +16,7 @@ const {
   saveCalendarAttachments
 } = require("../services/calendarAttachmentService");
 const { isTeacherUser, buildTeacherProgressSummary } = require("../services/pitisProgressService");
+const { getWeeklyPitisWindow, validateWeeklyPitisRequest } = require("../services/weeklyPitisService");
 const { buildStudentQrPayload, generateStudentQrDataUrl, parseStudentQrPayload } = require("../services/qrCodeService");
 const {
   getLatestTeacherUsageAudit,
@@ -1927,7 +1928,8 @@ router.get("/reward/:classId", (req, res) => {
     customReasons,
     canAttributeAwards,
     awardTeachers,
-    defaultAwardDate: dayjs().format("YYYY-MM-DD"),
+    defaultAwardDate: getWeeklyPitisWindow().todayDate,
+    weeklyPitis: getWeeklyPitisWindow(),
     user: req.session.user,
     error: req.query.error || null,
     success: req.query.success || null
@@ -1945,12 +1947,13 @@ router.post("/reward/award", async (req, res) => {
 
   const classId = Number(pickLast(req.body.class_id));
   const action = String(pickLast(req.body.point_action) || "").trim().toLowerCase();
+  const requestedAwardMode = String(pickLast(req.body.award_mode) || "standard").trim().toLowerCase();
   const amount = Number(pickLast(req.body.points));
   const studentIds = normalizeStudentIds(req.body.student_ids || req.body.student_id);
 
   let awardedByUserId = Number(req.session.user.id);
   let awardedByUser = req.session.user;
-  let awardDate = dayjs().format("YYYY-MM-DD");
+  let awardDate = getWeeklyPitisWindow().todayDate;
 
   if (req.session.user.role === "admin") {
     awardedByUserId = Number(pickLast(req.body.awarded_by_user_id) || 0);
@@ -1977,6 +1980,17 @@ router.post("/reward/award", async (req, res) => {
   if (!["award", "deduct"].includes(action)) {
     return res.status(400).send("Select Award or Deduct");
   }
+
+  const weeklyValidation = validateWeeklyPitisRequest({
+    mode: requestedAwardMode,
+    action,
+    awardDate
+  });
+  if (weeklyValidation.error) {
+    return res.status(400).send(weeklyValidation.error);
+  }
+  const awardMode = weeklyValidation.mode;
+  const awardWeekStart = weeklyValidation.weekly ? weeklyValidation.weekly.weekStart : null;
   if (!Number.isInteger(amount) || amount < 1 || amount > 5) {
     return res.status(400).send("P.I.T.I.S. amount must be a whole number from 1 to 5");
   }
@@ -2025,14 +2039,35 @@ router.post("/reward/award", async (req, res) => {
   }
 
   const placeholders = studentIds.map(() => "?").join(",");
-  const students = db.prepare(`SELECT id, class_id FROM students WHERE class_id = ? AND id IN (${placeholders})`).all(classId, ...studentIds);
+  const students = db.prepare(`
+    SELECT id, class_id, COALESCE(NULLIF(name, ''), full_name) AS nickname
+    FROM students WHERE class_id = ? AND id IN (${placeholders})
+  `).all(classId, ...studentIds);
   if (students.length !== studentIds.length) {
     return res.status(404).send("One or more selected students were not found in this class");
   }
 
+
+  if (awardMode === "weekly") {
+    const alreadyAwarded = db.prepare(`
+      SELECT s.id, COALESCE(NULLIF(s.name, ''), s.full_name) AS nickname
+      FROM point_logs pl
+      JOIN students s ON s.id = pl.student_id
+      WHERE pl.awarded_by = ?
+        AND pl.award_mode = 'weekly'
+        AND pl.award_week_start = ?
+        AND pl.student_id IN (${placeholders})
+      ORDER BY nickname COLLATE NOCASE
+    `).all(awardedByUserId, awardWeekStart, ...studentIds);
+    if (alreadyAwarded.length) {
+      const names = alreadyAwarded.map((student) => student.nickname).join(", ");
+      return res.status(409).send(`Weekly PITIS has already been awarded to: ${names}`);
+    }
+  }
+
   const insertPointLog = db.prepare(
-    `INSERT INTO point_logs (student_id, class_id, points, reason, awarded_by, awarded_at)
-     VALUES (?, ?, ?, ?, ?, ?)`
+    `INSERT INTO point_logs (student_id, class_id, points, reason, awarded_by, awarded_at, award_mode, award_week_start)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?)`
   );
 
   const progressUser = db.prepare("SELECT id,role,user_type FROM users WHERE id=?").get(awardedByUserId);
@@ -2046,7 +2081,7 @@ router.post("/reward/award", async (req, res) => {
 
   db.transaction(() => {
     students.forEach((student) => {
-      insertPointLog.run(student.id, Number(student.class_id), points, reason, awardedByUserId, now);
+      insertPointLog.run(student.id, Number(student.class_id), points, reason, awardedByUserId, now, awardMode, awardWeekStart);
       updateDailySnapshot(student.id);
     });
   })();
@@ -2081,7 +2116,8 @@ router.post("/reward/award", async (req, res) => {
       });
     }
   }
-  const message = `${actionLabel} ${Math.abs(points)} pitis for ${students.length} student${students.length === 1 ? "" : "s"}${attribution}.${progressMessage}`;
+  const weeklyLabel = awardMode === "weekly" ? ` as the weekly award for ${weeklyValidation.weekly.label}` : "";
+  const message = `${actionLabel} ${Math.abs(points)} pitis for ${students.length} student${students.length === 1 ? "" : "s"}${weeklyLabel}${attribution}.${progressMessage}`;
   res.redirect(`/teacher/reward/${classId}?success=${encodeURIComponent(message)}`);
 });
 

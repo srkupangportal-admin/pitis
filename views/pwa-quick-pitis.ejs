@@ -22,6 +22,14 @@
 
   <main class="app-main">
     <button type="button" id="scanStudent" class="scan-button">Scan student QR code</button>
+    <section class="step-card award-mode-card">
+      <div class="step-title">Choose award type</div>
+      <div class="mode-grid" role="group" aria-label="PITIS award type">
+        <button type="button" id="standardMode" class="mode-button selected" data-mode="standard">Standard PITIS</button>
+        <button type="button" id="weeklyMode" class="mode-button" data-mode="weekly">Weekly PITIS</button>
+      </div>
+      <p id="weeklyModeHelp" class="mode-help">Weekly PITIS opens Monday through Saturday and allows one weekly award per student.</p>
+    </section>
     <section class="step-card">
       <label for="classSelect"><span>1</span> Select class</label>
       <select id="classSelect"><option value="">Loading classes…</option></select>
@@ -43,9 +51,11 @@
       <div class="number-grid" id="awardButtons" aria-label="Award PITIS">
         <% for (let value = 1; value <= 5; value += 1) { %><button type="button" class="number-button award" data-action="award" data-amount="<%= value %>">+<%= value %></button><% } %>
       </div>
-      <p class="button-label deduct-label">Deduct</p>
-      <div class="number-grid" id="deductButtons" aria-label="Deduct PITIS">
-        <% for (let value = 1; value <= 5; value += 1) { %><button type="button" class="number-button deduct" data-action="deduct" data-amount="<%= value %>">−<%= value %></button><% } %>
+      <div id="deductBlock">
+        <p class="button-label deduct-label">Deduct</p>
+        <div class="number-grid" id="deductButtons" aria-label="Deduct PITIS">
+          <% for (let value = 1; value <= 5; value += 1) { %><button type="button" class="number-button deduct" data-action="deduct" data-amount="<%= value %>">−<%= value %></button><% } %>
+        </div>
       </div>
     </section>
 

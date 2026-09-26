@@ -5,6 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>P.I.T.I.S - <%= cls.name %></title>
   <link rel="stylesheet" href="/css/theme-c.css?v=20260925-reward-selection-2" />
+  <link rel="stylesheet" href="/css/weekly-pitis.css?v=20260926" />
 </head>
 <body>
   <%- include('partials/teacher-nav') %>
@@ -37,6 +38,21 @@
         <button class="btn bulk-award-trigger" type="button">Continue with Selected Students</button>
       </div>
       <div class="muted reward-selection-count" id="rewardSelectionCount">0 students selected</div>
+    </section>
+
+    <section class="card weekly-pitis-panel <%= weeklyPitis.isOpen ? '' : 'is-closed' %>">
+      <div>
+        <p class="weekly-pitis-kicker">Monday–Saturday</p>
+        <h3>Weekly PITIS</h3>
+        <p class="muted">
+          <% if (weeklyPitis.isOpen) { %>
+            Give each selected student one weekly award for <strong><%= weeklyPitis.label %></strong>. Choose 1–5 PITIS and a reason. Closes <%= weeklyPitis.closesLabel %>.
+          <% } else { %>
+            Weekly PITIS is closed on Sunday. The next award week opens on Monday.
+          <% } %>
+        </p>
+      </div>
+      <button class="btn weekly-award-trigger" type="button" <%= weeklyPitis.isOpen ? '' : 'disabled' %>>Reward Selected for the Week</button>
     </section>
 
     <% if (canAttributeAwards) { %>
@@ -97,6 +113,7 @@
         <input type="hidden" name="student_id" id="modalStudentId" />
         <input type="hidden" name="student_ids" id="modalStudentIds" />
         <input type="hidden" name="class_id" id="modalClassId" />
+        <input type="hidden" name="award_mode" id="modalAwardMode" value="standard" />
 
         <% if (canAttributeAwards) { %>
           <section class="card" style="padding:14px; background:#f5f8f6;">
@@ -203,6 +220,7 @@
       var modalStudentId = document.getElementById('modalStudentId');
       var modalStudentIds = document.getElementById('modalStudentIds');
       var modalClassId = document.getElementById('modalClassId');
+      var modalAwardMode = document.getElementById('modalAwardMode');
       var actionInputs = Array.prototype.slice.call(modalForm.querySelectorAll('input[name="point_action"]'));
       var pointInputs = Array.prototype.slice.call(modalForm.querySelectorAll('input[name="points"]'));
       var reason = document.getElementById('modalReason');
@@ -267,7 +285,7 @@
         return { points: points, reasonType: reasonType };
       }
 
-      function openModal(studentIds, targetClassId, requestedAction) {
+      function openModal(studentIds, targetClassId, requestedAction, requestedMode) {
         var ids = Array.isArray(studentIds) ? studentIds : [studentIds];
         ids = ids.map(function (id) { return String(id || '').trim(); }).filter(Boolean);
         if (!ids.length) {
@@ -277,14 +295,20 @@
         modalStudentId.value = ids[0] || '';
         if (modalStudentIds) modalStudentIds.value = ids.join(',');
         modalClassId.value = targetClassId;
+        var isWeekly = requestedMode === 'weekly';
+        if (modalAwardMode) modalAwardMode.value = isWeekly ? 'weekly' : 'standard';
         if (modalTitle) {
-          modalTitle.textContent = 'Award or Deduct P.I.T.I.S.' + (ids.length > 1 ? ' (' + ids.length + ' students)' : '');
+          modalTitle.textContent = (isWeekly ? 'Weekly P.I.T.I.S. · <%= weeklyPitis.label %>' : 'Award or Deduct P.I.T.I.S.') + (ids.length > 1 ? ' (' + ids.length + ' students)' : '');
         }
 
         reason.value = '';
         customReason.value = '';
         actionInputs.forEach(function (input) { input.checked = false; });
         pointInputs.forEach(function (input) { input.checked = false; });
+        actionInputs.forEach(function (input) {
+          input.disabled = isWeekly && input.value === 'deduct';
+        });
+        if (isWeekly) requestedAction = 'award';
         if (requestedAction === 'award' || requestedAction === 'deduct') {
           var requestedInput = actionInputs.find(function (input) { return input.value === requestedAction; });
           if (requestedInput) requestedInput.checked = true;
@@ -328,6 +352,12 @@
       document.querySelectorAll('.bulk-award-trigger').forEach(function (btn) {
         btn.addEventListener('click', function () {
           openModal(selectedStudentIds(), classId);
+        });
+      });
+
+      document.querySelectorAll('.weekly-award-trigger').forEach(function (btn) {
+        btn.addEventListener('click', function () {
+          openModal(selectedStudentIds(), classId, 'award', 'weekly');
         });
       });
 

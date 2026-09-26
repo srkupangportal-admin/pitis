@@ -65,6 +65,8 @@ function createTables() {
       reason TEXT NOT NULL,
       awarded_by INTEGER NOT NULL,
       awarded_at TEXT NOT NULL,
+      award_mode TEXT NOT NULL DEFAULT 'standard',
+      award_week_start TEXT,
       FOREIGN KEY (student_id) REFERENCES students(id),
       FOREIGN KEY (class_id) REFERENCES classes(id),
       FOREIGN KEY (awarded_by) REFERENCES users(id)
@@ -1862,8 +1864,28 @@ function assignDefaultStudentAvatars() {
   `);
 }
 
+function migratePointLogsTable() {
+  const columns = getColumns("point_logs");
+  if (!columns.includes("award_mode")) {
+    db.exec("ALTER TABLE point_logs ADD COLUMN award_mode TEXT NOT NULL DEFAULT 'standard'");
+  }
+  if (!columns.includes("award_week_start")) {
+    db.exec("ALTER TABLE point_logs ADD COLUMN award_week_start TEXT");
+  }
+  db.exec(`
+    UPDATE point_logs
+    SET award_mode = 'standard'
+    WHERE award_mode IS NULL OR award_mode NOT IN ('standard', 'weekly');
+
+    CREATE UNIQUE INDEX IF NOT EXISTS idx_point_logs_weekly_award_once
+    ON point_logs (awarded_by, student_id, award_week_start)
+    WHERE award_mode = 'weekly' AND award_week_start IS NOT NULL;
+  `);
+}
+
 function initializeDatabase() {
   createTables();
+  migratePointLogsTable();
   migrateUsersTable();
   migrateUserLoginLogsTable();
   migrateStudentEditLogsTable();

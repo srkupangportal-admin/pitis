@@ -1,0 +1,4 @@
+/* Weekly PITIS award entry */
+.weekly-pitis-panel{display:flex;align-items:center;justify-content:space-between;gap:18px;border-left:6px solid #2f855a;background:linear-gradient(135deg,#f1fff7,#fff)}
+.weekly-pitis-panel>div{min-width:0}.weekly-pitis-panel h3{margin:2px 0 6px}.weekly-pitis-panel .muted{margin:0}.weekly-pitis-panel.is-closed{border-left-color:#a0aec0;background:#f7f8f8}.weekly-pitis-kicker{margin:0;color:#2f855a;font-size:.78rem;font-weight:900;letter-spacing:.08em;text-transform:uppercase}.weekly-pitis-panel .weekly-award-trigger{flex:0 0 auto}.weekly-pitis-panel button:disabled{cursor:not-allowed;opacity:.5}
+@media(max-width:700px){.weekly-pitis-panel{align-items:stretch;flex-direction:column}.weekly-pitis-panel .weekly-award-trigger{width:100%}}

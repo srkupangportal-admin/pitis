@@ -69,7 +69,7 @@ const BACKUP_TABLES = {
   ],
   student_siblings: ["id", "student_pk", "sibling_student_pk", "created_at"],
   point_reasons: ["id", "reason", "reason_type", "created_by", "is_custom", "created_at"],
-  point_logs: ["id", "student_id", "class_id", "points", "reason", "awarded_by", "awarded_at"],
+  point_logs: ["id", "student_id", "class_id", "points", "reason", "awarded_by", "awarded_at", "award_mode", "award_week_start"],
   daily_points: ["id", "snapshot_date", "student_id", "total_points", "last_updated_at"],
   kiosk_reward_rules: ["id", "label", "start_time", "end_time", "points", "is_active", "created_at", "updated_at"],
   kiosk_scan_logs: ["id", "student_id", "class_id", "attendance_date", "session_type", "scanned_at", "log_time", "rule_label", "points_awarded", "total_points_after", "qr_payload", "status"],

@@ -2,6 +2,7 @@ const express = require("express");
 const dayjs = require("dayjs");
 const { db, updateDailySnapshot } = require("../db/init");
 const { parseStudentQrPayload } = require("../services/qrCodeService");
+const { getWeeklyPitisWindow, validateWeeklyPitisRequest } = require("../services/weeklyPitisService");
 
 const router = express.Router();
 
@@ -58,6 +59,7 @@ router.get("/api/bootstrap", (req, res) => {
       role: req.session.user.role
     },
     selectedClassId: Number(req.session.pwaQuickPitisClassId || 0) || null,
+    weeklyPitis: getWeeklyPitisWindow(),
     classes,
     reasons
   });
@@ -124,6 +126,7 @@ router.post("/api/transactions", (req, res) => {
   const classId = Number(req.body.class_id);
   const studentId = Number(req.body.student_id);
   const action = String(req.body.action || "").trim().toLowerCase();
+  const requestedAwardMode = String(req.body.award_mode || "standard").trim().toLowerCase();
   const amount = Number(req.body.amount);
   const reasonId = Number(req.body.reason_id || 0);
   const customReason = String(req.body.custom_reason || "").trim().replace(/\s+/g, " ");
@@ -132,6 +135,10 @@ router.post("/api/transactions", (req, res) => {
     return res.status(400).json({ error: "Choose a class and student." });
   }
   if (!["award", "deduct"].includes(action)) return res.status(400).json({ error: "Choose Award or Deduct." });
+  const weeklyValidation = validateWeeklyPitisRequest({ mode: requestedAwardMode, action });
+  if (weeklyValidation.error) return res.status(400).json({ error: weeklyValidation.error });
+  const awardMode = weeklyValidation.mode;
+  const awardWeekStart = weeklyValidation.weekly ? weeklyValidation.weekly.weekStart : null;
   if (!Number.isInteger(amount) || amount < 1 || amount > 5) {
     return res.status(400).json({ error: "Choose a PITIS value from 1 to 5." });
   }
@@ -142,6 +149,18 @@ router.post("/api/transactions", (req, res) => {
     FROM students WHERE id = ? AND class_id = ?
   `).get(studentId, classId);
   if (!student) return res.status(404).json({ error: "Student was not found in that class." });
+
+  if (awardMode === "weekly") {
+    const existingWeeklyAward = db.prepare(`
+      SELECT id FROM point_logs
+      WHERE awarded_by = ? AND student_id = ?
+        AND award_mode = 'weekly' AND award_week_start = ?
+      LIMIT 1
+    `).get(req.session.user.id, student.id, awardWeekStart);
+    if (existingWeeklyAward) {
+      return res.status(409).json({ error: `${student.nickname} has already received your weekly PITIS award for ${weeklyValidation.weekly.label}.` });
+    }
+  }
 
   const reasonType = action === "award" ? "positive" : "negative";
   let reason = customReason;
@@ -177,9 +196,9 @@ router.post("/api/transactions", (req, res) => {
       }
     }
     db.prepare(`
-      INSERT INTO point_logs (student_id, class_id, points, reason, awarded_by, awarded_at)
-      VALUES (?, ?, ?, ?, ?, ?)
-    `).run(student.id, student.class_id, points, reason, req.session.user.id, now);
+      INSERT INTO point_logs (student_id, class_id, points, reason, awarded_by, awarded_at, award_mode, award_week_start)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+    `).run(student.id, student.class_id, points, reason, req.session.user.id, now, awardMode, awardWeekStart);
     updateDailySnapshot(student.id);
   });
 
@@ -195,7 +214,7 @@ router.post("/api/transactions", (req, res) => {
   return res.status(201).json({
     ok: true,
     student: { id: student.id, name: student.nickname, total_points: total },
-    transaction: { action, amount, points, reason },
+    transaction: { action, amount, points, reason, award_mode: awardMode, award_week_start: awardWeekStart },
     reason: customReason ? { id: createdReasonId, reason, reason_type: reasonType, is_custom: 1 } : null
   });
 });

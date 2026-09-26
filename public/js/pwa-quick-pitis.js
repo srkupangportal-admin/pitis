@@ -1,6 +1,6 @@
 (() => {
   'use strict';
-  const state = { reasons: [], students: [], action: '', amount: 0 };
+  const state = { reasons: [], students: [], action: '', amount: 0, mode: 'standard', weeklyPitis: null };
   const byId = (id) => document.getElementById(id);
   const classSelect = byId('classSelect');
   const studentSelect = byId('studentSelect');
@@ -14,6 +14,29 @@
   let qrScanner = null;
   let scannerActive = false;
   let scanProcessing = false;
+
+  function setMode(mode) {
+    if (mode === 'weekly' && (!state.weeklyPitis || !state.weeklyPitis.isOpen)) {
+      showStatus('Weekly PITIS is closed on Sunday. A new week opens on Monday.', 'error');
+      return;
+    }
+    state.mode = mode === 'weekly' ? 'weekly' : 'standard';
+    document.querySelectorAll('.mode-button').forEach((button) => {
+      button.classList.toggle('selected', button.dataset.mode === state.mode);
+    });
+    byId('deductBlock').hidden = state.mode === 'weekly';
+    document.querySelectorAll('.number-button').forEach((item) => item.classList.remove('selected'));
+    state.action = '';
+    state.amount = 0;
+    if (state.mode === 'weekly') {
+      byId('weeklyModeHelp').textContent = `Weekly award for ${state.weeklyPitis.label}. One award per student; closes ${state.weeklyPitis.closesLabel}.`;
+      showStatus(`Weekly PITIS selected · ${state.weeklyPitis.label}`, 'success');
+    } else {
+      byId('weeklyModeHelp').textContent = 'Weekly PITIS opens Monday through Saturday and allows one weekly award per student.';
+      showStatus('');
+    }
+    refreshReasons();
+  }
 
   async function request(url, options) {
     const response = await fetch(url, {
@@ -175,6 +198,7 @@
 
   document.querySelectorAll('.number-button').forEach((button) => {
     button.addEventListener('click', () => {
+      if (state.mode === 'weekly' && button.dataset.action !== 'award') return;
       document.querySelectorAll('.number-button').forEach((item) => item.classList.remove('selected'));
       button.classList.add('selected');
       state.action = button.dataset.action;
@@ -182,6 +206,9 @@
       refreshReasons();
     });
   });
+
+  byId('standardMode').addEventListener('click', () => setMode('standard'));
+  byId('weeklyMode').addEventListener('click', () => setMode('weekly'));
 
   classSelect.addEventListener('change', () => loadStudents(true));
   studentSelect.addEventListener('change', updateStudentCard);
@@ -198,7 +225,8 @@
     const student = selectedStudent();
     const selectedReason = customToggle.checked ? customReason.value.trim() : reasonSelect.options[reasonSelect.selectedIndex].textContent;
     const verb = state.action === 'award' ? 'Award' : 'Deduct';
-    byId('confirmSummary').textContent = `${verb} ${state.amount} PITIS ${state.action === 'award' ? 'to' : 'from'} ${student.nickname} for “${selectedReason}”?`;
+    const weeklyText = state.mode === 'weekly' ? ` as the weekly award for ${state.weeklyPitis.label}` : '';
+    byId('confirmSummary').textContent = `${verb} ${state.amount} PITIS ${state.action === 'award' ? 'to' : 'from'} ${student.nickname}${weeklyText} for “${selectedReason}”?`;
     dialog.showModal();
   });
 
@@ -214,7 +242,8 @@
         action: state.action,
         amount: state.amount,
         reason_id: customToggle.checked ? null : Number(reasonSelect.value),
-        custom_reason: customToggle.checked ? customReason.value.trim() : ''
+        custom_reason: customToggle.checked ? customReason.value.trim() : '',
+        award_mode: state.mode
       };
       const data = await request('/pwa/api/transactions', { method: 'POST', body: JSON.stringify(payload) });
       const student = selectedStudent();
@@ -222,7 +251,8 @@
       updateStudentCard();
       if (data.reason && !state.reasons.some((reason) => Number(reason.id) === Number(data.reason.id))) state.reasons.push(data.reason);
       const sign = data.transaction.points > 0 ? '+' : '';
-      showStatus(`${data.student.name}: ${sign}${data.transaction.points} PITIS saved.`, 'success');
+      const savedLabel = data.transaction.award_mode === 'weekly' ? ' weekly PITIS saved.' : ' PITIS saved.';
+      showStatus(`${data.student.name}: ${sign}${data.transaction.points}${savedLabel}`, 'success');
       customReason.value = '';
       customToggle.checked = false;
       customReason.hidden = true;
@@ -260,6 +290,13 @@
 
   request('/pwa/api/bootstrap').then((data) => {
     state.reasons = data.reasons || [];
+    state.weeklyPitis = data.weeklyPitis || null;
+    if (!state.weeklyPitis || !state.weeklyPitis.isOpen) {
+      byId('weeklyMode').disabled = true;
+      byId('weeklyModeHelp').textContent = 'Weekly PITIS is closed on Sunday. It opens again on Monday.';
+    } else {
+      byId('weeklyModeHelp').textContent = `Open for ${state.weeklyPitis.label}; closes ${state.weeklyPitis.closesLabel}.`;
+    }
     classSelect.innerHTML = '';
     option(classSelect, '', 'Select class');
     (data.classes || []).forEach((cls) => option(classSelect, cls.id, `${cls.name} (${cls.student_count})`));
