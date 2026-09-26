@@ -127,6 +127,7 @@ router.post("/api/transactions", (req, res) => {
   const studentId = Number(req.body.student_id);
   const action = String(req.body.action || "").trim().toLowerCase();
   const requestedAwardMode = String(req.body.award_mode || "standard").trim().toLowerCase();
+  const requestedAwardDate = String(req.body.award_date || "").trim();
   const amount = Number(req.body.amount);
   const reasonId = Number(req.body.reason_id || 0);
   const customReason = String(req.body.custom_reason || "").trim().replace(/\s+/g, " ");
@@ -135,10 +136,11 @@ router.post("/api/transactions", (req, res) => {
     return res.status(400).json({ error: "Choose a class and student." });
   }
   if (!["award", "deduct"].includes(action)) return res.status(400).json({ error: "Choose Award or Deduct." });
-  const weeklyValidation = validateWeeklyPitisRequest({ mode: requestedAwardMode, action });
+  const weeklyValidation = validateWeeklyPitisRequest({ mode: requestedAwardMode, action, awardDate: requestedAwardDate });
   if (weeklyValidation.error) return res.status(400).json({ error: weeklyValidation.error });
   const awardMode = weeklyValidation.mode;
   const awardWeekStart = weeklyValidation.weekly ? weeklyValidation.weekly.weekStart : null;
+  const awardDay = weeklyValidation.awardDate || null;
   if (!Number.isInteger(amount) || amount < 1 || amount > 5) {
     return res.status(400).json({ error: "Choose a PITIS value from 1 to 5." });
   }
@@ -154,11 +156,11 @@ router.post("/api/transactions", (req, res) => {
     const existingWeeklyAward = db.prepare(`
       SELECT id FROM point_logs
       WHERE awarded_by = ? AND student_id = ?
-        AND award_mode = 'weekly' AND award_week_start = ?
+        AND award_mode = 'weekly' AND award_day = ?
       LIMIT 1
-    `).get(req.session.user.id, student.id, awardWeekStart);
+    `).get(req.session.user.id, student.id, awardDay);
     if (existingWeeklyAward) {
-      return res.status(409).json({ error: `${student.nickname} has already received your weekly PITIS award for ${weeklyValidation.weekly.label}.` });
+      return res.status(409).json({ error: `${student.nickname} has already received your weekly PITIS award for ${awardDay}.` });
     }
   }
 
@@ -174,7 +176,7 @@ router.post("/api/transactions", (req, res) => {
   }
 
   const points = action === "deduct" ? -amount : amount;
-  const now = dayjs().toISOString();
+  const now = awardMode === "weekly" ? dayjs(`${awardDay}T12:00:00`).toISOString() : dayjs().toISOString();
   let createdReasonId = null;
 
   const save = db.transaction(() => {
@@ -196,9 +198,9 @@ router.post("/api/transactions", (req, res) => {
       }
     }
     db.prepare(`
-      INSERT INTO point_logs (student_id, class_id, points, reason, awarded_by, awarded_at, award_mode, award_week_start)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-    `).run(student.id, student.class_id, points, reason, req.session.user.id, now, awardMode, awardWeekStart);
+      INSERT INTO point_logs (student_id, class_id, points, reason, awarded_by, awarded_at, award_mode, award_week_start, award_day)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+    `).run(student.id, student.class_id, points, reason, req.session.user.id, now, awardMode, awardWeekStart, awardDay);
     updateDailySnapshot(student.id);
   });
 
@@ -214,7 +216,7 @@ router.post("/api/transactions", (req, res) => {
   return res.status(201).json({
     ok: true,
     student: { id: student.id, name: student.nickname, total_points: total },
-    transaction: { action, amount, points, reason, award_mode: awardMode, award_week_start: awardWeekStart },
+    transaction: { action, amount, points, reason, award_mode: awardMode, award_week_start: awardWeekStart, award_day: awardDay },
     reason: customReason ? { id: createdReasonId, reason, reason_type: reasonType, is_custom: 1 } : null
   });
 });

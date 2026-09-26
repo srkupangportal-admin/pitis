@@ -25,14 +25,15 @@
       button.classList.toggle('selected', button.dataset.mode === state.mode);
     });
     byId('deductBlock').hidden = state.mode === 'weekly';
+    byId('weeklyDateField').hidden = state.mode !== 'weekly';
     document.querySelectorAll('.number-button').forEach((item) => item.classList.remove('selected'));
     state.action = '';
     state.amount = 0;
     if (state.mode === 'weekly') {
-      byId('weeklyModeHelp').textContent = `Weekly award for ${state.weeklyPitis.label}. One award per student; closes ${state.weeklyPitis.closesLabel}.`;
+      byId('weeklyModeHelp').textContent = `Select a completed date in ${state.weeklyPitis.label}; entries close ${state.weeklyPitis.closesLabel}.`;
       showStatus(`Weekly PITIS selected · ${state.weeklyPitis.label}`, 'success');
     } else {
-      byId('weeklyModeHelp').textContent = 'Weekly PITIS opens Monday through Saturday and allows one weekly award per student.';
+      byId('weeklyModeHelp').textContent = 'Weekly PITIS opens Monday through Saturday and can be recorded for completed days this week.';
       showStatus('');
     }
     refreshReasons();
@@ -91,7 +92,8 @@
 
   function updateReviewState() {
     const hasReason = customToggle.checked ? customReason.value.trim().length > 0 : Number(reasonSelect.value) > 0;
-    reviewButton.disabled = !(Number(classSelect.value) && Number(studentSelect.value) && state.action && state.amount && hasReason);
+    const hasAwardDate = state.mode !== 'weekly' || /^\d{4}-\d{2}-\d{2}$/.test(byId('weeklyAwardDate').value);
+    reviewButton.disabled = !(Number(classSelect.value) && Number(studentSelect.value) && state.action && state.amount && hasReason && hasAwardDate);
   }
 
   async function rememberClass() {
@@ -209,6 +211,7 @@
 
   byId('standardMode').addEventListener('click', () => setMode('standard'));
   byId('weeklyMode').addEventListener('click', () => setMode('weekly'));
+  byId('weeklyAwardDate').addEventListener('change', updateReviewState);
 
   classSelect.addEventListener('change', () => loadStudents(true));
   studentSelect.addEventListener('change', updateStudentCard);
@@ -225,7 +228,7 @@
     const student = selectedStudent();
     const selectedReason = customToggle.checked ? customReason.value.trim() : reasonSelect.options[reasonSelect.selectedIndex].textContent;
     const verb = state.action === 'award' ? 'Award' : 'Deduct';
-    const weeklyText = state.mode === 'weekly' ? ` as the weekly award for ${state.weeklyPitis.label}` : '';
+    const weeklyText = state.mode === 'weekly' ? ` for ${byId('weeklyAwardDate').value}` : '';
     byId('confirmSummary').textContent = `${verb} ${state.amount} PITIS ${state.action === 'award' ? 'to' : 'from'} ${student.nickname}${weeklyText} for “${selectedReason}”?`;
     dialog.showModal();
   });
@@ -243,7 +246,8 @@
         amount: state.amount,
         reason_id: customToggle.checked ? null : Number(reasonSelect.value),
         custom_reason: customToggle.checked ? customReason.value.trim() : '',
-        award_mode: state.mode
+        award_mode: state.mode,
+        award_date: state.mode === 'weekly' ? byId('weeklyAwardDate').value : null
       };
       const data = await request('/pwa/api/transactions', { method: 'POST', body: JSON.stringify(payload) });
       const student = selectedStudent();
@@ -296,6 +300,9 @@
       byId('weeklyModeHelp').textContent = 'Weekly PITIS is closed on Sunday. It opens again on Monday.';
     } else {
       byId('weeklyModeHelp').textContent = `Open for ${state.weeklyPitis.label}; closes ${state.weeklyPitis.closesLabel}.`;
+      byId('weeklyAwardDate').min = state.weeklyPitis.weekStart;
+      byId('weeklyAwardDate').max = state.weeklyPitis.latestAwardDate;
+      byId('weeklyAwardDate').value = state.weeklyPitis.latestAwardDate;
     }
     classSelect.innerHTML = '';
     option(classSelect, '', 'Select class');

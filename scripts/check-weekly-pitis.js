@@ -25,6 +25,7 @@ try {
   const columns = db.prepare("PRAGMA table_info(point_logs)").all().map((column) => column.name);
   assert(columns.includes("award_mode"), "point_logs.award_mode was not created");
   assert(columns.includes("award_week_start"), "point_logs.award_week_start was not created");
+  assert(columns.includes("award_day"), "point_logs.award_day was not created");
 
   const user = db.prepare("SELECT id FROM users WHERE role IN ('teacher','staff') LIMIT 1").get();
   const student = db.prepare("SELECT id, class_id FROM students LIMIT 1").get();
@@ -34,17 +35,18 @@ try {
   try {
     const insert = db.prepare(`
       INSERT INTO point_logs
-        (student_id, class_id, points, reason, awarded_by, awarded_at, award_mode, award_week_start)
-      VALUES (?, ?, ?, ?, ?, ?, 'weekly', ?)
+        (student_id, class_id, points, reason, awarded_by, awarded_at, award_mode, award_week_start, award_day)
+      VALUES (?, ?, ?, ?, ?, ?, 'weekly', ?, ?)
     `);
-    insert.run(student.id, student.class_id, 2, "Weekly test", user.id, new Date().toISOString(), saturday.weekStart);
+    insert.run(student.id, student.class_id, 2, "Weekly test", user.id, new Date().toISOString(), saturday.weekStart, "2026-09-24");
     let duplicateBlocked = false;
     try {
-      insert.run(student.id, student.class_id, 3, "Duplicate test", user.id, new Date().toISOString(), saturday.weekStart);
+      insert.run(student.id, student.class_id, 3, "Duplicate test", user.id, new Date().toISOString(), saturday.weekStart, "2026-09-24");
     } catch (error) {
       duplicateBlocked = String(error && error.code).includes("CONSTRAINT");
     }
     assert(duplicateBlocked, "Duplicate weekly award was not blocked");
+    insert.run(student.id, student.class_id, 3, "Different day test", user.id, new Date().toISOString(), saturday.weekStart, "2026-09-25");
   } finally {
     db.exec("ROLLBACK");
   }

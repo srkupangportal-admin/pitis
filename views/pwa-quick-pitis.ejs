@@ -28,7 +28,10 @@
         <button type="button" id="standardMode" class="mode-button selected" data-mode="standard">Standard PITIS</button>
         <button type="button" id="weeklyMode" class="mode-button" data-mode="weekly">Weekly PITIS</button>
       </div>
-      <p id="weeklyModeHelp" class="mode-help">Weekly PITIS opens Monday through Saturday and allows one weekly award per student.</p>
+      <p id="weeklyModeHelp" class="mode-help">Weekly PITIS opens Monday through Saturday and can be recorded for completed days this week.</p>
+      <label id="weeklyDateField" hidden>Weekly award date
+        <input type="date" id="weeklyAwardDate">
+      </label>
     </section>
     <section class="step-card">
       <label for="classSelect"><span>1</span> Select class</label>

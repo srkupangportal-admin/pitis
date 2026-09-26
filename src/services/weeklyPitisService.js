@@ -29,6 +29,7 @@ function getWeeklyPitisWindow(value) {
     todayDate: today.format("YYYY-MM-DD"),
     weekStart: weekStart.format("YYYY-MM-DD"),
     weekEnd: weekEnd.format("YYYY-MM-DD"),
+    latestAwardDate: today.isAfter(weekEnd, "day") ? weekEnd.format("YYYY-MM-DD") : today.format("YYYY-MM-DD"),
     label: `${weekStart.format("D MMM")}–${weekEnd.format("D MMM YYYY")}`,
     closesLabel: weekEnd.format("dddd, D MMMM [at] [11:59 pm]"),
     nextOpenDate: isOpen ? null : today.add(1, "day").format("YYYY-MM-DD")
@@ -46,10 +47,17 @@ function validateWeeklyPitisRequest({ mode, action, awardDate }) {
     return { error: "Weekly PITIS supports awards only. Use the standard form for deductions." };
   }
   const normalizedDate = dayjs(awardDate || weekly.todayDate).format("YYYY-MM-DD");
+  const requestedDate = String(awardDate || weekly.todayDate);
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(requestedDate) || !dayjs(normalizedDate).isValid() || normalizedDate !== requestedDate) {
+    return { error: "Choose a valid weekly PITIS date." };
+  }
   if (normalizedDate < weekly.weekStart || normalizedDate > weekly.weekEnd) {
     return { error: `Weekly PITIS must be recorded within ${weekly.label}.` };
   }
-  return { mode: "weekly", weekly };
+  if (normalizedDate > weekly.latestAwardDate) {
+    return { error: "Weekly PITIS cannot be recorded for a future date." };
+  }
+  return { mode: "weekly", weekly, awardDate: normalizedDate };
 }
 
 module.exports = {

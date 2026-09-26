@@ -46,7 +46,7 @@
         <h3>Weekly PITIS</h3>
         <p class="muted">
           <% if (weeklyPitis.isOpen) { %>
-            Give each selected student one weekly award for <strong><%= weeklyPitis.label %></strong>. Choose 1–5 PITIS and a reason. Closes <%= weeklyPitis.closesLabel %>.
+            Record PITIS for any completed day in <strong><%= weeklyPitis.label %></strong>. Select the date, 1–5 PITIS and a reason. Entries close <%= weeklyPitis.closesLabel %>.
           <% } else { %>
             Weekly PITIS is closed on Sunday. The next award week opens on Monday.
           <% } %>
@@ -114,6 +114,12 @@
         <input type="hidden" name="student_ids" id="modalStudentIds" />
         <input type="hidden" name="class_id" id="modalClassId" />
         <input type="hidden" name="award_mode" id="modalAwardMode" value="standard" />
+        <% if (!canAttributeAwards) { %>
+          <label id="weeklyAwardDateField" hidden>Weekly award date
+            <input type="date" name="award_date" id="weeklyAwardDate" min="<%= weeklyPitis.weekStart %>" max="<%= weeklyPitis.latestAwardDate %>" value="<%= weeklyPitis.latestAwardDate %>" />
+            <small class="muted">Choose a completed day from the current Monday–Saturday week.</small>
+          </label>
+        <% } %>
 
         <% if (canAttributeAwards) { %>
           <section class="card" style="padding:14px; background:#f5f8f6;">
@@ -221,6 +227,8 @@
       var modalStudentIds = document.getElementById('modalStudentIds');
       var modalClassId = document.getElementById('modalClassId');
       var modalAwardMode = document.getElementById('modalAwardMode');
+      var weeklyAwardDateField = document.getElementById('weeklyAwardDateField');
+      var weeklyAwardDate = document.getElementById('weeklyAwardDate');
       var actionInputs = Array.prototype.slice.call(modalForm.querySelectorAll('input[name="point_action"]'));
       var pointInputs = Array.prototype.slice.call(modalForm.querySelectorAll('input[name="points"]'));
       var reason = document.getElementById('modalReason');
@@ -297,8 +305,10 @@
         modalClassId.value = targetClassId;
         var isWeekly = requestedMode === 'weekly';
         if (modalAwardMode) modalAwardMode.value = isWeekly ? 'weekly' : 'standard';
+        if (weeklyAwardDateField) weeklyAwardDateField.hidden = !isWeekly;
+        if (weeklyAwardDate) weeklyAwardDate.required = isWeekly;
         if (modalTitle) {
-          modalTitle.textContent = (isWeekly ? 'Weekly P.I.T.I.S. · <%= weeklyPitis.label %>' : 'Award or Deduct P.I.T.I.S.') + (ids.length > 1 ? ' (' + ids.length + ' students)' : '');
+          modalTitle.textContent = (isWeekly ? 'Weekly P.I.T.I.S. · Select Date' : 'Award or Deduct P.I.T.I.S.') + (ids.length > 1 ? ' (' + ids.length + ' students)' : '');
         }
 
         reason.value = '';

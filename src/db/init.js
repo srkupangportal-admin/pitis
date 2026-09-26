@@ -67,6 +67,7 @@ function createTables() {
       awarded_at TEXT NOT NULL,
       award_mode TEXT NOT NULL DEFAULT 'standard',
       award_week_start TEXT,
+      award_day TEXT,
       FOREIGN KEY (student_id) REFERENCES students(id),
       FOREIGN KEY (class_id) REFERENCES classes(id),
       FOREIGN KEY (awarded_by) REFERENCES users(id)
@@ -1872,14 +1873,22 @@ function migratePointLogsTable() {
   if (!columns.includes("award_week_start")) {
     db.exec("ALTER TABLE point_logs ADD COLUMN award_week_start TEXT");
   }
+  if (!columns.includes("award_day")) {
+    db.exec("ALTER TABLE point_logs ADD COLUMN award_day TEXT");
+  }
   db.exec(`
     UPDATE point_logs
     SET award_mode = 'standard'
     WHERE award_mode IS NULL OR award_mode NOT IN ('standard', 'weekly');
 
-    CREATE UNIQUE INDEX IF NOT EXISTS idx_point_logs_weekly_award_once
-    ON point_logs (awarded_by, student_id, award_week_start)
-    WHERE award_mode = 'weekly' AND award_week_start IS NOT NULL;
+    UPDATE point_logs
+    SET award_day = substr(awarded_at, 1, 10)
+    WHERE award_mode = 'weekly' AND award_day IS NULL;
+
+    DROP INDEX IF EXISTS idx_point_logs_weekly_award_once;
+    CREATE UNIQUE INDEX IF NOT EXISTS idx_point_logs_weekly_award_once_per_day
+    ON point_logs (awarded_by, student_id, award_day)
+    WHERE award_mode = 'weekly' AND award_day IS NOT NULL;
   `);
 }
 
