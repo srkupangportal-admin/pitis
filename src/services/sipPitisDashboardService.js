@@ -414,6 +414,14 @@ function parseTeacherIdFilter(rawTeacherIds, allowedIds) {
   return Array.from(new Set(ids));
 }
 
+function parseWeekKeyFilter(rawWeekKeys, allowedKeys) {
+  const values = Array.isArray(rawWeekKeys) ? rawWeekKeys : [rawWeekKeys];
+  return Array.from(new Set(values
+    .flatMap((value) => String(value || "").split(","))
+    .map((value) => value.trim())
+    .filter((value) => /^\d{4}-\d{2}-\d{2}$/.test(value) && allowedKeys.has(value))));
+}
+
 function buildSipPitisDashboard(query = {}) {
   const settings = getSipPitisSettings();
   const todayValue = resolveDashboardAsOfDate(query.asOf);
@@ -440,10 +448,20 @@ function buildSipPitisDashboard(query = {}) {
   const currentTerm = currentWeek ? currentWeek.term : (SCHOOL_TERMS_2026.find((term) => !dayjs(todayValue).isBefore(dayjs(term.start), "day") && !dayjs(todayValue).isAfter(dayjs(term.end), "day")) || {}).term || 1;
   const selectedTerm = String(query.term || currentTerm) === "all" ? currentTerm : Number(query.term || currentTerm);
   const selectedTermRange = SCHOOL_TERMS_2026.find((term) => Number(term.term) === Number(selectedTerm)) || SCHOOL_TERMS_2026[0];
-  const filteredWeeks = filterWeeks(allWeeks, {
-    term: selectedTerm,
-    weekLimit: query.weeks || "all"
-  });
+  const termWeeks = filterWeeks(allWeeks, { term: selectedTerm, weekLimit: "all" });
+  const allowedWeekKeys = new Set(termWeeks.map((week) => week.weekKey));
+  const requestedWeekKeys = parseWeekKeyFilter(query.weekKeys, allowedWeekKeys);
+  const hasWeekSelection = Object.prototype.hasOwnProperty.call(query, "weekFilter")
+    || Object.prototype.hasOwnProperty.call(query, "weekKeys");
+  let filteredWeeks;
+  if (hasWeekSelection) {
+    const selectedWeekKeySet = new Set(requestedWeekKeys);
+    filteredWeeks = termWeeks.filter((week) => selectedWeekKeySet.has(week.weekKey));
+  } else if (query.weeks && query.weeks !== "all") {
+    filteredWeeks = termWeeks.slice(-Number(query.weeks));
+  } else {
+    filteredWeeks = termWeeks;
+  }
   const termPitisByTeacher = new Map();
   activityRows.forEach((row) => {
     if (dayjs(row.activity_date).isBefore(dayjs(selectedTermRange.start), "day") || dayjs(row.activity_date).isAfter(dayjs(selectedTermRange.end), "day")) return;
@@ -497,13 +515,16 @@ function buildSipPitisDashboard(query = {}) {
     teacherReports: visibleTeacherReports,
     allTeacherReports: teacherReports,
     weeks: filteredWeeks,
+    availableWeeks: termWeeks,
     weeklyChart,
     calendarExclusions,
     currentTerm,
     currentWeek,
     filters: {
       term: String(selectedTerm),
-      weeks: String(query.weeks || "all"),
+      weeks: "selected",
+      weekFilter: "1",
+      weekKeys: filteredWeeks.map((week) => week.weekKey),
       status: statusFilter,
       usageDays: minUsage,
       asOf: todayValue,

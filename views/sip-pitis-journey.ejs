@@ -15,7 +15,8 @@
         <p class="muted">SIP PITIS journey by official school week.</p>
       </div>
       <div class="report-actions">
-        <a class="btn secondary" href="/teacher/reporting-tool/sip-pitis?term=<%= dashboard.filters.term %>&weeks=<%= dashboard.filters.weeks %>">Dashboard</a>
+        <% var dashboardQuery = new URLSearchParams(); Object.keys(dashboard.filters).forEach(function(key) { if (Array.isArray(dashboard.filters[key])) { dashboard.filters[key].forEach(function(value) { dashboardQuery.append(key, value); }); } else { dashboardQuery.set(key, dashboard.filters[key]); } }); %>
+        <a class="btn secondary" href="/teacher/reporting-tool/sip-pitis?<%= dashboardQuery.toString() %>">Dashboard</a>
         <button class="btn" type="button" onclick="window.print()">PDF / Print</button>
       </div>
     </div>

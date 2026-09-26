@@ -5,6 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>SIP PITIS Dashboard</title>
   <link rel="stylesheet" href="/css/theme-c.css" />
+  <link rel="stylesheet" href="/css/sip-week-picker.css" />
 </head>
 <body class="<%= printMode ? 'print-mode' : '' %>">
   <% if (!printMode) { %><%- include('partials/teacher-nav') %><% } %>
@@ -36,13 +37,25 @@
             <% }) %>
           </select>
         </label>
-        <label>Weeks
-          <select name="weeks">
-            <% ['all','4','8','12'].forEach(function(limit) { %>
-              <option value="<%= limit %>" <%= dashboard.filters.weeks === limit ? 'selected' : '' %>><%= limit === 'all' ? 'All weeks' : 'Last ' + limit %></option>
-            <% }) %>
-          </select>
-        </label>
+        <input type="hidden" name="weekFilter" value="1" />
+        <details class="sip-week-picker">
+          <summary><span>Weeks</span><strong id="sipWeekSelectionCount"><%= dashboard.filters.weekKeys.length %> selected</strong></summary>
+          <div class="sip-week-picker-panel">
+            <div class="reward-bulk-actions">
+              <button class="btn subtle secondary" type="button" id="sipSelectAllWeeks">Select All</button>
+              <button class="btn subtle secondary" type="button" id="sipClearWeeks">Clear</button>
+            </div>
+            <div class="sip-week-select-grid">
+              <% var selectedWeekKeys = new Set(dashboard.filters.weekKeys); %>
+              <% dashboard.availableWeeks.forEach(function(week) { %>
+                <label class="sip-week-option <%= selectedWeekKeys.has(week.weekKey) ? 'selected' : '' %>">
+                  <input type="checkbox" name="weekKeys" value="<%= week.weekKey %>" <%= selectedWeekKeys.has(week.weekKey) ? 'checked' : '' %> />
+                  <strong>W<%= week.weekNumber %></strong><span>Term week <%= week.termWeekNumber %></span><small><%= week.rangeLabel %></small>
+                </label>
+              <% }) %>
+            </div>
+          </div>
+        </details>
         <label>Status
           <select name="status">
             <% [['all','All'],['met','Met'],['still_possible','Still Possible'],['at_risk','At Risk'],['missed','Missed'],['future','Future']].forEach(function(opt) { %>
@@ -158,7 +171,7 @@
           <tbody>
             <% dashboard.teacherReports.forEach(function(teacher) { %>
               <tr>
-                <td><a href="/teacher/reporting-tool/sip-pitis/teacher/<%= teacher.id %>?term=<%= dashboard.filters.term %>&weeks=<%= dashboard.filters.weeks %>"><%= teacher.display_name %></a><br><span class="muted"><%= teacher.username %></span></td>
+                <td><a href="/teacher/reporting-tool/sip-pitis/teacher/<%= teacher.id %>?<%= dashboardQuery.toString() %>"><%= teacher.display_name %></a><br><span class="muted"><%= teacher.username %></span></td>
                 <% teacher.weeks.forEach(function(week) { %>
                   <td><span class="sip-dot <%= week.status.toLowerCase().replace(/\s+/g, '-') %>" title="<%= week.status %>: <%= week.activeDays %>/<%= week.requiredDays %> counted days; <%= week.usageDays %> usage days; <%= week.totalTransactions %> transactions"><%= week.status.charAt(0) %></span></td>
                 <% }) %>
@@ -283,6 +296,28 @@
       });
       if (selectAll) selectAll.addEventListener('click', function() { setBoxes(true); });
       if (clear) clear.addEventListener('click', function() { setBoxes(false); });
+
+      var weekSelectAll = document.getElementById('sipSelectAllWeeks');
+      var weekClear = document.getElementById('sipClearWeeks');
+      var weekCount = document.getElementById('sipWeekSelectionCount');
+      var weekBoxes = Array.prototype.slice.call(document.querySelectorAll('input[name="weekKeys"]'));
+      function syncWeekBoxes() {
+        var selected = weekBoxes.filter(function(box) { return box.checked; }).length;
+        if (weekCount) weekCount.textContent = selected + ' selected';
+        weekBoxes.forEach(function(box) { if (box.closest('label')) box.closest('label').classList.toggle('selected', box.checked); });
+      }
+      function setWeekBoxes(checked) { weekBoxes.forEach(function(box) { box.checked = checked; }); syncWeekBoxes(); }
+      weekBoxes.forEach(function(box) { box.addEventListener('change', syncWeekBoxes); });
+      if (weekSelectAll) weekSelectAll.addEventListener('click', function() { setWeekBoxes(true); });
+      if (weekClear) weekClear.addEventListener('click', function() { setWeekBoxes(false); });
+
+      var termSelect = document.querySelector('.sip-pitis-filter select[name="term"]');
+      if (termSelect) termSelect.addEventListener('change', function() {
+        weekBoxes.forEach(function(box) { box.disabled = true; });
+        var weekFilter = document.querySelector('.sip-pitis-filter input[name="weekFilter"]');
+        if (weekFilter) weekFilter.disabled = true;
+        termSelect.form.submit();
+      });
     })();
   </script>
   <% if (printMode) { %><script>window.print();</script><% } %>
