@@ -111,7 +111,7 @@ function createApp(config) {
     const hostHeader = String(req.headers.host || "").trim();
     const hostName = hostHeader.replace(/:\d+$/, "") || config.publicIp || config.publicHostname || "localhost";
     const httpsHost = config.httpsPort === 443 ? hostName : `${hostName}:${config.httpsPort}`;
-    res.locals.classCompassUrl = config.classCompassUrl || `http://${hostName}:4173`;
+    res.locals.classCompassUrl = 'https://classcompass.srkupang.com';
     res.locals.securitySetup = {
       caDownloadPath: "/downloads/school-portal-root-ca.crt",
       installHelpPath: "/security/certificate",
