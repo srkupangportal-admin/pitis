@@ -1886,9 +1886,22 @@ function migratePointLogsTable() {
     WHERE award_mode = 'weekly' AND award_day IS NULL;
 
     DROP INDEX IF EXISTS idx_point_logs_weekly_award_once;
-    CREATE UNIQUE INDEX IF NOT EXISTS idx_point_logs_weekly_award_once_per_day
-    ON point_logs (awarded_by, student_id, award_day)
-    WHERE award_mode = 'weekly' AND award_day IS NOT NULL;
+    DROP INDEX IF EXISTS idx_point_logs_weekly_award_once_per_day;
+    DROP TRIGGER IF EXISTS prevent_more_than_three_weekly_awards_per_day;
+    CREATE TRIGGER prevent_more_than_three_weekly_awards_per_day
+    BEFORE INSERT ON point_logs
+    WHEN NEW.award_mode = 'weekly' AND NEW.award_day IS NOT NULL
+      AND (
+        SELECT COUNT(*)
+        FROM point_logs
+        WHERE awarded_by = NEW.awarded_by
+          AND student_id = NEW.student_id
+          AND award_mode = 'weekly'
+          AND award_day = NEW.award_day
+      ) >= 3
+    BEGIN
+      SELECT RAISE(ABORT, 'Weekly PITIS limit reached: a student can receive at most three awards from the same teacher on the selected date.');
+    END;
   `);
 }
 

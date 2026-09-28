@@ -2053,19 +2053,21 @@ router.post("/reward/award", async (req, res) => {
 
 
   if (awardMode === "weekly") {
-    const alreadyAwarded = db.prepare(`
-      SELECT s.id, COALESCE(NULLIF(s.name, ''), s.full_name) AS nickname
+    const studentsAtWeeklyLimit = db.prepare(`
+      SELECT s.id, COALESCE(NULLIF(s.name, ''), s.full_name) AS nickname, COUNT(*) AS award_count
       FROM point_logs pl
       JOIN students s ON s.id = pl.student_id
       WHERE pl.awarded_by = ?
         AND pl.award_mode = 'weekly'
         AND pl.award_day = ?
         AND pl.student_id IN (${placeholders})
+      GROUP BY s.id, s.name, s.full_name
+      HAVING COUNT(*) >= 3
       ORDER BY nickname COLLATE NOCASE
     `).all(awardedByUserId, awardDay, ...studentIds);
-    if (alreadyAwarded.length) {
-      const names = alreadyAwarded.map((student) => student.nickname).join(", ");
-      return res.status(409).send(`Weekly PITIS has already been awarded for ${awardDay} to: ${names}`);
+    if (studentsAtWeeklyLimit.length) {
+      const names = studentsAtWeeklyLimit.map((student) => student.nickname).join(", ");
+      return res.status(409).send(`Weekly PITIS has reached the maximum of 3 awards for ${awardDay} for: ${names}`);
     }
   }
 
@@ -2083,12 +2085,19 @@ router.post("/reward/award", async (req, res) => {
     ? buildTeacherProgressSummary(awardedByUserId, { asOf: awardDate }).currentTeacher
     : null;
 
-  db.transaction(() => {
-    students.forEach((student) => {
-      insertPointLog.run(student.id, Number(student.class_id), points, reason, awardedByUserId, now, awardMode, awardWeekStart, awardDay);
-      updateDailySnapshot(student.id);
-    });
-  })();
+  try {
+    db.transaction(() => {
+      students.forEach((student) => {
+        insertPointLog.run(student.id, Number(student.class_id), points, reason, awardedByUserId, now, awardMode, awardWeekStart, awardDay);
+        updateDailySnapshot(student.id);
+      });
+    })();
+  } catch (error) {
+    if (String(error && error.message).includes("Weekly PITIS limit reached")) {
+      return res.status(409).send(error.message);
+    }
+    throw error;
+  }
 
   const actionLabel = action === "deduct" ? "Deducted" : "Awarded";
   const attribution = req.session.user.role === "admin"

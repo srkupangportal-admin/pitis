@@ -153,14 +153,13 @@ router.post("/api/transactions", (req, res) => {
   if (!student) return res.status(404).json({ error: "Student was not found in that class." });
 
   if (awardMode === "weekly") {
-    const existingWeeklyAward = db.prepare(`
-      SELECT id FROM point_logs
+    const weeklyAwardCount = db.prepare(`
+      SELECT COUNT(*) AS total FROM point_logs
       WHERE awarded_by = ? AND student_id = ?
         AND award_mode = 'weekly' AND award_day = ?
-      LIMIT 1
     `).get(req.session.user.id, student.id, awardDay);
-    if (existingWeeklyAward) {
-      return res.status(409).json({ error: `${student.nickname} has already received your weekly PITIS award for ${awardDay}.` });
+    if (Number(weeklyAwardCount.total || 0) >= 3) {
+      return res.status(409).json({ error: `${student.nickname} has reached the maximum of 3 weekly PITIS awards for ${awardDay}.` });
     }
   }
 
@@ -208,6 +207,9 @@ router.post("/api/transactions", (req, res) => {
     save();
   } catch (error) {
     if (error && error.code === "REASON_TYPE_CONFLICT") return res.status(409).json({ error: error.message });
+    if (String(error && error.message).includes("Weekly PITIS limit reached")) {
+      return res.status(409).json({ error: error.message });
+    }
     throw error;
   }
 
