@@ -124,7 +124,8 @@ router.post("/api/scan", (req, res) => {
 
 router.post("/api/transactions", (req, res) => {
   const classId = Number(req.body.class_id);
-  const studentId = Number(req.body.student_id);
+  const rawStudentIds = Array.isArray(req.body.student_ids) ? req.body.student_ids : (req.body.student_ids ? [req.body.student_ids] : [req.body.student_id]);
+  const studentIds = [...new Set(rawStudentIds.map(Number).filter((id) => Number.isInteger(id) && id > 0))];
   const action = String(req.body.action || "").trim().toLowerCase();
   const requestedAwardMode = String(req.body.award_mode || "standard").trim().toLowerCase();
   const requestedAwardDate = String(req.body.award_date || "").trim();
@@ -132,8 +133,8 @@ router.post("/api/transactions", (req, res) => {
   const reasonId = Number(req.body.reason_id || 0);
   const customReason = String(req.body.custom_reason || "").trim().replace(/\s+/g, " ");
 
-  if (!Number.isInteger(classId) || classId < 1 || !Number.isInteger(studentId) || studentId < 1) {
-    return res.status(400).json({ error: "Choose a class and student." });
+  if (!Number.isInteger(classId) || classId < 1 || !studentIds.length) {
+    return res.status(400).json({ error: "Choose a class and at least one student." });
   }
   if (!["award", "deduct"].includes(action)) return res.status(400).json({ error: "Choose Award or Deduct." });
   const weeklyValidation = validateWeeklyPitisRequest({ mode: requestedAwardMode, action, awardDate: requestedAwardDate });
@@ -146,20 +147,27 @@ router.post("/api/transactions", (req, res) => {
   }
   if (customReason.length > 120) return res.status(400).json({ error: "Reason must be 120 characters or fewer." });
 
-  const student = db.prepare(`
+  const placeholders = studentIds.map(() => "?").join(",");
+  const students = db.prepare(`
     SELECT id, class_id, COALESCE(NULLIF(name, ''), full_name) AS nickname
-    FROM students WHERE id = ? AND class_id = ?
-  `).get(studentId, classId);
-  if (!student) return res.status(404).json({ error: "Student was not found in that class." });
+    FROM students WHERE class_id = ? AND id IN (${placeholders})
+    ORDER BY nickname COLLATE NOCASE
+  `).all(classId, ...studentIds);
+  if (students.length !== studentIds.length) return res.status(404).json({ error: "One or more selected students were not found in that class." });
 
   if (awardMode === "weekly") {
-    const weeklyAwardCount = db.prepare(`
-      SELECT COUNT(*) AS total FROM point_logs
-      WHERE awarded_by = ? AND student_id = ?
-        AND award_mode = 'weekly' AND award_day = ?
-    `).get(req.session.user.id, student.id, awardDay);
-    if (Number(weeklyAwardCount.total || 0) >= 3) {
-      return res.status(409).json({ error: `${student.nickname} has reached the maximum of 3 weekly PITIS awards for ${awardDay}.` });
+    const studentsAtLimit = db.prepare(`
+      SELECT s.nickname
+      FROM point_logs pl
+      JOIN (SELECT id, COALESCE(NULLIF(name, ''), full_name) AS nickname FROM students) s ON s.id = pl.student_id
+      WHERE pl.awarded_by = ? AND pl.award_mode = 'weekly' AND pl.award_day = ?
+        AND pl.student_id IN (${placeholders})
+      GROUP BY pl.student_id, s.nickname
+      HAVING COUNT(*) >= 3
+      ORDER BY s.nickname COLLATE NOCASE
+    `).all(req.session.user.id, awardDay, ...studentIds);
+    if (studentsAtLimit.length) {
+      return res.status(409).json({ error: `Weekly PITIS has reached the maximum of 3 awards for ${awardDay} for: ${studentsAtLimit.map((student) => student.nickname).join(", ")}` });
     }
   }
 
@@ -196,11 +204,14 @@ router.post("/api/transactions", (req, res) => {
         createdReasonId = Number(inserted.lastInsertRowid);
       }
     }
-    db.prepare(`
+    const insertPointLog = db.prepare(`
       INSERT INTO point_logs (student_id, class_id, points, reason, awarded_by, awarded_at, award_mode, award_week_start, award_day)
       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
-    `).run(student.id, student.class_id, points, reason, req.session.user.id, now, awardMode, awardWeekStart, awardDay);
-    updateDailySnapshot(student.id);
+    `);
+    students.forEach((student) => {
+      insertPointLog.run(student.id, student.class_id, points, reason, req.session.user.id, now, awardMode, awardWeekStart, awardDay);
+      updateDailySnapshot(student.id);
+    });
   });
 
   try {
@@ -213,11 +224,15 @@ router.post("/api/transactions", (req, res) => {
     throw error;
   }
 
-  const total = Number(db.prepare("SELECT COALESCE(SUM(points), 0) AS total FROM point_logs WHERE student_id = ?").get(student.id).total || 0);
-  recordPwaActivity(req.session.user.id, "transaction_count", Number(student.class_id));
+  const totals = db.prepare(`SELECT student_id, COALESCE(SUM(points), 0) AS total_points FROM point_logs WHERE student_id IN (${placeholders}) GROUP BY student_id`).all(...studentIds);
+  const totalsByStudent = new Map(totals.map((row) => [Number(row.student_id), Number(row.total_points || 0)]));
+  const awardedStudents = students.map((student) => ({ id: student.id, name: student.nickname, total_points: totalsByStudent.get(Number(student.id)) || 0 }));
+  recordPwaActivity(req.session.user.id, "transaction_count", classId);
   return res.status(201).json({
     ok: true,
-    student: { id: student.id, name: student.nickname, total_points: total },
+    students: awardedStudents,
+    student: awardedStudents[0],
+    count: awardedStudents.length,
     transaction: { action, amount, points, reason, award_mode: awardMode, award_week_start: awardWeekStart, award_day: awardDay },
     reason: customReason ? { id: createdReasonId, reason, reason_type: reasonType, is_custom: 1 } : null
   });

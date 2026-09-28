@@ -41,6 +41,10 @@
     <section class="step-card">
       <label for="studentSelect"><span>2</span> Select student</label>
       <select id="studentSelect" disabled><option value="">Select a class first</option></select>
+      <div class="student-selection-actions">
+        <button type="button" id="multiSelectToggle" class="selection-toggle" disabled>Select multiple students</button>
+        <span id="studentSelectionHint" class="muted"></span>
+      </div>
       <article id="studentCard" class="student-card" hidden>
         <img id="studentAvatar" src="/images/student-placeholder.svg" alt="">
         <div><strong id="studentName"></strong><small id="studentFullName"></small></div>

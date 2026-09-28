@@ -1,6 +1,6 @@
 (() => {
   'use strict';
-  const state = { reasons: [], students: [], action: '', amount: 0, mode: 'standard', weeklyPitis: null };
+  const state = { reasons: [], students: [], action: '', amount: 0, mode: 'standard', weeklyPitis: null, multiple: false };
   const byId = (id) => document.getElementById(id);
   const classSelect = byId('classSelect');
   const studentSelect = byId('studentSelect');
@@ -66,18 +66,22 @@
     statusMessage.className = `status-message ${type}`.trim();
   }
 
-  function selectedStudent() {
-    return state.students.find((student) => Number(student.id) === Number(studentSelect.value));
+  function selectedStudents() {
+    return Array.from(studentSelect.selectedOptions)
+      .map((option) => state.students.find((student) => Number(student.id) === Number(option.value)))
+      .filter(Boolean);
   }
 
   function updateStudentCard() {
-    const student = selectedStudent();
-    byId('studentCard').hidden = !student;
+    const students = selectedStudents();
+    const student = students[0];
+    byId('studentCard').hidden = !students.length;
+    byId('studentSelectionHint').textContent = students.length ? `${students.length} student${students.length === 1 ? '' : 's'} selected` : '';
     if (!student) return updateReviewState();
-    byId('studentName').textContent = student.nickname;
+    byId('studentName').textContent = students.length === 1 ? student.nickname : `${students.length} students selected`;
     byId('studentFullName').textContent = '';
-    byId('studentTotal').textContent = `${Number(student.total_points || 0)} PITIS`;
-    byId('studentAvatar').src = student.photo_src || '/images/student-placeholder.svg';
+    byId('studentTotal').textContent = students.length === 1 ? `${Number(student.total_points || 0)} PITIS` : 'Ready to award';
+    byId('studentAvatar').src = students.length === 1 ? (student.photo_src || '/images/student-placeholder.svg') : '/images/pitis-icon-192.png';
     updateReviewState();
   }
 
@@ -93,7 +97,7 @@
   function updateReviewState() {
     const hasReason = customToggle.checked ? customReason.value.trim().length > 0 : Number(reasonSelect.value) > 0;
     const hasAwardDate = state.mode !== 'weekly' || /^\d{4}-\d{2}-\d{2}$/.test(byId('weeklyAwardDate').value);
-    reviewButton.disabled = !(Number(classSelect.value) && Number(studentSelect.value) && state.action && state.amount && hasReason && hasAwardDate);
+    reviewButton.disabled = !(Number(classSelect.value) && selectedStudents().length && state.action && state.amount && hasReason && hasAwardDate);
   }
 
   async function rememberClass() {
@@ -117,6 +121,7 @@
       return updateReviewState();
     }
     studentSelect.disabled = true;
+    byId('multiSelectToggle').disabled = true;
     option(studentSelect, '', 'Loading students…');
     try {
       const data = await request(`/pwa/api/classes/${classId}/students`);
@@ -125,12 +130,24 @@
       option(studentSelect, '', 'Select student');
       state.students.forEach((student) => option(studentSelect, student.id, `${student.nickname} — ${student.total_points} PITIS`));
       studentSelect.disabled = false;
+      byId('multiSelectToggle').disabled = false;
     } catch (error) {
       studentSelect.innerHTML = '';
       option(studentSelect, '', 'Unable to load students');
       showStatus(error.message, 'error');
     }
     updateReviewState();
+  }
+
+  function setMultipleSelection(enabled) {
+    const selected = selectedStudents();
+    state.multiple = Boolean(enabled);
+    studentSelect.multiple = state.multiple;
+    studentSelect.size = state.multiple ? Math.min(Math.max(state.students.length, 3), 7) : 1;
+    if (!state.multiple && selected.length) studentSelect.value = String(selected[0].id);
+    byId('multiSelectToggle').textContent = state.multiple ? 'Select one student' : 'Select multiple students';
+    byId('multiSelectToggle').classList.toggle('active', state.multiple);
+    updateStudentCard();
   }
 
   async function stopScanner() {
@@ -149,6 +166,7 @@
       await stopScanner();
       classSelect.value = String(data.student.class_id);
       await loadStudents(true);
+      setMultipleSelection(false);
       studentSelect.value = String(data.student.id);
       updateStudentCard();
       scanDialog.close();
@@ -215,6 +233,7 @@
 
   classSelect.addEventListener('change', () => loadStudents(true));
   studentSelect.addEventListener('change', updateStudentCard);
+  byId('multiSelectToggle').addEventListener('click', () => setMultipleSelection(!state.multiple));
   reasonSelect.addEventListener('change', updateReviewState);
   customReason.addEventListener('input', updateReviewState);
   customToggle.addEventListener('change', () => {
@@ -225,11 +244,12 @@
   });
 
   reviewButton.addEventListener('click', () => {
-    const student = selectedStudent();
+    const students = selectedStudents();
     const selectedReason = customToggle.checked ? customReason.value.trim() : reasonSelect.options[reasonSelect.selectedIndex].textContent;
     const verb = state.action === 'award' ? 'Award' : 'Deduct';
     const weeklyText = state.mode === 'weekly' ? ` for ${byId('weeklyAwardDate').value}` : '';
-    byId('confirmSummary').textContent = `${verb} ${state.amount} PITIS ${state.action === 'award' ? 'to' : 'from'} ${student.nickname}${weeklyText} for “${selectedReason}”?`;
+    const names = students.length === 1 ? students[0].nickname : `${students.length} selected students`;
+    byId('confirmSummary').textContent = `${verb} ${state.amount} PITIS ${state.action === 'award' ? 'to' : 'from'} ${names}${weeklyText} for “${selectedReason}”?`;
     dialog.showModal();
   });
 
@@ -241,7 +261,7 @@
     try {
       const payload = {
         class_id: Number(classSelect.value),
-        student_id: Number(studentSelect.value),
+        student_ids: selectedStudents().map((student) => Number(student.id)),
         action: state.action,
         amount: state.amount,
         reason_id: customToggle.checked ? null : Number(reasonSelect.value),
@@ -250,13 +270,15 @@
         award_date: state.mode === 'weekly' ? byId('weeklyAwardDate').value : null
       };
       const data = await request('/pwa/api/transactions', { method: 'POST', body: JSON.stringify(payload) });
-      const student = selectedStudent();
-      student.total_points = data.student.total_points;
+      (data.students || []).forEach((savedStudent) => {
+        const student = state.students.find((item) => Number(item.id) === Number(savedStudent.id));
+        if (student) student.total_points = savedStudent.total_points;
+      });
       updateStudentCard();
       if (data.reason && !state.reasons.some((reason) => Number(reason.id) === Number(data.reason.id))) state.reasons.push(data.reason);
       const sign = data.transaction.points > 0 ? '+' : '';
       const savedLabel = data.transaction.award_mode === 'weekly' ? ' weekly PITIS saved.' : ' PITIS saved.';
-      showStatus(`${data.student.name}: ${sign}${data.transaction.points}${savedLabel}`, 'success');
+      showStatus(`${data.count || 1} student${Number(data.count || 1) === 1 ? '' : 's'}: ${sign}${data.transaction.points}${savedLabel}`, 'success');
       customReason.value = '';
       customToggle.checked = false;
       customReason.hidden = true;
