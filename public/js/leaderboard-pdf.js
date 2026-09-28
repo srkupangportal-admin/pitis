@@ -65,7 +65,7 @@
       + recognitionCard("Most Active", mostActive, Number(mostActive && mostActive.weekly_award_count || 0) + " positive awards");
     if (!rows.length) remaining = '<p class="empty">No leaderboard records.</p>';
     return '<section class="leaderboard-poster">'
-      + '<header><img class="school-mark" src="' + escapeHtml(new URL('/images/brunei-school-logo.jpg', window.location.origin).href) + '" alt="School logo"><div><small>SEKOLAH RENDAH O.K.A.W.S.D KUPANG</small>'
+      + '<header><img class="school-mark" src="' + escapeHtml(new URL('/images/school-logo-blue.jpeg', window.location.origin).href) + '" alt="School logo"><div><small>SEKOLAH RENDAH O.K.A.W.S.D KUPANG</small>'
       + '<h1>P.I.T.I.S LEADERS</h1><h2>' + escapeHtml(section.name || "Leaderboard") + '</h2></div>'
       + '<div class="generated">Noticeboard Edition<br>Leaderboard up to ' + escapeHtml(reportDate || new Date().toLocaleDateString()) + '</div></header>'
       + '<div class="poster-layout"><main>'

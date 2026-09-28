@@ -3293,7 +3293,7 @@ router.post("/calendar/add", calendarAttachmentUpload, (req, res) => {
   tx();
   saveCalendarAttachments(eventId, title, req.files, req.session.user.id);
   synchronizeManualNonSchoolEvents(req.session.user.id);
-  taggedUserIds.forEach(userId => notifyUser(userId, { type: "calendar_tag", title: "Calendar", message: `You were added to ${title}.`, url: `/teacher/calendar?event=${eventId}`, entityType: "calendar_event", entityId: eventId, createdBy: req.session.user.id }));
+  taggedUserIds.forEach(userId => notifyUser(userId, { type: "calendar_tag", title: "Calendar", message: `You were tagged for ${title}. Open the notification to view the full event details.`, url: `/teacher/calendar?event=${eventId}`, entityType: "calendar_event", entityId: eventId, createdBy: req.session.user.id }));
   scheduleEvent(eventId, includesBirthdayLabel(labelIds) ? [] : taggedUserIds, eventDate, String(req.body.event_time || "09:00"));
   const monthKey = dayjs(eventDate).format("YYYY-MM");
   res.redirect(`/teacher/calendar?month=${monthKey}&success=${encodeURIComponent("Event created")}`);
@@ -3345,7 +3345,7 @@ router.post("/calendar/update/:eventId", calendarAttachmentUpload, (req, res) =>
   tx();
   saveCalendarAttachments(eventId, title, req.files, req.session.user.id);
   synchronizeManualNonSchoolEvents(req.session.user.id);
-  newlyTagged.forEach(userId => notifyUser(userId, { type: "calendar_tag", title: "Calendar", message: `You were added to ${title}.`, url: `/teacher/calendar?event=${eventId}`, entityType: "calendar_event", entityId: eventId, createdBy: req.session.user.id }));
+  newlyTagged.forEach(userId => notifyUser(userId, { type: "calendar_tag", title: "Calendar", message: `You were tagged for ${title}. Open the notification to view the full event details.`, url: `/teacher/calendar?event=${eventId}`, entityType: "calendar_event", entityId: eventId, createdBy: req.session.user.id }));
   scheduleEvent(eventId, includesBirthdayLabel(labelIds) ? [] : taggedUserIds, eventDate, String(req.body.event_time || "09:00"));
   const monthKey = dayjs(eventDate).format("YYYY-MM");
   return res.redirect(`/teacher/calendar?month=${monthKey}&success=${encodeURIComponent("Event updated")}`);

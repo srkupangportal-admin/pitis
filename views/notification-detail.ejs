@@ -9,13 +9,22 @@
 <body>
   <%- include('partials/main-header-card') %>
   <main class="container notification-detail-page">
-    <% const isNoAward = notification.type === 'pitis_0930_reminder'; const isFirstAward = notification.type === 'pitis_first_award'; %>
-    <article class="notification-detail-card <%= isNoAward ? 'notification-detail-reminder' : isFirstAward ? 'notification-detail-celebration' : '' %>">
+    <% const isNoAward = notification.type === 'pitis_0930_reminder'; const isFirstAward = notification.type === 'pitis_first_award'; const isCalendarTag = notification.type === 'calendar_tag'; %>
+    <article class="notification-detail-card <%= isNoAward ? 'notification-detail-reminder' : isFirstAward ? 'notification-detail-celebration' : isCalendarTag ? 'notification-detail-calendar' : '' %>">
       <a class="notification-detail-back" href="/notifications">← Notifications</a>
-      <div class="notification-detail-icon" aria-hidden="true"><%= isNoAward ? '★' : isFirstAward ? '★' : '●' %></div>
-      <p class="notification-detail-kicker"><%= isNoAward ? 'PITIS REMINDER' : isFirstAward ? 'FIRST PITIS AWARD' : 'PITIS UPDATE' %></p>
-      <h1><%= notification.title %></h1>
-      <p class="notification-detail-message"><%= notification.message %></p>
+      <div class="notification-detail-icon" aria-hidden="true"><%= isNoAward ? '★' : isFirstAward ? '★' : isCalendarTag ? '⌁' : '●' %></div>
+      <p class="notification-detail-kicker"><%= isNoAward ? 'PITIS REMINDER' : isFirstAward ? 'FIRST PITIS AWARD' : isCalendarTag ? 'CALENDAR UPDATE' : 'PITIS UPDATE' %></p>
+      <h1><%= isCalendarTag ? 'You were tagged for this event' : notification.title %></h1>
+      <% if (isCalendarTag && calendarEvent) { %>
+        <section class="notification-detail-event-card" aria-label="Calendar event details">
+          <strong><%= calendarEvent.title %></strong>
+          <span class="notification-detail-event-date"><%= calendarEventDate %></span>
+          <% if (calendarEvent.details) { %><span class="notification-detail-event-notes"><%= calendarEvent.details %></span><% } %>
+        </section>
+        <p class="notification-detail-message">You were tagged for <strong><%= calendarEvent.title %></strong>. Open the calendar to view the full event details.</p>
+      <% } else { %>
+        <p class="notification-detail-message"><%= notification.message %></p>
+      <% } %>
       <div class="notification-detail-time">Today’s message · <%= createdAt %></div>
       <% if (isNoAward) { %>
         <aside class="notification-detail-callout">Take a moment to recognise positive effort, kindness or progress.</aside>
@@ -25,6 +34,8 @@
         <aside class="notification-detail-callout">A strong start builds a positive learning day.</aside>
         <a class="btn notification-detail-primary" href="/teacher/dashboard#pitis-progress">View PITIS Progress</a>
         <a class="btn secondary notification-detail-secondary" href="/pwa">Open PITIS</a>
+      <% } else if (isCalendarTag) { %>
+        <a class="btn notification-detail-primary" href="<%= notification.url %>">View Calendar</a>
       <% } else { %>
         <a class="btn notification-detail-primary" href="<%= notification.url %>">Open related page</a>
       <% } %>
