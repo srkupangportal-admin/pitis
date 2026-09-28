@@ -7356,11 +7356,36 @@ textarea {
   line-height: 1;
 }
 
+/* Leadership-first SIP weekly progress view, using the existing transaction audit. */
+.sip-kpi-grid-hero { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+.sip-kpi-grid-hero .sip-kpi { min-height: 132px; padding: 1.1rem 1.2rem; border-top: 4px solid #1e3c70; }
+.sip-kpi-grid-hero .sip-kpi-teal { border-top-color: #249e9d; }
+.sip-kpi-grid-hero .sip-kpi-gold { border-top-color: #d89a16; }
+.sip-kpi small { font-size: .58em; font-weight: 700; color: var(--muted); }
+.sip-kpi em { color: var(--muted); font-size: .82rem; font-style: normal; line-height: 1.35; }
+.sip-progress-hero { padding: 1.25rem; }
+.sip-progress-heading { display: flex; align-items: end; justify-content: space-between; gap: 1rem; margin-bottom: .85rem; }
+.sip-progress-heading h3 { margin: .15rem 0 0; }
+.sip-progress-heading strong { color: #183967; font-size: 1.65rem; white-space: nowrap; }
+.sip-progress-heading small { color: var(--muted); font-size: .75rem; }
+.sip-progress-track { position: relative; height: 20px; overflow: visible; border-radius: 999px; background: #e6edf2; }
+.sip-progress-fill { display: block; height: 100%; border-radius: inherit; background: linear-gradient(90deg, #2aa8a7, #49c3bd); }
+.sip-progress-marker { position: absolute; top: -8px; bottom: -8px; width: 3px; background: #d89a16; }
+.sip-progress-marker b { position: absolute; top: 27px; right: -20px; color: #9a6500; font-size: .76rem; white-space: nowrap; }
+.sip-progress-hero p { margin: 2rem 0 0; }
+
 .sip-dashboard-grid {
   display: grid;
-  grid-template-columns: minmax(240px, 0.8fr) minmax(320px, 1.4fr);
+  grid-template-columns: minmax(320px, 1.8fr) minmax(230px, .7fr);
   gap: 1rem;
 }
+
+.sip-dashboard-grid .sip-target-card { display: none; }
+.sip-this-week-card { display: grid; align-content: start; gap: .6rem; }
+.sip-this-week-card h3 { margin: 0 0 .25rem; }
+.sip-this-week-stat { display: flex; justify-content: space-between; align-items: center; gap: .7rem; padding: .7rem .1rem; border-bottom: 1px solid var(--border); }
+.sip-this-week-stat span { color: var(--muted); font-size: .85rem; }
+.sip-this-week-stat strong { color: #183967; font-size: 1.1rem; white-space: nowrap; }
 
 .sip-target-card,
 .sip-weekly-card,
@@ -7406,7 +7431,7 @@ textarea {
 
 .sip-week-bar {
   display: grid;
-  grid-template-rows: 1fr auto;
+  grid-template-rows: auto 1fr auto;
   gap: 0.35rem;
   min-width: 34px;
   height: 180px;
@@ -7428,7 +7453,7 @@ textarea {
   min-height: 2px;
 }
 
-.sip-week-stack .met { background: #17803d; }
+.sip-week-stack .met { background: linear-gradient(180deg, #57c8c0, #249e9d); }
 .sip-week-stack .missed { background: #c83f3f; }
 
 .sip-legend {
@@ -7519,6 +7544,8 @@ textarea {
   cursor: pointer;
   font-weight: 700;
 }
+
+.sip-week-bar > strong { color: #183967; font-size: .76rem; }
 
 .sip-teacher-week-detail {
   border: 1px solid var(--border);
@@ -7632,6 +7659,10 @@ textarea {
 }
 
 @media (max-width: 820px) {
+  .sip-kpi-grid-hero {
+    grid-template-columns: 1fr;
+  }
+
   .sip-dashboard-grid {
     grid-template-columns: 1fr;
   }
@@ -7640,6 +7671,12 @@ textarea {
   .calendar-header-row.report-header-row {
     align-items: stretch;
   }
+}
+
+@media (max-width: 520px) {
+  .sip-progress-heading { align-items: flex-start; flex-direction: column; }
+  .sip-progress-marker b { right: -3px; }
+  .sip-kpi-grid-hero .sip-kpi { min-height: 108px; }
 }
 
 @media print {
@@ -9313,10 +9350,11 @@ tbody tr:hover { background: #faf8f2; }
   .portal-sidebar h1::before { width: 34px; height: 39px; font-size: .72rem; }
 }
 .notification-bell{position:relative}.notification-bell [data-notification-count]{position:absolute;right:2px;top:2px;min-width:19px;height:19px;padding:0 5px;border-radius:10px;background:#c83939;color:#fff;font-size:11px;line-height:19px}.notification-heading{display:flex;justify-content:space-between;gap:16px;align-items:center}.notification-item{display:grid;gap:4px;padding:15px;border-bottom:1px solid #dde4eb;color:inherit;text-decoration:none}.notification-item.unread{border-left:4px solid #236a56;background:#eef8f3}.notification-item small{color:#6d7680}.notification-preferences{display:grid;gap:8px;margin:15px 0}.notification-option,.notification-device{display:flex;align-items:center;gap:10px;padding:11px;border:1px solid #dbe3e9;border-radius:10px}.notification-device{justify-content:space-between}
+.notification-detail-page{max-width:680px}.notification-detail-card{display:grid;justify-items:center;gap:18px;padding:clamp(24px,6vw,48px);text-align:center;border:1px solid #d8e2ee;border-radius:24px;background:#fff;box-shadow:0 14px 36px rgba(18,59,99,.12)}.notification-detail-back{justify-self:start;color:#123b63;font-weight:700;text-decoration:none}.notification-detail-icon{display:grid;place-items:center;width:96px;height:96px;border-radius:50%;background:#e8f2fc;color:#f1af12;font-size:52px;box-shadow:inset 0 0 0 10px #f6faff}.notification-detail-kicker{margin:0;padding:8px 16px;border-radius:999px;background:#fff0ce;color:#926400;font-size:.82rem;font-weight:800;letter-spacing:.09em}.notification-detail-card h1{margin:0;color:#123b63;font-size:clamp(1.8rem,6vw,2.7rem);line-height:1.12}.notification-detail-message{margin:0;max-width:510px;color:#526275;font-size:clamp(1.08rem,3.5vw,1.3rem);line-height:1.55}.notification-detail-time{width:100%;padding:14px;border-radius:14px;background:#eaf5ff;color:#123b63;font-weight:700}.notification-detail-callout{width:100%;padding:18px;border-radius:14px;background:#eaf7ee;color:#176337;font-size:1.05rem;font-weight:700;line-height:1.45}.notification-detail-primary,.notification-detail-secondary{width:min(100%,420px);padding:15px}.notification-detail-primary{background:#1268cb;color:#fff}.notification-detail-close{color:#1268cb;font-weight:700;text-decoration:none}.notification-detail-celebration .notification-detail-icon{background:#fff3d8}.notification-detail-reminder .notification-detail-icon{background:#fff7e7}@media(max-width:600px){.notification-detail-page{padding:12px}.notification-detail-card{border-radius:18px}.notification-detail-icon{width:80px;height:80px;font-size:42px}}
 .notification-optin{position:fixed;right:18px;bottom:18px;z-index:1200;display:grid;gap:9px;max-width:360px;padding:18px;border:1px solid #cbdad4;border-radius:16px;background:#fff;box-shadow:0 18px 55px #102a4340}.notification-optin>div{display:flex;gap:8px;flex-wrap:wrap}@media(max-width:600px){.notification-optin{left:12px;right:12px;bottom:12px}}
+.notification-install-guide{max-width:620px;margin:14px 0;padding:16px 18px;border:1px solid #bed6ec;border-radius:12px;background:#eef7ff}.notification-install-guide ol{margin:10px 0;padding-left:22px}.notification-install-guide li{margin:7px 0}.notification-install-guide[hidden]{display:none}
 .notification-user-table .status-badge{display:inline-block;padding:5px 9px;border-radius:999px;font-weight:700}.notification-user-table .status-good{background:#e3f4eb;color:#195e46}.notification-user-table .status-warning{background:#fff2d6;color:#805700}@media(max-width:700px){.notification-user-table th:nth-child(2),.notification-user-table td:nth-child(2),.notification-user-table th:nth-child(4),.notification-user-table td:nth-child(4){display:none}.notification-user-table .btn{white-space:normal}}
 .portal-date-picker-backdrop{position:fixed;inset:0;z-index:5000;display:flex;align-items:center;justify-content:center;padding:16px;background:rgba(10,32,26,.58)}.portal-date-picker-backdrop.hidden{display:none}.portal-date-picker{width:min(430px,100%);max-height:calc(100dvh - 32px);overflow:auto;padding:20px;border:1px solid #c9d6cf;border-radius:24px;background:#fffdf8;box-shadow:0 24px 70px rgba(10,32,26,.35)}.portal-date-picker-heading,.portal-date-picker-month-nav,.portal-date-picker-actions{display:flex;align-items:center;gap:12px}.portal-date-picker-heading{justify-content:space-between}.portal-date-picker-heading div{display:grid;gap:5px}.portal-date-picker-heading strong{font-size:clamp(1.45rem,7vw,2.1rem);color:#173f33}.portal-date-picker-close,.portal-date-picker-month-nav button,.portal-date-picker-day{border:0;background:transparent;color:#173f33;cursor:pointer}.portal-date-picker-close{width:44px;height:44px;font-size:2rem}.portal-date-picker-month-nav{justify-content:space-between;margin:20px 0 12px}.portal-date-picker-month-nav button{width:44px;height:44px;border:1px solid #d6dfda;border-radius:50%;font-size:2rem}.portal-date-picker-weekdays,.portal-date-picker-days{display:grid;grid-template-columns:repeat(7,minmax(0,1fr));gap:4px;text-align:center}.portal-date-picker-weekdays{margin-bottom:6px;font-size:.78rem;font-weight:800;color:#68766f}.portal-date-picker-day{aspect-ratio:1;border-radius:50%;font-size:1rem}.portal-date-picker-day.outside-month{color:#9ca7a1}.portal-date-picker-day.today{box-shadow:inset 0 0 0 2px #cca92c}.portal-date-picker-day.selected{background:#1b5a47;color:#fff;box-shadow:none}.portal-date-picker-day:disabled{opacity:.28;cursor:not-allowed}.portal-date-picker-actions{margin-top:18px}.portal-date-picker-actions span{flex:1}.portal-date-picker-open{overflow:hidden}@media(max-width:480px){.portal-date-picker-backdrop{align-items:flex-end;padding:8px}.portal-date-picker{width:100%;padding:18px 14px;border-radius:24px 24px 14px 14px}.portal-date-picker-actions .btn{min-width:0;padding-inline:14px}}
 .portal-date-picker-actions{flex-wrap:wrap}@media(max-width:480px){.portal-date-picker-actions{display:grid;grid-template-columns:repeat(2,minmax(0,1fr))}.portal-date-picker-actions span{display:none}.portal-date-picker-actions .btn{width:100%;padding-inline:10px}}
 .pitis-choice-group{margin:0;padding:0;border:0}.pitis-choice-group legend{margin-bottom:8px;font-weight:800}.pitis-choice-grid{display:grid;gap:10px}.pitis-action-grid{grid-template-columns:repeat(2,minmax(0,1fr))}.pitis-amount-grid{grid-template-columns:repeat(5,minmax(0,1fr))}.pitis-choice-grid label{cursor:pointer}.pitis-choice-grid input{position:absolute;opacity:0;pointer-events:none}.pitis-choice-grid span{display:flex;min-height:48px;align-items:center;justify-content:center;border:2px solid #cad7d1;border-radius:12px;background:#fff;color:#173f33;font-weight:800}.pitis-choice-grid input:checked+span{border-color:#1b5a47;background:#1b5a47;color:#fff;box-shadow:0 0 0 3px rgba(27,90,71,.14)}.pitis-choice-grid input:focus-visible+span{outline:3px solid #d3ae31;outline-offset:2px}@media(max-width:420px){.pitis-amount-grid{gap:6px}.pitis-choice-grid span{min-height:44px}}
 .reward-card-actions{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px;margin-top:12px}.reward-card-action{width:100%;min-width:0}.reward-card-action[data-action="deduct"]{border-color:#a94b45;color:#862f2a;background:#fff7f6}.reward-card-action[data-action="deduct"]:hover{background:#fbe6e3}@media(max-width:420px){.reward-card-actions{gap:6px}.reward-card-action{padding-inline:8px}}
-.notification-install-guide{max-width:620px;margin:14px 0;padding:16px 18px;border:1px solid #bed6ec;border-radius:12px;background:#eef7ff}.notification-install-guide ol{margin:10px 0;padding-left:22px}.notification-install-guide li{margin:7px 0}.notification-install-guide[hidden]{display:none}

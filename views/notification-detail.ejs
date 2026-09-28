@@ -1,0 +1,35 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title><%= title %></title>
+  <link rel="stylesheet" href="/css/theme-c.css">
+</head>
+<body>
+  <%- include('partials/main-header-card') %>
+  <main class="container notification-detail-page">
+    <% const isNoAward = notification.type === 'pitis_0930_reminder'; const isFirstAward = notification.type === 'pitis_first_award'; %>
+    <article class="notification-detail-card <%= isNoAward ? 'notification-detail-reminder' : isFirstAward ? 'notification-detail-celebration' : '' %>">
+      <a class="notification-detail-back" href="/notifications">← Notifications</a>
+      <div class="notification-detail-icon" aria-hidden="true"><%= isNoAward ? '★' : isFirstAward ? '★' : '●' %></div>
+      <p class="notification-detail-kicker"><%= isNoAward ? 'PITIS REMINDER' : isFirstAward ? 'FIRST PITIS AWARD' : 'PITIS UPDATE' %></p>
+      <h1><%= notification.title %></h1>
+      <p class="notification-detail-message"><%= notification.message %></p>
+      <div class="notification-detail-time">Today’s message · <%= createdAt %></div>
+      <% if (isNoAward) { %>
+        <aside class="notification-detail-callout">Take a moment to recognise positive effort, kindness or progress.</aside>
+        <a class="btn notification-detail-primary" href="/pwa">Make a PITIS Award</a>
+        <a class="btn secondary notification-detail-secondary" href="/teacher/dashboard#pitis-progress">View My Progress</a>
+      <% } else if (isFirstAward) { %>
+        <aside class="notification-detail-callout">A strong start builds a positive learning day.</aside>
+        <a class="btn notification-detail-primary" href="/teacher/dashboard#pitis-progress">View PITIS Progress</a>
+        <a class="btn secondary notification-detail-secondary" href="/pwa">Open PITIS</a>
+      <% } else { %>
+        <a class="btn notification-detail-primary" href="<%= notification.url %>">Open related page</a>
+      <% } %>
+      <a class="notification-detail-close" href="/notifications">Close</a>
+    </article>
+  </main>
+</body>
+</html>

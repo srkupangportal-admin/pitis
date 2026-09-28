@@ -1,5 +1,5 @@
 self.addEventListener('install', (event) => {
-  event.waitUntil(caches.open('srk-portal-shell-v6').then((cache) => cache.addAll([
+  event.waitUntil(caches.open('srk-portal-shell-v7').then((cache) => cache.addAll([
     '/offline.html',
     '/manifest.webmanifest',
     '/pwa-manifest.webmanifest',
@@ -17,7 +17,7 @@ self.addEventListener('install', (event) => {
 });
 self.addEventListener('activate', (event) => {
   event.waitUntil(caches.keys().then((keys) => Promise.all(keys
-    .filter((key) => key.startsWith('srk-portal-shell-') && key !== 'srk-portal-shell-v6')
+    .filter((key) => key.startsWith('srk-portal-shell-') && key !== 'srk-portal-shell-v7')
     .map((key) => caches.delete(key)))));
   self.clients.claim();
 });
@@ -33,7 +33,7 @@ self.addEventListener('fetch', (event) => {
     event.respondWith(caches.match(event.request).then((cached) => cached || fetch(event.request).then((response) => {
       if (!response.ok) return response;
       const copy = response.clone();
-      caches.open('srk-portal-shell-v6').then((cache) => cache.put(event.request, copy));
+      caches.open('srk-portal-shell-v7').then((cache) => cache.put(event.request, copy));
       return response;
     })));
   }
